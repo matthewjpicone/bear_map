@@ -58,7 +58,7 @@
     {
       "id": "Castle 9",
       "player": "我老婆婆",
-      "power": 4180002530,
+      "power": 4180002529,
       "player_level": 26,
       "command_centre_level": 0,
       "attendance": null,
@@ -267,7 +267,7 @@
       "command_centre_level": 0,
       "attendance": null,
       "rallies_30min": 0,
-      "preference": "both",
+      "preference": "Both",
       "current_trap": null,
       "recommended_trap": null,
       "priority": 18,

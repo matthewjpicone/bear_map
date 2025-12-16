@@ -20,29 +20,27 @@
   <button>Placeholder 2</button>
   <button>Placeholder 3</button>
   <button>Placeholder 4</button>
-  <button>Placeholder 5</button>
-
   <button id="howToBtn" class="secondary">How to Use</button>
 </div>
 
 <main>
 
-  <!-- CANVAS COLUMN -->
-  <div class="canvas-column">
-    <div class="canvas-actions">
-      <button id="autoPlaceBtn">Auto Place Castles</button>
-      <button id="downloadBtn">Download Map</button>
+  <!-- MAP PANEL -->
+  <section class="map-panel">
+    <h2>Map</h2>
+
+    <div class="canvas-column">
+      <div class="canvas-actions">
+        <button id="autoPlaceBtn">Auto Place Castles</button>
+        <button id="downloadBtn">Download Map</button>
+      </div>
+
+      <div class="canvas-wrap">
+        <div id="efficiencyLegend" class="efficiency-legend"></div>
+        <canvas id="map" width="1600" height="1600" aria-label="Interactive map for castle placement"></canvas>
+      </div>
     </div>
-
-
-
-<div class="canvas-wrap">
-  <div id="efficiencyLegend" class="efficiency-legend"></div>
-  <canvas id="map" width="1600" height="1600"></canvas>
-</div>
-
-
-  </div>
+  </section>
 
   <!-- CASTLE PANEL -->
   <section class="castle-panel">
@@ -54,46 +52,78 @@
         type="search"
         placeholder="Search by ID, player, preference…"
         autocomplete="off"
+        aria-label="Search castles"
       />
-      <button id="uploadCsvBtn">Upload CSV</button>
-      <button class="secondary">Download CSV</button>
+      <!-- New: Dropdown to limit view to all or top N castles -->
+      <select id="castleLimit" aria-label="Limit castles shown">
+        <option value="all">All Castles</option>
+        <option value="10">Top 10</option>
+        <option value="20">Top 20</option>
+        <option value="50">Top 50</option>
+        <option value="100">Top 100</option>
+      </select>
+      <button id="uploadCsvBtn" aria-label="Upload CSV file">Upload CSV</button>
+      <button class="secondary" aria-label="Download CSV file">Download CSV</button>
+      <button id="addCastleBtn">Add Castle</button>
+      <button id="addBearBtn">Add Bear</button>
     </div>
 
     <div class="table-wrap">
-<table id="castleTable">
-  <thead>
-    <tr>
-      <th data-sort="id">ID</th>
-      <th data-sort="player">Player</th>
-      <th data-sort="power">Power</th>
-      <th data-sort="player_level">Lv</th>
-      <th data-sort="command_centre_level">CC</th>
-      <th data-sort="attendance">Attend</th>
-      <th data-sort="rallies_30min">Rallies</th>
-      <th data-sort="preference">Preference</th>
-      <th data-sort="locked">Locked</th>
-      <th data-sort="priority">Priority</th>
-      <th data-sort="efficiency">Efficiency</th>
-    </tr>
-  </thead>
-  <tbody id="castleTableBody"></tbody>
-</table>
+      <table id="castleTable" role="table" aria-label="Castle data table">
+        <thead>
+          <tr>
+            <th data-sort="id">ID</th>
+            <th data-sort="player">Player</th>
+            <th data-sort="power">Power</th>
+            <th data-sort="player_level">Lv</th>
+            <th data-sort="command_centre_level">CC</th>
+            <th data-sort="attendance">Attend</th>
+            <th data-sort="preference">Preference</th>
+            <th data-sort="locked">Locked</th>
+            <th data-sort="rallies_30min">Rallies/Session</th>
+            <th data-sort="round_trip">Round Trip Time (s)</th>
+            <th data-sort="priority">Priority</th>
+            <th data-sort="efficiency">Efficiency</th>
+            <th data-sort="last_updated">Last Updated</th>
+            <th>Delete</th>
+          </tr>
+        </thead>
+        <tbody id="castleTableBody">
+          <!-- Rows will be added via JS with data-id and hover/click handlers -->
+        </tbody>
+      </table>
     </div>
 
     <div class="actions">
-      <button onclick="lockAllPlaced()">Lock All</button>
-      <button onclick="unlockAll()">Unlock All</button>
+      <button onclick="lockAllPlaced()" aria-label="Lock all placed castles">Lock All</button>
+      <button onclick="unlockAll()" aria-label="Unlock all castles">Unlock All</button>
     </div>
   </section>
 
 </main>
 
-<input type="file" id="csvUpload" accept=".csv" hidden />
+<input type="file" id="csvUpload" accept=".csv" hidden aria-label="CSV file input" />
 
 <footer>
   © 2025 Matthew Picone — All rights reserved
 </footer>
 
+<!-- Delete Modal -->
+<div id="deleteModal" style="display: none; position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); background: var(--panel); border: 1px solid var(--border); padding: 20px; z-index: 10; border-radius: 8px;">
+  <h3 id="deleteTitle">Delete Castle</h3>
+  <label>Reason:</label>
+  <select id="deleteReason">
+    <option value="">Select reason</option>
+    <option value="No longer in alliance">No longer in alliance</option>
+    <option value="Created in error">Created in error</option>
+    <option value="Other">Other</option>
+  </select>
+  <input id="deleteOther" type="text" placeholder="Please explain" style="display: none; margin-top: 10px; width: 100%;" />
+  <div style="margin-top: 20px; text-align: right;">
+    <button id="cancelDelete">Cancel</button>
+    <button id="confirmDelete">Delete</button>
+  </div>
+</div>
 <script src="/static/sync.js"></script>
 <script src="/static/app.js"></script>
 

@@ -10,7 +10,7 @@ let castleSort = {             // table UI concern
   asc: true
 };
 // Viewport state
-let viewZoom = 2;     // Zoom level (1 = 100%)
+let viewZoom = 1;     // Zoom level (1 = 100%)
 let viewOffsetX = 0;  // Pan offset X
 let viewOffsetY = 0;  // Pan offset Y
 let isPanning = false;
@@ -116,7 +116,7 @@ function normaliseBear(bear, index) {
 function normaliseCastle(castle, index) {
   return {
     id: castle.id ?? `Castle ${index + 1}`,
-    player: castle.player ?? "",
+    player: (castle.player ?? "").substring(0, 20),  // Limit to 20 chars
     power: Number(castle.power) || 0,
     player_level: Number(castle.player_level) || 0,
     command_centre_level: Number(castle.command_centre_level) || 0,
@@ -130,6 +130,9 @@ function normaliseCastle(castle, index) {
 
     priority: castle.priority ?? null,
     efficiency: castle.efficiency ?? null,
+    round_trip: castle.round_trip ? Number(castle.round_trip) : "NA",
+
+    last_updated: castle.last_updated ? new Date(castle.last_updated) : null,  // New field
 
     x: typeof castle.x === "number" ? castle.x : null,
     y: typeof castle.y === "number" ? castle.y : null,
@@ -341,6 +344,22 @@ td.classList.add("checkbox");
   return td;
 }
 
+function tdDelete(c) {
+  const td = document.createElement("td");
+  const btn = document.createElement("button");
+  btn.classList.add("delete-btn");
+  btn.innerHTML = "🗑️";
+  btn.onclick = () => {
+    document.getElementById("deleteTitle").textContent = `Delete Player ${c.player}`;
+    document.getElementById("deleteModal").dataset.castleId = c.id;  // Store ID
+    document.getElementById("deleteModal").style.display = "block";
+    document.getElementById("deleteReason").value = "";
+    document.getElementById("deleteOther").style.display = "none";
+    document.getElementById("deleteOther").value = "";
+  };
+  td.appendChild(btn);
+  return td;
+}
 // ==========================
 // Helper Functions
 // ==========================
@@ -387,6 +406,76 @@ function isPointInEntity(gx, gy, entity) {
 // Table Rendering
 // ==========================
 
+// function renderCastleTable() {
+//   const tbody = document.getElementById("castleTableBody");
+//   const query = document.getElementById("castleSearch")?.value
+//     .trim()
+//     .toLowerCase();
+//
+//   // Always use the latest mapData.castles (updated by SSE)
+//   let castles = [...mapData.castles];  // Shallow copy to avoid modifying original
+//
+//   // Apply current sort to the copy
+//   if (castleSort.key) {
+//     castles.sort((a, b) => {
+//       let va = a[castleSort.key];
+//       let vb = b[castleSort.key];
+//
+//       if (va == null && vb == null) return 0;
+//       if (va == null) return 1;
+//       if (vb == null) return -1;
+//
+//       if (va instanceof Date && vb instanceof Date) return (va.getTime() - vb.getTime()) * (castleSort.asc ? 1 : -1);  // Handle dates
+//       if (typeof va === "boolean") return (va === vb ? 0 : va ? 1 : -1) * (castleSort.asc ? 1 : -1);
+//       if (typeof va === "number") return (va - vb) * (castleSort.asc ? 1 : -1);
+//       return va.toString().localeCompare(vb.toString()) * (castleSort.asc ? 1 : -1);
+//     });
+//   }
+//
+//   // Apply filter to the (possibly sorted) copy
+//   if (query) {
+//     castles = castles.filter(c => {
+//       const haystack = [c.id, c.player, c.preference].join(" ").toLowerCase();
+//       return haystack.includes(query);
+//     });
+//   }
+//
+//   tbody.innerHTML = "";
+//
+//   castles.forEach(c => {
+//     const tr = document.createElement("tr");
+//
+//     /* ID */
+//     const idTd = document.createElement("td");
+//     idTd.appendChild(highlightText(c.id, query));
+//     tr.appendChild(idTd);
+//
+//     /* Player */
+//     const playerTd = tdInput("player", c);
+//     if (query && c.player?.toLowerCase().includes(query)) {
+//       playerTd.querySelector("input")?.classList.add("match-input");
+//     }
+//     tr.appendChild(playerTd);
+//
+//     tr.appendChild(tdNumber("power", c));
+//     tr.appendChild(tdNumber("player_level", c));
+//     tr.appendChild(tdNumber("command_centre_level", c));
+//     tr.appendChild(tdNumber("attendance", c));
+//     tr.appendChild(tdSelect("preference", c, ["Bear 1", "Bear 2", "Both"]));
+//     tr.appendChild(tdCheckbox("locked", c));
+//     tr.appendChild(tdReadonly(c.rallies_30min));  // Read-only Rallies/Session
+//     tr.appendChild(tdReadonly(c.round_trip || "NA"));  // New read-only Round Trip Time (s)
+//     tr.appendChild(tdReadonly(c.priority));
+//     tr.appendChild(tdReadonly(c.efficiency));
+//     tr.appendChild(tdReadonly(c.last_updated ? c.last_updated.toLocaleString() : "Never"));  // Last Updated
+// tr.appendChild(tdDelete(c));
+//     tbody.appendChild(tr);
+//   });
+//
+//   enableTableSorting();
+//   updateSortIndicators();
+// }
+
 function renderCastleTable() {
   const tbody = document.getElementById("castleTableBody");
   const query = document.getElementById("castleSearch")?.value
@@ -394,9 +483,24 @@ function renderCastleTable() {
     .toLowerCase();
 
   // Always use the latest mapData.castles (updated by SSE)
-  let castles = [...mapData.castles];  // Shallow copy to avoid modifying original
+  let castles = [...mapData.castles];  // Shallow copy
 
-  // Apply current sort to the copy
+  // Apply limit based on priority (top N highest priority)
+  const limit = document.getElementById("castleLimit").value;
+  if (limit !== "all") {
+    castles.sort((a, b) => (b.priority || 0) - (a.priority || 0));  // Highest priority first
+    castles = castles.slice(0, parseInt(limit));
+  }
+
+  // Apply search filter to the (possibly limited) castles
+  if (query) {
+    castles = castles.filter(c => {
+      const haystack = [c.id, c.player, c.preference].join(" ").toLowerCase();
+      return haystack.includes(query);
+    });
+  }
+
+  // Apply current sort to the (possibly limited and searched) castles
   if (castleSort.key) {
     castles.sort((a, b) => {
       let va = a[castleSort.key];
@@ -406,24 +510,53 @@ function renderCastleTable() {
       if (va == null) return 1;
       if (vb == null) return -1;
 
+      if (va instanceof Date && vb instanceof Date) return (va.getTime() - vb.getTime()) * (castleSort.asc ? 1 : -1);
       if (typeof va === "boolean") return (va === vb ? 0 : va ? 1 : -1) * (castleSort.asc ? 1 : -1);
       if (typeof va === "number") return (va - vb) * (castleSort.asc ? 1 : -1);
       return va.toString().localeCompare(vb.toString()) * (castleSort.asc ? 1 : -1);
     });
   }
 
-  // Apply filter to the (possibly sorted) copy
-  if (query) {
-    castles = castles.filter(c => {
-      const haystack = [c.id, c.player, c.preference].join(" ").toLowerCase();
-      return haystack.includes(query);
-    });
+  // Check if filters are active (for fading)
+  const limitActive = limit !== "all";
+  const searchActive = query.length > 0;
+  const filterActive = limitActive || searchActive;
+
+  if (filterActive) {
+    visibleCastleIds = new Set(castles.map(c => c.id));
+  } else {
+    visibleCastleIds = new Set();
   }
+
+  // Redraw map to apply fading/highlights
+  drawMap(mapData);
 
   tbody.innerHTML = "";
 
   castles.forEach(c => {
     const tr = document.createElement("tr");
+
+    tr.addEventListener("mouseenter", () => {
+      hoveredCastleId = c.id;
+      drawMap(mapData);
+    });
+    tr.addEventListener("mouseleave", () => {
+      hoveredCastleId = null;
+      drawMap(mapData);
+    });
+tr.addEventListener("click", () => {
+  // Pan to center of castle in rotated view
+  const castleCenterX = c.x * TILE_SIZE + TILE_SIZE;
+  const castleCenterY = c.y * TILE_SIZE + TILE_SIZE;
+  const rad = (ISO_DEG * Math.PI) / 180;
+  const cos = Math.cos(rad);
+  const sin = Math.sin(rad);
+  const rx = castleCenterX * cos - castleCenterY * sin;
+  const ry = castleCenterX * sin + castleCenterY * cos;
+  viewOffsetX = rx;
+  viewOffsetY = ry;
+  drawMap(mapData);
+});
 
     /* ID */
     const idTd = document.createElement("td");
@@ -441,18 +574,14 @@ function renderCastleTable() {
     tr.appendChild(tdNumber("player_level", c));
     tr.appendChild(tdNumber("command_centre_level", c));
     tr.appendChild(tdNumber("attendance", c));
-    tr.appendChild(tdNumber("rallies_30min", c));
-
-    /* Preference */
-    const prefTd = tdSelect("preference", c, ["Bear 1", "Bear 2", "both"]);
-    if (query && c.preference?.toLowerCase().includes(query)) {
-      prefTd.querySelector("select")?.classList.add("match-input");
-    }
-    tr.appendChild(prefTd);
-
+    tr.appendChild(tdSelect("preference", c, ["Bear 1", "Bear 2", "Both"]));
     tr.appendChild(tdCheckbox("locked", c));
+    tr.appendChild(tdReadonly(c.rallies_30min));  // Read-only Rallies/Session
+    tr.appendChild(tdReadonly(c.round_trip || "NA"));  // New read-only Round Trip Time (s)
     tr.appendChild(tdReadonly(c.priority));
     tr.appendChild(tdReadonly(c.efficiency));
+    tr.appendChild(tdReadonly(c.last_updated ? c.last_updated.toLocaleString() : "Never"));  // Last Updated
+    tr.appendChild(tdDelete(c));  // Delete
 
     tbody.appendChild(tr);
   });
@@ -460,7 +589,6 @@ function renderCastleTable() {
   enableTableSorting();
   updateSortIndicators();
 }
-
 // Function to update sort indicators (arrows) on the table header
 function updateSortIndicators() {
   document.querySelectorAll("#castleTable th[data-sort]").forEach(th => {
@@ -619,22 +747,16 @@ function drawBanner(banner) {
     window.remoteBusy?.has(banner.id) &&
     draggingBanner?.id !== banner.id;
 
-  // -------- Influence area (7x7, light green fill + dark green perimeter stroke) --------
+  // -------- Influence area (7x7, light green fill only) --------
   // Only show when any banner is being moved (global overlay for all banners)
   if (draggingBanner) {
     ctx.fillStyle = "rgba(34, 197, 94, 0.35)";  // Light green fill
-    ctx.strokeStyle = "#166534";  // Dark green stroke
-    ctx.lineWidth = 2 / viewZoom;  // Scale line width
     for (let x = cx - 3; x <= cx + 3; x++) {
       for (let y = cy - 3; y <= cy + 3; y++) {
         if (x < 0 || y < 0 || x >= gridSize || y >= gridSize) continue;
         const tilePx = x * TILE_SIZE;
         const tilePy = y * TILE_SIZE;
         ctx.fillRect(tilePx, tilePy, TILE_SIZE, TILE_SIZE);
-        // Stroke only the perimeter (edges of the 7x7)
-        if (x === cx - 3 || x === cx + 3 || y === cy - 3 || y === cy + 3) {
-          ctx.strokeRect(tilePx, tilePy, TILE_SIZE, TILE_SIZE);
-        }
       }
     }
   }
@@ -791,6 +913,66 @@ function drawBearTrap(bear) {
   }
 }
 
+// function drawCastle(castle) {
+//   if (!castle || castle.x == null || castle.y == null) return;
+//
+//   const px = castle.x * TILE_SIZE;
+//   const py = castle.y * TILE_SIZE;
+//   const size = TILE_SIZE * 2;
+//
+//   const isRemoteBusy =
+//     window.remoteBusy?.has(castle.id) &&
+//     draggingCastle?.id !== castle.id;
+//
+//   // -------- body --------
+//   ctx.fillStyle = efficiencyColor(castle.efficiency ?? 99);
+//   ctx.fillRect(px + 2, py + 2, size - 4, size - 4);
+//
+//   // -------- border --------
+//   ctx.save();
+//   ctx.strokeStyle = isRemoteBusy ? "#dc2626" : "#e5e7eb";
+//   ctx.lineWidth = (isRemoteBusy ? 3 : 1) / viewZoom;  // Scale line width
+//   ctx.strokeRect(px + 2, py + 2, size - 4, size - 4);
+//   ctx.restore();
+//
+//   // -------- text --------
+//   ctx.save();
+//   ctx.translate(px + size / 2, py + size / 2);
+//   ctx.rotate(-Math.PI / 4);
+//
+//   const scale = Math.min(1 + (viewZoom - 1) * 0.1, 1.2);  // Smoother, smaller max scaling
+//   ctx.fillStyle = "white";
+//   ctx.textAlign = "center";
+//
+//   ctx.font = `bold ${10 * scale}px sans-serif`;  // Player name
+//   ctx.fillText(String(castle.player ?? ""), 0, -6);
+//
+//   ctx.font = `${12 * scale}px sans-serif`;  // Level
+//   ctx.fillText(`Lv ${castle.player_level ?? "-"}`, 0, 10);
+//
+//   ctx.font = `${11 * scale}px sans-serif`;  // Preference
+//   ctx.fillText(`Pref: ${castle.preference ?? ""}`, 0, 24);
+//
+//   if (isRemoteBusy) {
+//     ctx.fillStyle = "#d90000";
+//     ctx.font = `bold ${11 * scale}px sans-serif`;  // IN USE
+//     ctx.fillText("IN USE", 0, -20);
+//   }
+//   ctx.restore();
+//
+//   // -------- lock icon --------
+//   if (castle.locked) {
+//     ctx.save();
+//     ctx.translate(px + size / 2, py + size + 8);
+//     ctx.rotate(-Math.PI / 4);
+//     ctx.font = `${12 * scale}px sans-serif`;
+//     ctx.textAlign = "center";
+//     ctx.fillStyle = "white";
+//     ctx.fillText("🔒", 35, 5);
+//     ctx.restore();
+//   }
+// }
+
 function drawCastle(castle) {
   if (!castle || castle.x == null || castle.y == null) return;
 
@@ -801,6 +983,11 @@ function drawCastle(castle) {
   const isRemoteBusy =
     window.remoteBusy?.has(castle.id) &&
     draggingCastle?.id !== castle.id;
+
+  const isVisible = visibleCastleIds.size === 0 || visibleCastleIds.has(castle.id);
+  if (!isVisible) {
+    ctx.globalAlpha = 0.3;  // Fade non-filtered
+  }
 
   // -------- body --------
   ctx.fillStyle = efficiencyColor(castle.efficiency ?? 99);
@@ -829,7 +1016,7 @@ function drawCastle(castle) {
   ctx.fillText(`Lv ${castle.player_level ?? "-"}`, 0, 10);
 
   ctx.font = `${11 * scale}px sans-serif`;  // Preference
-  ctx.fillText(`Pref: ${castle.preference ?? ""}`, 0, 24);
+  ctx.fillText(String(castle.preference ?? ""), 0, 24);
 
   if (isRemoteBusy) {
     ctx.fillStyle = "#d90000";
@@ -849,6 +1036,9 @@ function drawCastle(castle) {
     ctx.fillText("🔒", 35, 5);
     ctx.restore();
   }
+
+  // Reset alpha
+  ctx.globalAlpha = 1;
 }
 
 function efficiencyColor(value) {
@@ -912,6 +1102,8 @@ function onMouseDown(e) {
       castle._original = { x: castle.x, y: castle.y };
       castle._grab = { dx: x - castle.x, dy: y - castle.y };
 
+      Sync.markBusy(castle.id);  // Mark as busy for sync
+
       drawMap(mapData);
       return;
     }
@@ -925,6 +1117,8 @@ function onMouseDown(e) {
 
       draggingBanner = banner;
       banner._original = { x: banner.x, y: banner.y };
+
+      Sync.markBusy(banner.id);  // Mark as busy for sync
 
       drawMap(mapData);
       return;
@@ -940,8 +1134,9 @@ function onMouseDown(e) {
       draggingBear = bear;
       bear._original = { x: bear.x, y: bear.y };
 
+      Sync.markBusy(bear.id);  // Mark as busy for sync
+
       drawMap(mapData);
-      return;
     }
   }
 
@@ -951,6 +1146,193 @@ function onMouseDown(e) {
   lastPanY = e.clientY;
   canvas.style.cursor = 'grabbing';
 }
+
+function onMouseUp() {
+  if (draggingCastle) {
+    const c = draggingCastle;
+    draggingCastle = null;
+
+    // snap to integers ONLY for visuals
+    const x = Math.round(c.x);
+    const y = Math.round(c.y);
+
+    fetch("/api/intent/move_castle", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id: c.id, x, y })
+    });
+
+    Sync.unmarkBusy(c.id);
+    return;
+  }
+
+  if (draggingBanner) {
+    const b = draggingBanner;
+    draggingBanner = null;
+
+    const x = Math.round(b.x);
+    const y = Math.round(b.y);
+
+    fetch("/api/intent/move_banner", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id: b.id, x, y })
+    });
+
+    Sync.unmarkBusy(b.id);
+    return;
+  }
+
+  if (draggingBear) {
+    const bear = draggingBear;
+    draggingBear = null;
+
+    const x = Math.round(bear.x);
+    const y = Math.round(bear.y);
+
+    fetch("/api/intent/move_bear_trap", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id: bear.id, x, y })
+    });
+
+    Sync.unmarkBusy(bear.id);
+    return;
+  }
+}
+// function onMouseUp() {
+//   if (draggingCastle) {
+//     const c = draggingCastle;
+//     draggingCastle = null;
+//
+//     // snap to integers ONLY for visuals
+//     const x = Math.round(c.x);
+//     const y = Math.round(c.y);
+//
+//     fetch("/api/intent/move_castle", {
+//       method: "POST",
+//       headers: { "Content-Type": "application/json" },
+//       body: JSON.stringify({ id: c.id, x, y })
+//     });
+//
+//     // Notify server: unmark as busy
+//     fetch("/api/intent/unmark_busy", {
+//       method: "POST",
+//       headers: { "Content-Type": "application/json" },
+//       body: JSON.stringify({ id: c.id })
+//     }).catch(err => console.error("Failed to unmark busy:", err));
+//
+//     return;
+//   }
+//
+//   if (draggingBanner) {
+//     const b = draggingBanner;
+//     draggingBanner = null;
+//
+//     const x = Math.round(b.x);
+//     const y = Math.round(b.y);
+//
+//     fetch("/api/intent/move_banner", {
+//       method: "POST",
+//       headers: { "Content-Type": "application/json" },
+//       body: JSON.stringify({ id: b.id, x, y })
+//     });
+//
+//     // Notify server: unmark as busy
+//     fetch("/api/intent/unmark_busy", {
+//       method: "POST",
+//       headers: { "Content-Type": "application/json" },
+//       body: JSON.stringify({ id: b.id })
+//     }).catch(err => console.error("Failed to unmark busy:", err));
+//
+//     return;
+//   }
+//
+//   if (draggingBear) {
+//     const bear = draggingBear;
+//     draggingBear = null;
+//
+//     const x = Math.round(bear.x);
+//     const y = Math.round(bear.y);
+//
+//     fetch("/api/intent/move_bear_trap", {
+//       method: "POST",
+//       headers: { "Content-Type": "application/json" },
+//       body: JSON.stringify({ id: bear.id, x, y })
+//     });
+//
+//     // Notify server: unmark as busy
+//     fetch("/api/intent/unmark_busy", {
+//       method: "POST",
+//       headers: { "Content-Type": "application/json" },
+//       body: JSON.stringify({ id: bear.id })
+//     }).catch(err => console.error("Failed to unmark busy:", err));
+//
+//     return;
+//   }
+// }
+// function onMouseDown(e) {
+//   if (!mapData) return;
+//   if (draggingCastle || draggingBear || draggingBanner) return;
+//
+//   const rect = canvas.getBoundingClientRect();
+//   const mouseCanvasX = e.clientX - rect.left;
+//   const mouseCanvasY = e.clientY - rect.top;
+//   const { x, y } = screenToGrid(mouseCanvasX, mouseCanvasY);
+//
+//   // Simple debug log
+//   console.log(`Mouse: (${mouseCanvasX}, ${mouseCanvasY}), Grid: (${x}, ${y}), Zoom: ${viewZoom}`);
+//
+//   // ---- CASTLES FIRST ----
+//   for (let castle of mapData.castles || []) {
+//     if (castle.x == null || castle.y == null) continue;
+//     if (isPointInEntity(x, y, castle)) {
+//       if (castle.locked) return;
+//       if (window.remoteBusy?.has(castle.id)) return;
+//
+//       draggingCastle = castle;
+//       castle._original = { x: castle.x, y: castle.y };
+//       castle._grab = { dx: x - castle.x, dy: y - castle.y };
+//
+//       drawMap(mapData);
+//       return;
+//     }
+//   }
+//
+//   // ---- THEN BANNERS ----
+//   for (let banner of mapData.banners || []) {
+//     if (isPointInEntity(x, y, banner)) {
+//       if (banner.locked) return;
+//       if (window.remoteBusy?.has(banner.id)) return;
+//
+//       draggingBanner = banner;
+//       banner._original = { x: banner.x, y: banner.y };
+//
+//       drawMap(mapData);
+//       return;
+//     }
+//   }
+//
+//   // ---- THEN BEARS ----
+//   for (let bear of mapData.bear_traps || []) {
+//     if (isPointInEntity(x, y, bear)) {
+//       if (bear.locked) return;
+//       if (window.remoteBusy?.has(bear.id)) return;
+//
+//       draggingBear = bear;
+//       bear._original = { x: bear.x, y: bear.y };
+//
+//       drawMap(mapData);
+//       return;
+//     }
+//   }
+//
+//   // If no entity hit, start panning
+//   isPanning = true;
+//   lastPanX = e.clientX;
+//   lastPanY = e.clientY;
+//   canvas.style.cursor = 'grabbing';
+// }
 
 function onMouseMove(e) {
     if (!mapData) return;
@@ -1013,59 +1395,59 @@ function onMouseMove(e) {
     }
 }
 
-function onMouseUp() {
-    if (draggingCastle) {
-        const c = draggingCastle;
-        draggingCastle = null;
-
-        // snap to integers ONLY for visuals
-        const x = Math.round(c.x);
-        const y = Math.round(c.y);
-
-        fetch("/api/intent/move_castle", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ id: c.id, x, y })
-        });
-
-        Sync.unmarkBusy(c.id);
-        return;
-    }
-
-    if (draggingBanner) {
-        const b = draggingBanner;
-        draggingBanner = null;
-
-        const x = Math.round(b.x);
-        const y = Math.round(b.y);
-
-        fetch("/api/intent/move_banner", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ id: b.id, x, y })
-        });
-
-        Sync.unmarkBusy(b.id);
-        return;
-    }
-
-    if (draggingBear) {
-        const bear = draggingBear;
-        draggingBear = null;
-
-        const x = Math.round(bear.x);
-        const y = Math.round(bear.y);
-
-        fetch("/api/intent/move_bear_trap", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ id: bear.id, x, y })
-        });
-
-        Sync.unmarkBusy(bear.id);
-        return;
-    }
-}
+// function onMouseUp() {
+//     if (draggingCastle) {
+//         const c = draggingCastle;
+//         draggingCastle = null;
+//
+//         // snap to integers ONLY for visuals
+//         const x = Math.round(c.x);
+//         const y = Math.round(c.y);
+//
+//         fetch("/api/intent/move_castle", {
+//             method: "POST",
+//             headers: { "Content-Type": "application/json" },
+//             body: JSON.stringify({ id: c.id, x, y })
+//         });
+//
+//         Sync.unmarkBusy(c.id);
+//         return;
+//     }
+//
+//     if (draggingBanner) {
+//         const b = draggingBanner;
+//         draggingBanner = null;
+//
+//         const x = Math.round(b.x);
+//         const y = Math.round(b.y);
+//
+//         fetch("/api/intent/move_banner", {
+//             method: "POST",
+//             headers: { "Content-Type": "application/json" },
+//             body: JSON.stringify({ id: b.id, x, y })
+//         });
+//
+//         Sync.unmarkBusy(b.id);
+//         return;
+//     }
+//
+//     if (draggingBear) {
+//         const bear = draggingBear;
+//         draggingBear = null;
+//
+//         const x = Math.round(bear.x);
+//         const y = Math.round(bear.y);
+//
+//         fetch("/api/intent/move_bear_trap", {
+//             method: "POST",
+//             headers: { "Content-Type": "application/json" },
+//             body: JSON.stringify({ id: bear.id, x, y })
+//         });
+//
+//         Sync.unmarkBusy(bear.id);
+//         return;
+//     }
+// }
 
 function onCanvasContextMenu(e) {
     e.preventDefault();
@@ -1269,8 +1651,52 @@ function onResize() {
 }
 
 // Update existing listeners
-canvas.addEventListener("wheel", onWheel);
-canvas.addEventListener("mousedown", onMouseDownPan);
+
+// Delete Modal Events
+document.getElementById("deleteReason").addEventListener("change", (e) => {
+  const otherInput = document.getElementById("deleteOther");
+  if (e.target.value === "Other") {
+    otherInput.style.display = "block";
+  } else {
+    otherInput.style.display = "none";
+    otherInput.value = "";
+  }
+});
+
+document.getElementById("confirmDelete").addEventListener("click", async () => {
+  const modal = document.getElementById("deleteModal");
+  const castleId = modal.dataset.castleId;
+  const reasonSelect = document.getElementById("deleteReason").value;
+  let reason = reasonSelect;
+  if (reasonSelect === "Other") {
+    reason = document.getElementById("deleteOther").value.trim();
+    if (!reason) {
+      alert("Please provide an explanation for 'Other'.");
+      return;
+    }
+  }
+  if (!reason) {
+    alert("Please select or enter a reason.");
+    return;
+  }
+
+  modal.style.display = "none";
+  try {
+    await fetch("/api/castles/delete", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id: castleId, reason })
+    });
+    // SSE will update
+  } catch (error) {
+    alert("Failed to delete castle: " + error.message);
+  }
+});
+
+document.getElementById("cancelDelete").addEventListener("click", () => {
+  document.getElementById("deleteModal").style.display = "none";
+});
+canvas.addEventListener("wheel", onWheel, { passive: false });canvas.addEventListener("mousedown", onMouseDownPan);
 canvas.addEventListener("mousemove", onMouseMovePan);
 canvas.addEventListener("mouseup", onMouseUpPan);
 window.addEventListener("resize", onResize);
@@ -1442,6 +1868,7 @@ TIP
 });
 
 
+document.getElementById("castleLimit").addEventListener("change", renderCastleTable);
 
 // document
 //   .getElementById("castleTable")

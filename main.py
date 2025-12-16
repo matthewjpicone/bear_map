@@ -19,6 +19,18 @@ app.include_router(sync_router)
 # ============================================================
 # 🔔 SSE BROADCAST SYSTEM (authoritative server push)
 # ============================================================
+# Add after subscribers set
+busy_set: set[str] = set()
+
+# Update broadcast_config to include busy
+async def broadcast_config(config: dict):
+    payload = {
+        "type": "config_update",
+        "time": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+        "busy": list(busy_set),  # Include busy IDs
+    }
+    for queue in list(subscribers):
+        await queue.put(payload)
 
 subscribers: set[asyncio.Queue] = set()
 
@@ -276,6 +288,85 @@ async def move_castle_away(data: Dict[str, Any]):
     entity_id = data.get("id")
     print(f"Received move_castle_away intent: id={entity_id}")  # Placeholder: print the information sent
     # TODO: Move castle to edge position, update config, broadcast SSE
+    return {"success": True}
+
+# Add after the existing intent routes
+@app.post("/api/intent/mark_busy")
+async def mark_busy(data: Dict[str, Any]):
+    entity_id = data.get("id")
+    if not entity_id:
+        raise HTTPException(400, "Missing id")
+    busy_set.add(entity_id)
+    await broadcast_config(load_config())  # Broadcast with busy
+    return {"success": True}
+
+@app.post("/api/intent/unmark_busy")
+async def unmark_busy(data: Dict[str, Any]):
+    entity_id = data.get("id")
+    if not entity_id:
+        raise HTTPException(400, "Missing id")
+    busy_set.discard(entity_id)
+    await broadcast_config(load_config())  # Broadcast with busy
+    return {"success": True}
+
+@app.post("/api/castles/add")
+async def add_castle():
+    config = load_config()
+    new_id = max((c.get("id", 0) for c in config.get("castles", [])), default=0) + 1
+    config["castles"].append({
+        "id": new_id,
+        "player": "",
+        "power": 0,
+        "player_level": 0,
+        "command_centre_level": 0,
+        "attendance": 0,
+        "rallies_30min": 0,
+        "preference": "Both",
+        "locked": False,
+        "priority": None,
+        "efficiency": None,
+        "round_trip": "NA",
+        "last_updated": None,
+        "x": None,
+        "y": None
+    })
+    save_config(config)
+    await notify_config_updated()
+    return {"success": True, "id": new_id}
+
+@app.post("/api/castles/delete")
+async def delete_castle(data: Dict[str, Any]):
+    config = load_config()
+    config["castles"] = [c for c in config["castles"] if c.get("id") != data.get("id")]
+    save_config(config)
+    await notify_config_updated()
+    return {"success": True}
+
+@app.post("/api/bear_traps/add")
+async def add_bear_trap():
+    config = load_config()
+    new_id = f"B{max(len(config.get('bear_traps', [])), 0) + 1}"
+    config["bear_traps"].append({
+        "id": new_id,
+        "locked": False,
+        "x": None,
+        "y": None
+    })
+    save_config(config)
+    await notify_config_updated()
+    return {"success": True, "id": new_id}
+
+
+@app.post("/api/castles/delete")
+async def delete_castle(data: Dict[str, Any]):
+    config = load_config()
+    config["castles"] = [c for c in config["castles"] if c.get("id") != data.get("id")]
+    save_config(config)
+
+    reason = data.get("reason", "No reason provided")
+    print(f"Deleted castle {data.get('id')} - Reason: {reason}")  # Log to console/server logs
+
+    await notify_config_updated()
     return {"success": True}
 
 # ============================================================

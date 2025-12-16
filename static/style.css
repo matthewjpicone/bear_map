@@ -1,3 +1,20 @@
+/* ================= RESET ================= */
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  height: 100vh;  /* Limit to 95% */
+  display: flex;
+  flex-direction: column;
+  font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  overflow: auto;
+}
+
+/* ================= ROOT VARIABLES ================= */
 :root {
   --bg: #0b1020;
   --panel: #0f172a;
@@ -8,24 +25,13 @@
   --accent: #38bdf8;
 }
 
-/* ================= RESET ================= */
-* {
-  box-sizing: border-box;
-}
-
-body {
-  margin: 0;
-  font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
-  background: var(--bg);
-  color: var(--text);
-}
-
 /* ================= HEADER ================= */
 header {
   padding: 18px;
   background: linear-gradient(180deg, #020617, var(--panel));
   border-bottom: 1px solid var(--border);
   text-align: center;
+  flex-shrink: 0;
 }
 
 header h1 {
@@ -43,6 +49,7 @@ header h1 {
   padding: 10px;
   background: #020617;
   border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
 }
 
 .toolbar button {
@@ -74,24 +81,125 @@ main {
   display: grid;
   grid-template-columns: 1fr;
   gap: 20px;
+  flex: 1;  /* Fill remaining */
+  overflow: hidden;
+  box-sizing: border-box;
 }
 
-@media (min-width: 1900px) {
+@media (min-width: 1200px) {
   main {
     grid-template-columns: minmax(900px, 1.2fr) 1fr;
   }
 }
 
-/* ================= CANVAS AREA ================= */
+/* ================= MOBILE OPTIMIZATION ================= */
+@media (max-width: 768px) {
+  main {
+    padding: 10px;
+    gap: 10px;
+  }
+
+  header {
+    padding: 10px;
+  }
+
+  header h1 {
+    font-size: 20px;
+  }
+
+  .toolbar {
+    padding: 5px;
+    gap: 4px;
+  }
+
+  .toolbar button {
+    min-width: 80px;
+    padding: 6px 10px;
+    font-size: 12px;
+  }
+
+  .map-panel, .castle-panel {
+    padding: 8px;
+  }
+
+  .map-panel h2, .castle-panel h2 {
+    font-size: 14px;
+    margin-bottom: 6px;
+  }
+
+  .canvas-wrap {
+    padding: 8px;
+    height: 40vh;
+  }
+
+  .castle-toolbar {
+    gap: 4px;
+    margin-bottom: 6px;
+  }
+
+  #castleSearch, #castleLimit {
+    padding: 4px 8px;
+    font-size: 12px;
+  }
+
+  .table-wrap {
+    border-radius: 6px;
+  }
+
+  table {
+    font-size: 11px;
+  }
+
+  thead th, td {
+    padding: 4px 6px;
+  }
+
+  .actions {
+    margin-top: 6px;
+  }
+
+  .actions button {
+    padding: 6px 10px;
+    font-size: 12px;
+  }
+
+  footer {
+    padding: 8px;
+    font-size: 11px;
+  }
+}
+
+/* ================= MAP PANEL ================= */
+.map-panel {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  height: 100%;  /* Fill grid cell */
+  overflow: hidden;
+}
+
+.map-panel h2 {
+  margin: 0 0 8px;
+  font-size: 16px;
+  font-weight: 600;
+  flex-shrink: 0;
+}
+
 .canvas-column {
   display: flex;
   flex-direction: column;
+  flex: 1;
   gap: 10px;
+  min-height: 0;
 }
 
 .canvas-actions {
   display: flex;
   gap: 8px;
+  flex-shrink: 0;
 }
 
 .canvas-wrap {
@@ -101,11 +209,11 @@ main {
   border-radius: 12px;
   padding: 12px;
   overflow: auto;
-  min-width: 820px;
-  height: 75vh;
+  flex: 1;
   display: flex;
   justify-content: center;
   align-items: center;
+  min-height: 0;
 }
 
 canvas {
@@ -153,13 +261,15 @@ canvas {
   padding: 12px;
   display: flex;
   flex-direction: column;
-  height: 75vh;
+  height: 100%;  /* Fill grid cell */
+  overflow: hidden;
 }
 
 .castle-panel h2 {
   margin: 0 0 8px;
   font-size: 16px;
   font-weight: 600;
+  flex-shrink: 0;
 }
 
 /* ================= SEARCH + ACTIONS ================= */
@@ -167,6 +277,7 @@ canvas {
   display: flex;
   gap: 8px;
   margin-bottom: 8px;
+  flex-shrink: 0;
 }
 
 #castleSearch {
@@ -188,18 +299,35 @@ canvas {
   border-color: var(--accent);
 }
 
+/* ================= DROPDOWN STYLING ================= */
+#castleLimit {
+  padding: 6px 10px;
+  font-size: 13px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: var(--bg);
+  color: var(--text);
+}
+
+#castleLimit:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+
 /* ================= TABLE ================= */
 .table-wrap {
   flex: 1;
-  overflow-y: auto;
+  overflow: auto;  /* Allow both x and y scroll */
   border-radius: 8px;
   border: 1px solid var(--border);
+  min-height: 0;
 }
 
 table {
   width: 100%;
+  min-width: 1200px;  /* Ensure horizontal scroll */
   border-collapse: collapse;
-  table-layout: fixed;
+  table-layout: auto;  /* Allow flexible widths */
   font-size: 12.5px;
 }
 
@@ -213,6 +341,21 @@ thead th {
   font-weight: 600;
   color: var(--muted);
   text-align: left;
+  min-width: 80px;  /* Base min */
+}
+
+thead th:nth-child(1) {  /* ID */
+  position: sticky;
+  left: 0;
+  z-index: 3;
+  min-width: 80px;
+}
+
+thead th:nth-child(2) {  /* Player */
+  position: sticky;
+  left: 80px;  /* Width of first column */
+  z-index: 3;
+  min-width: 160px;
 }
 
 td {
@@ -222,8 +365,106 @@ td {
   overflow: hidden;
   text-overflow: ellipsis;
   vertical-align: middle;
+  min-width: 80px;  /* Match th */
 }
 
+tbody td:nth-child(1) {
+  position: sticky;
+  left: 0;
+  background: var(--panel-soft);
+  z-index: 1;
+}
+
+tbody td:nth-child(2) {
+  position: sticky;
+  left: 80px;
+  background: var(--panel-soft);
+  z-index: 1;
+}
+
+/* Specific min-widths for columns */
+thead th:nth-child(3) { min-width: 100px; }  /* Power */
+thead th:nth-child(4) { min-width: 60px; }   /* Lv */
+thead th:nth-child(5) { min-width: 60px; }   /* CC */
+thead th:nth-child(6) { min-width: 80px; }   /* Attend */
+thead th:nth-child(7) { min-width: 120px; }  /* Preference */
+thead th:nth-child(8) { min-width: 80px; }   /* Locked */
+thead th:nth-child(9) { min-width: 140px; }  /* Rallies */
+thead th:nth-child(10) { min-width: 120px; } /* Round Trip */
+thead th:nth-child(11) { min-width: 100px; } /* Priority */
+thead th:nth-child(12) { min-width: 100px; } /* Efficiency */
+thead th:nth-child(13) { min-width: 140px; } /* Last Updated */
+thead th:nth-child(14) { min-width: 80px; }  /* Delete */
+
+tbody td:nth-child(3) { min-width: 100px; }
+tbody td:nth-child(4) { min-width: 60px; }
+tbody td:nth-child(5) { min-width: 60px; }
+tbody td:nth-child(6) { min-width: 80px; }
+tbody td:nth-child(7) { min-width: 120px; }
+tbody td:nth-child(8) { min-width: 80px; }
+tbody td:nth-child(9) { min-width: 140px; }
+tbody td:nth-child(10) { min-width: 120px; }
+tbody td:nth-child(11) { min-width: 100px; }
+tbody td:nth-child(12) { min-width: 100px; }
+tbody td:nth-child(13) { min-width: 140px; }
+tbody td:nth-child(14) { min-width: 80px; }
+
+/* ================= TABLE CELLS & INPUTS ================= */
+td {
+  background: var(--panel-soft);
+}
+
+table input, table select {
+  width: 100%;
+  padding: 4px 6px;
+  font-size: 12.5px;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  background: var(--bg);
+  color: var(--text);
+  text-align: left;
+}
+
+table input:focus, table select:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+
+table input::placeholder {
+  color: var(--muted);
+}
+
+.checkbox {
+  text-align: center;
+}
+
+.checkbox input[type="checkbox"] {
+  width: auto;
+  margin: 0;
+  vertical-align: middle;
+}
+
+/* Optional: Highlight matched inputs */
+.match-input {
+  border-color: var(--accent);
+}
+
+/* ================= ACTIONS ================= */
+.actions {
+  margin-top: 8px;
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  flex-shrink: 0;
+}
+/* ================= DELETE BUTTON ================= */
+.delete-btn {
+  color: red;
+}
+
+.delete-btn:hover {
+  color: darkred;
+}
 /* ================= FOOTER ================= */
 footer {
   padding: 12px;
@@ -232,4 +473,33 @@ footer {
   color: var(--muted);
   border-top: 1px solid var(--border);
   background: var(--panel);
+  flex-shrink: 0;
+}
+
+/* ================= DELETE MODAL ================= */
+#deleteModal h3 {
+  margin: 0 0 10px;
+}
+
+#deleteModal label {
+  display: block;
+  margin-bottom: 5px;
+}
+
+#deleteModal select, #deleteModal input {
+  width: 100%;
+  padding: 6px;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  background: var(--bg);
+  color: var(--text);
+}
+
+#deleteModal button {
+  margin-left: 10px;
+}
+
+#confirmDelete {
+  background: red;
+  color: white;
 }
