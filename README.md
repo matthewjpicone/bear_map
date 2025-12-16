@@ -15,9 +15,9 @@ FastAPI-powered tool for visualizing and arranging the "Bear Planner" layout. Th
    ```
 3. Launch the API and static site:
    ```bash
-   uvicorn main:app --reload --host 0.0.0.0 --port 8000
+   uvicorn main:app --reload --host 0.0.0.0 --port 3000
    ```
-4. Open the UI at <http://localhost:8000>.
+4. Open the UI at <http://localhost:3000>.
 
 ## Configuration
 
@@ -67,7 +67,7 @@ When a push to the main branch is detected, the webhook handler will:
 4. Update Python dependencies
 5. Restart the systemd service
 
-Logs are written to `/home/matthewpicone/bearMap/update.log` on the production server.
+Logs are written to `/home/matthewpicone/bear_map/update.log` on the production server.
 
 ## Development notes
 

@@ -6,10 +6,10 @@
 set -e  # Exit on error
 
 # Configuration
-REPO_DIR="/home/matthewpicone/bearMap"
-VENV_PIP="/home/matthewpicone/bearMap/venv/bin/pip"
+REPO_DIR="/home/matthewpicone/bear_map"
+VENV_PIP="/home/matthewpicone/bear_map/.venv/bin/pip"
 SERVICE_NAME="bearmap.service"
-LOG_FILE="/home/matthewpicone/bearMap/update.log"
+LOG_FILE="/home/matthewpicone/bear_map/update.log"
 
 # Function to log messages
 log_message() {
