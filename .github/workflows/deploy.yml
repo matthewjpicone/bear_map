@@ -1,0 +1,81 @@
+name: CI/CD Pipeline
+
+on:
+  push:
+    branches: [main]  # Or your default branch
+  pull_request:
+    branches: [main]
+
+jobs:
+  check-and-deploy:
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout Code
+      uses: actions/checkout@v4
+      with:
+        token: ${{ secrets.GITHUB_TOKEN }}
+
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.11'  # Match your dev version
+
+    - name: Install Dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+
+    - name: Check Requirements Up-to-Date
+      run: |
+        pip freeze > frozen_reqs.txt
+        if ! diff requirements.txt frozen_reqs.txt > /dev/null 2>&1; then
+          echo "requirements.txt is out of date. Updating..."
+          pip freeze > requirements.txt
+          echo "REQUIREMENTS_UPDATED=true" >> $GITHUB_ENV
+        else
+          echo "requirements.txt is up to date."
+          echo "REQUIREMENTS_UPDATED=false" >> $GITHUB_ENV
+        fi
+
+    - name: Commit and Push Updated Requirements
+      if: env.REQUIREMENTS_UPDATED == 'true' && github.ref == 'refs/heads/main' && github.event_name == 'push'
+      run: |
+        git config --local user.email "github-actions[bot]@users.noreply.github.com"
+        git config --local user.name "github-actions[bot]"
+        git add requirements.txt
+        if git diff --staged --quiet; then
+          echo "No changes to commit"
+        else
+          git commit -m "chore: auto-update requirements.txt [skip ci]"
+          git push
+        fi
+
+    - name: Format Code (Black)
+      run: |
+        pip install black
+        black . --check --diff  # Fails if not formatted; remove --check to auto-format
+
+    - name: Lint (Flake8)
+      run: |
+        pip install flake8
+        flake8 . --max-line-length=100  # Adjust rules
+
+    - name: Check TODOs
+      run: |
+        grep -r "TODO" . --exclude-dir=.git || echo "No TODOs found"
+
+    - name: Deploy to Server (Only on Push to Main)
+      if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+      uses: appleboy/ssh-action@v1.0.0
+      with:
+        host: ${{ secrets.SERVER_HOST }}
+        username: ${{ secrets.SERVER_USER }}
+        key: ${{ secrets.SERVER_SSH_KEY }}
+        port: ${{ secrets.SERVER_PORT || 22 }}
+        script: |
+          cd /path/to/bear_map
+          git pull origin main  # Pull latest code
+          python -m venv env  # Recreate venv (safe, up-to-date)
+          source env/bin/activate
+          pip install -r requirements.txt
+          sudo systemctl restart bear-map
