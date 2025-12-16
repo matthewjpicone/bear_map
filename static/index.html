@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>Bear Planner</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <link rel="stylesheet" href="/static/style.css" />
+</head>
+
+<body>
+
+<header>
+  <h1>🐻 Bear Planner</h1>
+</header>
+
+<!-- TOP TOOLBAR -->
+<div class="toolbar">
+  <button>Placeholder 1</button>
+  <button>Placeholder 2</button>
+  <button>Placeholder 3</button>
+  <button>Placeholder 4</button>
+  <button>Placeholder 5</button>
+
+<!--  <button id="howToBtn" class="secondary">How to Use</button>-->
+</div>
+
+<main>
+
+  <!-- CANVAS COLUMN -->
+  <div class="canvas-column">
+    <div class="canvas-actions">
+<!--      <button id="autoPlaceBtn">Auto Place Castles</button>-->
+<!--      <button id="downloadBtn">Download Map</button>-->
+    </div>
+
+
+
+<div class="canvas-wrap">
+  <div id="efficiencyLegend" class="efficiency-legend"></div>
+  <canvas id="map" width="1600" height="1600"></canvas>
+</div>
+
+
+  </div>
+
+  <!-- CASTLE PANEL -->
+  <section class="castle-panel">
+    <h2>Castles</h2>
+
+    <div class="castle-toolbar">
+      <input
+        id="castleSearch"
+        type="search"
+        placeholder="Search by ID, player, preference…"
+        autocomplete="off"
+      />
+<!--      <button id="uploadCsvBtn">Upload CSV</button>-->
+<!--      <button class="secondary">Download CSV</button>-->
+    </div>
+
+    <div class="table-wrap">
+      <table id="castleTable">
+        <thead>
+          <tr>
+            <th>ID</th>
+            <th>Player</th>
+            <th>Power</th>
+            <th>Lv</th>
+            <th>CC</th>
+            <th>Attend</th>
+            <th>Rallies</th>
+            <th>Preference</th>
+            <th>Locked</th>
+            <th>Priority</th>
+            <th>Efficiency</th>
+          </tr>
+        </thead>
+        <tbody id="castleTableBody"></tbody>
+      </table>
+    </div>
+
+    <div class="actions">
+<!--      <button onclick="lockAllPlaced()">Lock All</button>-->
+<!--      <button onclick="unlockAll()">Unlock All</button>-->
+    </div>
+  </section>
+
+</main>
+
+<!--<input type="file" id="csvUpload" accept=".csv" hidden />-->
+
+<footer>
+  © 2025 Matthew Picone — All rights reserved
+</footer>
+
+<script src="/static/sync.js"></script>
+<script src="/static/app.js"></script>
+
+</body>
+</html>
