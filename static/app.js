@@ -2048,7 +2048,7 @@ if (savedGridPreference !== null) {
 const gridToggleCheckbox = document.getElementById('gridToggle');
 if (gridToggleCheckbox) {
   gridToggleCheckbox.checked = showGrid;
-  
+
   // Add event listener for grid toggle
   gridToggleCheckbox.addEventListener('change', (e) => {
     showGrid = e.target.checked;
