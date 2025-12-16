@@ -358,7 +358,17 @@ async def unmark_busy(data: Dict[str, Any]):
 @app.post("/api/castles/add")
 async def add_castle(user: str = Depends(get_current_user)):
     config = load_config()
-    new_id = max((c.get("id", 0) for c in config.get("castles", [])), default=0) + 1
+    # Extract numeric IDs from castle IDs like "Castle 9"
+    existing_ids = []
+    for c in config.get("castles", []):
+        castle_id = c.get("id", "")
+        if isinstance(castle_id, str) and castle_id.startswith("Castle "):
+            try:
+                existing_ids.append(int(castle_id.replace("Castle ", "")))
+            except ValueError:
+                pass
+    new_num = max(existing_ids, default=0) + 1
+    new_id = f"Castle {new_num}"
     new_castle = {
         "id": new_id,
         "player": "",
