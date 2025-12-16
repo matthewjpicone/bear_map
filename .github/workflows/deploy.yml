@@ -43,8 +43,12 @@ jobs:
         git config --local user.email "github-actions[bot]@users.noreply.github.com"
         git config --local user.name "github-actions[bot]"
         git add requirements.txt
-        git commit -m "chore: auto-update requirements.txt [skip ci]"
-        git push
+        if git diff --staged --quiet; then
+          echo "No changes to commit"
+        else
+          git commit -m "chore: auto-update requirements.txt [skip ci]"
+          git push
+        fi
 
     - name: Format Code (Black)
       run: |
