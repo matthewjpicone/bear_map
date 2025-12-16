@@ -112,7 +112,6 @@
 
 from fastapi import WebSocket, WebSocketDisconnect, APIRouter
 import time
-import asyncio
 
 router = APIRouter()
 
@@ -123,14 +122,11 @@ clients: set[WebSocket] = set()
 
 LOCK_TTL_MS = 20_000  # 20 seconds soft lock timeout
 
-map_state = {
-    "castles": {},
-    "bears": {},
-    "version": 0
-}
+map_state = {"castles": {}, "bears": {}, "version": 0}
 
 # id -> { owner: WebSocket, expires_at: ms }
 soft_locks: dict[str, dict] = {}
+
 
 # ==========================
 # Helpers
@@ -142,10 +138,7 @@ def now_ms() -> int:
 def cleanup_expired_locks():
     """Remove expired locks"""
     t = now_ms()
-    expired = [
-        obj_id for obj_id, lock in soft_locks.items()
-        if lock["expires_at"] <= t
-    ]
+    expired = [obj_id for obj_id, lock in soft_locks.items() if lock["expires_at"] <= t]
     for obj_id in expired:
         del soft_locks[obj_id]
 
@@ -165,18 +158,13 @@ async def broadcast(payload, sender=None):
 
 
 async def broadcast_lock_release(obj_id: str, user_name: str = None):
-    await broadcast({
-        "type": "release",
-        "id": obj_id,
-        "user_name": user_name
-    })
+    await broadcast({"type": "release", "id": obj_id, "user_name": user_name})
 
 
 # ==========================
 # State Updates
 # ==========================
 async def apply_updates(updates, sender):
-    global map_state
     accepted = []
 
     for u in updates:
@@ -185,9 +173,9 @@ async def apply_updates(updates, sender):
             continue
 
         bucket = (
-            "castles" if obj_id.startswith("Castle")
-            else "bears" if obj_id.startswith("Bear")
-            else None
+            "castles"
+            if obj_id.startswith("Castle")
+            else "bears" if obj_id.startswith("Bear") else None
         )
         if not bucket:
             continue
@@ -203,10 +191,7 @@ async def apply_updates(updates, sender):
 
     if accepted:
         map_state["version"] += 1
-        await broadcast({
-            "type": "updates",
-            "updates": accepted
-        }, sender)
+        await broadcast({"type": "updates", "updates": accepted}, sender)
 
 
 # ==========================
@@ -218,10 +203,7 @@ async def websocket_endpoint(ws: WebSocket):
     clients.add(ws)
 
     # Send full state on connect
-    await ws.send_json({
-        "type": "state_init",
-        "state": map_state
-    })
+    await ws.send_json({"type": "state_init", "state": map_state})
 
     try:
         while True:
@@ -253,16 +235,11 @@ async def websocket_endpoint(ws: WebSocket):
                     continue
 
                 # Acquire / refresh lock
-                soft_locks[obj_id] = {
-                    "owner": ws,
-                    "expires_at": now_ms() + LOCK_TTL_MS
-                }
+                soft_locks[obj_id] = {"owner": ws, "expires_at": now_ms() + LOCK_TTL_MS}
 
-                await broadcast({
-                    "type": "busy",
-                    "id": obj_id,
-                    "user_name": msg.get("user_name")
-                }, ws)
+                await broadcast(
+                    {"type": "busy", "id": obj_id, "user_name": msg.get("user_name")}, ws
+                )
 
             # --------------------------
             # RELEASE LOCK
@@ -275,20 +252,15 @@ async def websocket_endpoint(ws: WebSocket):
                 lock = soft_locks.get(obj_id)
                 if lock and lock["owner"] is ws:
                     del soft_locks[obj_id]
-                    await broadcast({
-                        "type": "release",
-                        "id": obj_id,
-                        "user_name": msg.get("user_name")
-                    })
+                    await broadcast(
+                        {"type": "release", "id": obj_id, "user_name": msg.get("user_name")}
+                    )
 
     except WebSocketDisconnect:
         clients.remove(ws)
 
         # 🔥 Auto-release any locks owned by this client
-        released = [
-            obj_id for obj_id, lock in soft_locks.items()
-            if lock["owner"] is ws
-        ]
+        released = [obj_id for obj_id, lock in soft_locks.items() if lock["owner"] is ws]
 
         for obj_id in released:
             del soft_locks[obj_id]
