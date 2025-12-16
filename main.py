@@ -5,13 +5,26 @@ import hmac
 import hashlib
 import subprocess
 from datetime import datetime
+from typing import Optional, Dict, Any
 
-from fastapi import FastAPI, Body, Request, HTTPException, Header
-from fastapi.responses import HTMLResponse, FileResponse, StreamingResponse
+from fastapi import FastAPI, Body, Request, HTTPException, Header, Depends, Query
+from fastapi.responses import HTMLResponse, FileResponse, StreamingResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from dotenv import load_dotenv
 
 from server.sync import router as sync_router
+from server.auth import (
+    WorkspaceManager,
+    get_current_user,
+    require_authentication,
+    create_access_token,
+    get_user_workspace_filter,
+)
+from server.discord_oauth import (
+    get_discord_oauth_url,
+    authenticate_discord_user,
+    is_discord_oauth_configured,
+)
 
 # Load environment variables
 load_dotenv()
@@ -24,6 +37,9 @@ DEFAULT_VERSION = "1.0.4"
 
 app = FastAPI(title="Bear Planner MVP")
 app.include_router(sync_router)
+
+# Initialize workspace manager
+workspace_manager = WorkspaceManager(CONFIG_PATH)
 
 # ============================================================
 # 🔔 SSE BROADCAST SYSTEM (authoritative server push)
@@ -100,18 +116,55 @@ def index():
     return FileResponse(os.path.join(BASE_DIR, "static", "index.html"))
 
 @app.get("/api/map")
-def get_map():
+def get_map(
+    workspace_id: Optional[str] = Query(None),
+    user: Optional[dict] = Depends(get_current_user),
+):
+    """Get map data, optionally filtered by workspace.
+
+    Args:
+        workspace_id: Optional workspace filter.
+        user: Current authenticated user (optional).
+
+    Returns:
+        Map configuration and entities.
+    """
     config = load_config()
+    global_settings = config.get("global_settings", {})
+    auth_enabled = global_settings.get("auth_enabled", False)
+
+    # Determine workspace filter
+    workspace_filter = None
+    if auth_enabled and user:
+        user_workspaces = get_user_workspace_filter(user)
+        if workspace_id:
+            # Verify user has access to requested workspace
+            if workspace_id not in user_workspaces:
+                raise HTTPException(
+                    status_code=403,
+                    detail=f"Access denied to workspace: {workspace_id}",
+                )
+            workspace_filter = {workspace_id}
+        else:
+            workspace_filter = user_workspaces
+
+    # Filter entities by workspace
+    def filter_entities(entities):
+        if not workspace_filter:
+            return entities
+        return [
+            e
+            for e in entities
+            if e.get("workspace_id") in workspace_filter
+        ]
+
     return {
         "grid_size": config["grid_size"],
-
-        # visual + logic config
         "efficiency_scale": config["efficiency_scale"],
-
-        # entities (authoritative)
-        "banners": config.get("banners", []),
-        "bear_traps": config.get("bear_traps", []),
-        "castles": config.get("castles", [])
+        "banners": filter_entities(config.get("banners", [])),
+        "bear_traps": filter_entities(config.get("bear_traps", [])),
+        "castles": filter_entities(config.get("castles", [])),
+        "workspace_id": workspace_id,
     }
 
 @app.get("/api/version")
@@ -165,18 +218,44 @@ def sanitise_int(value: Any, *, allow_none=False) -> int | None:
 
 
 @app.post("/api/castles/update")
-async def update_castle(payload: Dict[str, Any] = Body(...)):
+async def update_castle(
+    payload: Dict[str, Any] = Body(...),
+    user: Optional[dict] = Depends(get_current_user),
+):
+    """Update castle data with workspace access control.
+
+    Args:
+        payload: Castle update data.
+        user: Current authenticated user (optional).
+
+    Returns:
+        Update status.
+
+    Raises:
+        HTTPException: If castle not found or access denied.
+    """
     if "id" not in payload:
         raise HTTPException(400, "Missing castle id")
 
     castle_id = payload["id"]
 
     config = load_config()
+    global_settings = config.get("global_settings", {})
+    auth_enabled = global_settings.get("auth_enabled", False)
     castles = config.get("castles", [])
 
     castle = next((c for c in castles if c.get("id") == castle_id), None)
     if not castle:
         raise HTTPException(404, f"Castle '{castle_id}' not found")
+
+    # Check workspace access
+    if auth_enabled and user:
+        castle_workspace = castle.get("workspace_id")
+        user_workspaces = set(user.get("workspaces", []))
+        if castle_workspace not in user_workspaces:
+            raise HTTPException(
+                403, f"Access denied to castle in workspace: {castle_workspace}"
+            )
 
     updated = False
 
@@ -328,8 +407,32 @@ async def unmark_busy(data: Dict[str, Any]):
     return {"success": True}
 
 @app.post("/api/castles/add")
-async def add_castle():
+async def add_castle(
+    workspace_id: str = Query("default"),
+    user: Optional[dict] = Depends(get_current_user),
+):
+    """Add a new castle to a workspace.
+
+    Args:
+        workspace_id: Target workspace ID.
+        user: Current authenticated user (optional).
+
+    Returns:
+        Success status and new castle ID.
+
+    Raises:
+        HTTPException: If access denied to workspace.
+    """
     config = load_config()
+    global_settings = config.get("global_settings", {})
+    auth_enabled = global_settings.get("auth_enabled", False)
+
+    # Check workspace access
+    if auth_enabled and user:
+        user_workspaces = set(user.get("workspaces", []))
+        if workspace_id not in user_workspaces:
+            raise HTTPException(403, f"Access denied to workspace: {workspace_id}")
+
     new_id = max((c.get("id", 0) for c in config.get("castles", [])), default=0) + 1
     config["castles"].append({
         "id": new_id,
@@ -346,21 +449,48 @@ async def add_castle():
         "round_trip": "NA",
         "last_updated": None,
         "x": None,
-        "y": None
+        "y": None,
+        "workspace_id": workspace_id,
     })
     save_config(config)
     await notify_config_updated()
     return {"success": True, "id": new_id}
 
+
 @app.post("/api/bear_traps/add")
-async def add_bear_trap():
+async def add_bear_trap(
+    workspace_id: str = Query("default"),
+    user: Optional[dict] = Depends(get_current_user),
+):
+    """Add a new bear trap to a workspace.
+
+    Args:
+        workspace_id: Target workspace ID.
+        user: Current authenticated user (optional).
+
+    Returns:
+        Success status and new bear trap ID.
+
+    Raises:
+        HTTPException: If access denied to workspace.
+    """
     config = load_config()
+    global_settings = config.get("global_settings", {})
+    auth_enabled = global_settings.get("auth_enabled", False)
+
+    # Check workspace access
+    if auth_enabled and user:
+        user_workspaces = set(user.get("workspaces", []))
+        if workspace_id not in user_workspaces:
+            raise HTTPException(403, f"Access denied to workspace: {workspace_id}")
+
     new_id = f"B{max(len(config.get('bear_traps', [])), 0) + 1}"
     config["bear_traps"].append({
         "id": new_id,
         "locked": False,
         "x": None,
-        "y": None
+        "y": None,
+        "workspace_id": workspace_id,
     })
     save_config(config)
     await notify_config_updated()
@@ -368,13 +498,44 @@ async def add_bear_trap():
 
 
 @app.post("/api/castles/delete")
-async def delete_castle(data: Dict[str, Any]):
+async def delete_castle(
+    data: Dict[str, Any],
+    user: Optional[dict] = Depends(get_current_user),
+):
+    """Delete a castle with workspace access control.
+
+    Args:
+        data: Delete request data with castle ID.
+        user: Current authenticated user (optional).
+
+    Returns:
+        Success status.
+
+    Raises:
+        HTTPException: If castle not found or access denied.
+    """
     config = load_config()
-    config["castles"] = [c for c in config["castles"] if c.get("id") != data.get("id")]
+    global_settings = config.get("global_settings", {})
+    auth_enabled = global_settings.get("auth_enabled", False)
+
+    castle_id = data.get("id")
+    castle = next((c for c in config["castles"] if c.get("id") == castle_id), None)
+
+    if not castle:
+        raise HTTPException(404, f"Castle '{castle_id}' not found")
+
+    # Check workspace access
+    if auth_enabled and user:
+        castle_workspace = castle.get("workspace_id")
+        user_workspaces = set(user.get("workspaces", []))
+        if castle_workspace not in user_workspaces:
+            raise HTTPException(403, f"Access denied to workspace: {castle_workspace}")
+
+    config["castles"] = [c for c in config["castles"] if c.get("id") != castle_id]
     save_config(config)
 
     reason = data.get("reason", "No reason provided")
-    print(f"Deleted castle {data.get('id')} - Reason: {reason}")  # Log to console/server logs
+    print(f"Deleted castle {castle_id} - Reason: {reason}")
 
     await notify_config_updated()
     return {"success": True}
@@ -466,6 +627,155 @@ async def github_webhook(
         "status": "ok",
         "message": f"Event {x_github_event} received but not processed"
     }
+
+# ============================================================
+# Authentication & Workspace Routes
+# ============================================================
+
+
+@app.get("/api/auth/status")
+async def auth_status(user: Optional[dict] = Depends(get_current_user)):
+    """Get authentication status and user information.
+
+    Args:
+        user: Current authenticated user (optional).
+
+    Returns:
+        Authentication status and user details.
+    """
+    config = load_config()
+    global_settings = config.get("global_settings", {})
+    auth_enabled = global_settings.get("auth_enabled", False)
+
+    if not auth_enabled:
+        return {
+            "authenticated": False,
+            "auth_enabled": False,
+            "message": "Authentication is disabled",
+        }
+
+    if not user:
+        return {
+            "authenticated": False,
+            "auth_enabled": True,
+            "discord_oauth_configured": is_discord_oauth_configured(),
+        }
+
+    return {
+        "authenticated": True,
+        "auth_enabled": True,
+        "user": {
+            "discord_id": user.get("discord_id"),
+            "username": user.get("username"),
+            "workspaces": user.get("workspaces", []),
+        },
+    }
+
+
+@app.get("/api/auth/discord/url")
+async def get_discord_login_url():
+    """Get Discord OAuth login URL.
+
+    Returns:
+        Discord OAuth authorization URL.
+
+    Raises:
+        HTTPException: If Discord OAuth is not configured.
+    """
+    try:
+        url = get_discord_oauth_url()
+        return {"url": url}
+    except ValueError as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/api/auth/discord/callback")
+async def discord_callback(code: str = Query(...)):
+    """Handle Discord OAuth callback.
+
+    Args:
+        code: Authorization code from Discord.
+
+    Returns:
+        JWT access token for the authenticated user.
+
+    Raises:
+        HTTPException: If authentication fails or user is not authorized.
+    """
+    try:
+        # Authenticate with Discord
+        discord_user_id, username = await authenticate_discord_user(code)
+
+        # Get user's authorized workspaces
+        user_workspaces = workspace_manager.get_user_workspaces(discord_user_id)
+
+        if not user_workspaces:
+            raise HTTPException(
+                status_code=403,
+                detail="User is not authorized for any workspace",
+            )
+
+        # Create access token
+        token = create_access_token(discord_user_id, username, user_workspaces)
+
+        return {
+            "access_token": token,
+            "token_type": "bearer",
+            "user": {
+                "discord_id": discord_user_id,
+                "username": username,
+                "workspaces": list(user_workspaces),
+            },
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Authentication failed: {str(e)}")
+
+
+@app.get("/api/workspaces")
+async def list_workspaces(user: Optional[dict] = Depends(get_current_user)):
+    """List workspaces accessible to the current user.
+
+    Args:
+        user: Current authenticated user (optional).
+
+    Returns:
+        List of accessible workspaces.
+    """
+    config = load_config()
+    global_settings = config.get("global_settings", {})
+    auth_enabled = global_settings.get("auth_enabled", False)
+
+    all_workspaces = config.get("workspaces", {})
+
+    if not auth_enabled or not user:
+        # Return all workspaces if auth is disabled or user is not authenticated
+        return {
+            "workspaces": [
+                {
+                    "id": ws_id,
+                    "name": ws.get("name", ws_id),
+                    "description": ws.get("description", ""),
+                }
+                for ws_id, ws in all_workspaces.items()
+            ]
+        }
+
+    # Filter to user's accessible workspaces
+    user_workspace_ids = set(user.get("workspaces", []))
+    accessible = [
+        {
+            "id": ws_id,
+            "name": ws.get("name", ws_id),
+            "description": ws.get("description", ""),
+        }
+        for ws_id, ws in all_workspaces.items()
+        if ws_id in user_workspace_ids
+    ]
+
+    return {"workspaces": accessible}
+
 
 # ============================================================
 # Static files
