@@ -6,12 +6,15 @@ import hashlib
 import subprocess
 from datetime import datetime
 
-from fastapi import FastAPI, Body, Request, HTTPException, Header
-from fastapi.responses import HTMLResponse, FileResponse, StreamingResponse
+from fastapi import FastAPI, Body, Request, HTTPException, Header, Depends
+from fastapi.responses import HTMLResponse, FileResponse, StreamingResponse, Response
 from fastapi.staticfiles import StaticFiles
 from dotenv import load_dotenv
 
 from server.sync import router as sync_router
+from database import init_db
+from audit_service import AuditLogger
+from user_context import get_current_user
 
 # Load environment variables
 load_dotenv()
@@ -24,6 +27,11 @@ DEFAULT_VERSION = "1.0.4"
 
 app = FastAPI(title="Bear Planner MVP")
 app.include_router(sync_router)
+
+# Initialize database on startup
+@app.on_event("startup")
+async def startup_event():
+    init_db()
 
 # ============================================================
 # 🔔 SSE BROADCAST SYSTEM (authoritative server push)
@@ -124,7 +132,7 @@ def get_version():
         return {"version": DEFAULT_VERSION}
 
 from fastapi import APIRouter, HTTPException, Body
-from typing import Any, Dict
+from typing import Any, Dict, Optional
 import re
 
 
@@ -165,7 +173,10 @@ def sanitise_int(value: Any, *, allow_none=False) -> int | None:
 
 
 @app.post("/api/castles/update")
-async def update_castle(payload: Dict[str, Any] = Body(...)):
+async def update_castle(
+    payload: Dict[str, Any] = Body(...),
+    user: str = Depends(get_current_user)
+):
     if "id" not in payload:
         raise HTTPException(400, "Missing castle id")
 
@@ -187,16 +198,33 @@ async def update_castle(payload: Dict[str, Any] = Body(...)):
         if key not in ALLOWED_CASTLE_FIELDS:
             raise HTTPException(400, f"Illegal field: {key}")
 
+        # Store old value for audit log
+        old_value = castle.get(key)
+
         if key == "player":
-            castle["player"] = sanitise_player_name(str(value))
+            new_value = sanitise_player_name(str(value))
+            castle["player"] = new_value
         elif key == "preference":
             if value not in VALID_PREFERENCES:
                 raise HTTPException(400, "Invalid preference")
+            new_value = value
             castle["preference"] = value
         elif key == "attendance":
-            castle[key] = sanitise_int(value, allow_none=True)
+            new_value = sanitise_int(value, allow_none=True)
+            castle[key] = new_value
         else:
-            castle[key] = sanitise_int(value)
+            new_value = sanitise_int(value)
+            castle[key] = new_value
+
+        # Log the update
+        AuditLogger.log_update(
+            user=user,
+            entity_type="castle",
+            entity_id=str(castle_id),
+            field_name=key,
+            before_value=old_value,
+            after_value=new_value,
+        )
 
         updated = True
 
@@ -328,10 +356,10 @@ async def unmark_busy(data: Dict[str, Any]):
     return {"success": True}
 
 @app.post("/api/castles/add")
-async def add_castle():
+async def add_castle(user: str = Depends(get_current_user)):
     config = load_config()
     new_id = max((c.get("id", 0) for c in config.get("castles", [])), default=0) + 1
-    config["castles"].append({
+    new_castle = {
         "id": new_id,
         "player": "",
         "power": 0,
@@ -347,34 +375,69 @@ async def add_castle():
         "last_updated": None,
         "x": None,
         "y": None
-    })
+    }
+    config["castles"].append(new_castle)
     save_config(config)
+
+    # Log the creation
+    AuditLogger.log_create(
+        user=user,
+        entity_type="castle",
+        entity_id=str(new_id),
+        after_value=new_castle,
+    )
+
     await notify_config_updated()
     return {"success": True, "id": new_id}
 
 @app.post("/api/bear_traps/add")
-async def add_bear_trap():
+async def add_bear_trap(user: str = Depends(get_current_user)):
     config = load_config()
     new_id = f"B{max(len(config.get('bear_traps', [])), 0) + 1}"
-    config["bear_traps"].append({
+    new_trap = {
         "id": new_id,
         "locked": False,
         "x": None,
         "y": None
-    })
+    }
+    config["bear_traps"].append(new_trap)
     save_config(config)
+
+    # Log the creation
+    AuditLogger.log_create(
+        user=user,
+        entity_type="bear_trap",
+        entity_id=new_id,
+        after_value=new_trap,
+    )
+
     await notify_config_updated()
     return {"success": True, "id": new_id}
 
 
 @app.post("/api/castles/delete")
-async def delete_castle(data: Dict[str, Any]):
+async def delete_castle(data: Dict[str, Any], user: str = Depends(get_current_user)):
     config = load_config()
-    config["castles"] = [c for c in config["castles"] if c.get("id") != data.get("id")]
+    castle_id = data.get("id")
+
+    # Find the castle before deletion for audit log
+    castle = next((c for c in config["castles"] if c.get("id") == castle_id), None)
+
+    config["castles"] = [c for c in config["castles"] if c.get("id") != castle_id]
     save_config(config)
 
     reason = data.get("reason", "No reason provided")
-    print(f"Deleted castle {data.get('id')} - Reason: {reason}")  # Log to console/server logs
+    print(f"Deleted castle {castle_id} - Reason: {reason}")  # Log to console/server logs
+
+    # Log the deletion
+    if castle:
+        AuditLogger.log_delete(
+            user=user,
+            entity_type="castle",
+            entity_id=str(castle_id),
+            before_value=castle,
+            description=f"Deleted castle {castle_id} - Reason: {reason}",
+        )
 
     await notify_config_updated()
     return {"success": True}
@@ -466,6 +529,84 @@ async def github_webhook(
         "status": "ok",
         "message": f"Event {x_github_event} received but not processed"
     }
+
+# ============================================================
+# Audit Log Endpoints
+# ============================================================
+
+@app.get("/api/audit/logs")
+async def get_audit_logs(
+    entity_type: Optional[str] = None,
+    entity_id: Optional[str] = None,
+    user: Optional[str] = None,
+    limit: int = 100,
+    offset: int = 0,
+):
+    """Get audit logs with optional filtering.
+
+    Args:
+        entity_type: Filter by entity type (castle, bear_trap, banner, settings).
+        entity_id: Filter by specific entity ID.
+        user: Filter by user who made changes.
+        limit: Maximum number of logs to return (default 100).
+        offset: Number of logs to skip (default 0).
+
+    Returns:
+        List of audit log entries.
+    """
+    logs = AuditLogger.get_logs(
+        entity_type=entity_type,
+        entity_id=entity_id,
+        user=user,
+        limit=limit,
+        offset=offset,
+    )
+    return {"logs": logs, "count": len(logs)}
+
+
+@app.get("/api/audit/entity/{entity_type}/{entity_id}")
+async def get_entity_audit_history(entity_type: str, entity_id: str, limit: int = 50):
+    """Get complete audit history for a specific entity.
+
+    Args:
+        entity_type: Type of entity (castle, bear_trap, banner, settings).
+        entity_id: ID of the entity.
+        limit: Maximum number of logs to return (default 50).
+
+    Returns:
+        List of audit log entries for the entity.
+    """
+    logs = AuditLogger.get_entity_history(
+        entity_type=entity_type, entity_id=entity_id, limit=limit
+    )
+    return {"entity_type": entity_type, "entity_id": entity_id, "logs": logs}
+
+
+@app.get("/api/audit/export")
+async def export_audit_logs(
+    entity_type: Optional[str] = None,
+    entity_id: Optional[str] = None,
+    user: Optional[str] = None,
+):
+    """Export audit logs as CSV.
+
+    Args:
+        entity_type: Filter by entity type.
+        entity_id: Filter by specific entity ID.
+        user: Filter by user who made changes.
+
+    Returns:
+        CSV file with audit logs.
+    """
+    csv_content = AuditLogger.export_logs_csv(
+        entity_type=entity_type, entity_id=entity_id, user=user
+    )
+    return Response(
+        content=csv_content,
+        media_type="text/csv",
+        headers={"Content-Disposition": "attachment; filename=audit_logs.csv"},
+    )
+
 
 # ============================================================
 # Static files
