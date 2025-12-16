@@ -5,13 +5,28 @@ import hmac
 import hashlib
 import subprocess
 from datetime import datetime
+from typing import Any, Dict
 
-from fastapi import FastAPI, Body, Request, HTTPException, Header
-from fastapi.responses import HTMLResponse, FileResponse, StreamingResponse
+from fastapi import FastAPI, Body, Request, HTTPException, Header, Depends, UploadFile, File
+from fastapi.responses import (
+    HTMLResponse,
+    FileResponse,
+    StreamingResponse,
+    RedirectResponse,
+)
 from fastapi.staticfiles import StaticFiles
+from starlette.middleware.sessions import SessionMiddleware
 from dotenv import load_dotenv
 
 from server.sync import router as sync_router
+from server.auth import (
+    require_auth,
+    login as auth_login,
+    callback as auth_callback,
+    logout as auth_logout,
+    is_authenticated,
+    SESSION_SECRET_KEY,
+)
 
 # Load environment variables
 load_dotenv()
@@ -23,25 +38,25 @@ VERSION_PATH = os.path.join(BASE_DIR, "version.json")
 DEFAULT_VERSION = "1.0.4"
 
 app = FastAPI(title="Bear Planner MVP")
+
+# Add session middleware for authentication
+app.add_middleware(
+    SessionMiddleware,
+    secret_key=SESSION_SECRET_KEY,
+    session_cookie="bear_session",
+    max_age=86400 * 7,  # 7 days
+    same_site="lax",
+    https_only=False,  # Set to True in production with HTTPS
+)
+
 app.include_router(sync_router)
 
 # ============================================================
 # 🔔 SSE BROADCAST SYSTEM (authoritative server push)
 # ============================================================
-# Add after subscribers set
+subscribers: set[asyncio.Queue] = set()
 busy_set: set[str] = set()
 
-# Update broadcast_config to include busy
-async def broadcast_config(config: dict):
-    payload = {
-        "type": "config_update",
-        "time": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-        "busy": list(busy_set),  # Include busy IDs
-    }
-    for queue in list(subscribers):
-        await queue.put(payload)
-
-subscribers: set[asyncio.Queue] = set()
 
 async def event_generator(queue: asyncio.Queue):
     try:
@@ -51,16 +66,21 @@ async def event_generator(queue: asyncio.Queue):
     except asyncio.CancelledError:
         pass
 
+
 async def broadcast_config(config: dict):
+    """Broadcast configuration updates to all SSE subscribers."""
     payload = {
         "type": "config_update",
         "time": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+        "busy": list(busy_set),  # Include busy IDs
     }
     for queue in list(subscribers):
         await queue.put(payload)
 
+
 @app.get("/api/stream")
-async def stream(request: Request):
+async def stream(request: Request, user: dict = Depends(require_auth)):
+    """Server-Sent Events stream for real-time updates (requires authentication)."""
     queue = asyncio.Queue()
     subscribers.add(queue)
 
@@ -69,14 +89,13 @@ async def stream(request: Request):
 
     request.state._cleanup = cleanup
 
-    return StreamingResponse(
-        event_generator(queue),
-        media_type="text/event-stream"
-    )
+    return StreamingResponse(event_generator(queue), media_type="text/event-stream")
+
 
 # ============================================================
 # Helpers
 # ============================================================
+
 
 def load_config():
     with open(CONFIG_PATH, "r", encoding="utf-8") as f:
@@ -87,46 +106,78 @@ def save_config(config):
     with open(CONFIG_PATH, "w", encoding="utf-8") as f:
         json.dump(config, f, indent=2, ensure_ascii=False)
 
+
 async def notify_config_updated():
     config = load_config()
     await broadcast_config(config)
+
+
+# ============================================================
+# Authentication Routes
+# ============================================================
+
+
+@app.get("/auth/login")
+async def login(request: Request):
+    """Redirect to Discord OAuth login."""
+    return await auth_login(request)
+
+
+@app.get("/auth/callback")
+async def callback(request: Request):
+    """Handle Discord OAuth callback."""
+    return await auth_callback(request)
+
+
+@app.get("/auth/logout")
+async def logout(request: Request):
+    """Logout the current user."""
+    return await auth_logout(request)
+
+
+@app.get("/auth/me")
+async def get_current_user_info(request: Request, user: dict = Depends(require_auth)):
+    """Get current user information."""
+    return user
+
 
 # ============================================================
 # Routes
 # ============================================================
 
+
 @app.get("/", response_class=HTMLResponse)
-def index():
+async def index(request: Request):
+    """Serve main page or redirect to login if not authenticated."""
+    if not is_authenticated(request):
+        return RedirectResponse(url="/auth/login", status_code=302)
     return FileResponse(os.path.join(BASE_DIR, "static", "index.html"))
 
+
 @app.get("/api/map")
-def get_map():
+async def get_map(user: dict = Depends(require_auth)):
+    """Get map configuration (requires authentication)."""
     config = load_config()
     return {
         "grid_size": config["grid_size"],
-
         # visual + logic config
         "efficiency_scale": config["efficiency_scale"],
-
         # entities (authoritative)
         "banners": config.get("banners", []),
         "bear_traps": config.get("bear_traps", []),
-        "castles": config.get("castles", [])
+        "castles": config.get("castles", []),
     }
 
+
 @app.get("/api/version")
-def get_version():
+async def get_version(user: dict = Depends(require_auth)):
+    """Get application version (requires authentication)."""
     try:
         with open(VERSION_PATH, "r", encoding="utf-8") as f:
             version_data = json.load(f)
         return version_data
     except (FileNotFoundError, json.JSONDecodeError, KeyError):
         return {"version": DEFAULT_VERSION}
-
-from fastapi import APIRouter, HTTPException, Body
-from typing import Any, Dict
-import re
-
 
 
 ALLOWED_CASTLE_FIELDS = {
@@ -165,7 +216,10 @@ def sanitise_int(value: Any, *, allow_none=False) -> int | None:
 
 
 @app.post("/api/castles/update")
-async def update_castle(payload: Dict[str, Any] = Body(...)):
+async def update_castle(
+    payload: Dict[str, Any] = Body(...), user: dict = Depends(require_auth)
+):
+    """Update castle information (requires authentication)."""
     if "id" not in payload:
         raise HTTPException(400, "Missing castle id")
 
@@ -213,12 +267,16 @@ async def update_castle(payload: Dict[str, Any] = Body(...)):
         "id": castle_id,
     }
 
+
 @app.post("/api/intent/move_castle")
-async def move_castle(data: Dict[str, Any]):
+async def move_castle(data: Dict[str, Any], user: dict = Depends(require_auth)):
+    """Move castle intent (requires authentication)."""
     entity_id = data.get("id")
     x = data.get("x")
     y = data.get("y")
-    print(f"Received move_castle intent: id={entity_id}, x={x}, y={y}")  # Placeholder: print the information sent
+    print(
+        f"Received move_castle intent: id={entity_id}, x={x}, y={y}"
+    )  # Placeholder: print the information sent
     # TODO: Implement castle move validation and placement, including:
     # - Check grid bounds (0 <= x < grid_size-1, 0 <= y < grid_size-1 for 2x2)
     # - Ensure no overlaps with other entities
@@ -228,12 +286,16 @@ async def move_castle(data: Dict[str, Any]):
     # - Unmark busy
     return {"success": True}
 
+
 @app.post("/api/intent/move_banner")
-async def move_banner(data: Dict[str, Any]):
+async def move_banner(data: Dict[str, Any], user: dict = Depends(require_auth)):
+    """Move banner intent (requires authentication)."""
     entity_id = data.get("id")
     x = data.get("x")
     y = data.get("y")
-    print(f"Received move_banner intent: id={entity_id}, x={x}, y={y}")  # Placeholder: print the information sent
+    print(
+        f"Received move_banner intent: id={entity_id}, x={x}, y={y}"
+    )  # Placeholder: print the information sent
     # TODO: Implement banner move validation and placement, including:
     # - Check grid bounds (0 <= x < grid_size, 0 <= y < grid_size)
     # - Ensure no overlaps (if applicable)
@@ -243,12 +305,16 @@ async def move_banner(data: Dict[str, Any]):
     # - Unmark busy
     return {"success": True}
 
+
 @app.post("/api/intent/move_bear_trap")
-async def move_bear_trap(data: Dict[str, Any]):
+async def move_bear_trap(data: Dict[str, Any], user: dict = Depends(require_auth)):
+    """Move bear trap intent (requires authentication)."""
     entity_id = data.get("id")
     x = data.get("x")
     y = data.get("y")
-    print(f"Received move_bear_trap intent: id={entity_id}, x={x}, y={y}")  # Placeholder: print the information sent
+    print(
+        f"Received move_bear_trap intent: id={entity_id}, x={x}, y={y}"
+    )  # Placeholder: print the information sent
     # TODO: Implement bear trap move validation and placement, including:
     # - Check grid bounds (0 <= x < grid_size, 0 <= y < grid_size)
     # - Ensure no overlaps with other bear traps/castles
@@ -258,59 +324,90 @@ async def move_bear_trap(data: Dict[str, Any]):
     # - Unmark busy
     return {"success": True}
 
-from fastapi import UploadFile, File
 
 @app.post("/api/download_map_image")
-async def download_map_image():
-    print("Received download_map_image request")  # Placeholder: print the information sent
-    # TODO: Generate map image server-side (e.g., render canvas equivalent or use a library), return as image blob
-    # For now, return a dummy image or error
+async def download_map_image(user: dict = Depends(require_auth)):
+    """Download map image (requires authentication)."""
+    # Placeholder: print the information sent
+    print("Received download_map_image request")
+    # TODO: Generate map image server-side (e.g., render canvas equivalent
+    # or use a library), return as image blob
     return {"error": "Not implemented"}
 
+
 @app.post("/api/auto_place_castles")
-async def auto_place_castles():
-    print("Received auto_place_castles request")  # Placeholder: print the information sent
-    # TODO: Auto-place castles server-side (algorithm to position them optimally), update config, recompute priorities, broadcast via SSE
+async def auto_place_castles(user: dict = Depends(require_auth)):
+    """Auto place castles (requires authentication)."""
+    # Placeholder: print the information sent
+    print("Received auto_place_castles request")
+    # TODO: Auto-place castles server-side (algorithm to position them
+    # optimally), update config, recompute priorities, broadcast via SSE
     return {"success": True}
 
+
 @app.post("/api/upload_csv")
-async def upload_csv(csv_file: UploadFile = File(...)):
-    print(f"Received upload_csv: file={csv_file.filename}")  # Placeholder: print the information sent
-    # TODO: Read and parse CSV server-side, merge into current castles, recompute priorities, update config, broadcast via SSE
+async def upload_csv(
+    csv_file: UploadFile = File(...), user: dict = Depends(require_auth)
+):
+    """Upload CSV file (requires authentication)."""
+    # Placeholder: print the information sent
+    print(f"Received upload_csv: file={csv_file.filename}")
+    # TODO: Read and parse CSV server-side, merge into current castles,
+    # recompute priorities, update config, broadcast via SSE
     return {"success": True}
+
 
 # Added missing endpoints
 @app.post("/api/intent/toggle_lock_castle")
-async def toggle_lock_castle(data: Dict[str, Any]):
+async def toggle_lock_castle(data: Dict[str, Any], user: dict = Depends(require_auth)):
+    """Toggle castle lock (requires authentication)."""
     entity_id = data.get("id")
-    print(f"Received toggle_lock_castle intent: id={entity_id}")  # Placeholder: print the information sent
+    print(
+        f"Received toggle_lock_castle intent: id={entity_id}"
+    )  # Placeholder: print the information sent
     # TODO: Toggle castle lock, update config, broadcast SSE
     return {"success": True}
 
+
 @app.post("/api/intent/toggle_lock_banner")
-async def toggle_lock_banner(data: Dict[str, Any]):
+async def toggle_lock_banner(data: Dict[str, Any], user: dict = Depends(require_auth)):
+    """Toggle banner lock (requires authentication)."""
     entity_id = data.get("id")
-    print(f"Received toggle_lock_banner intent: id={entity_id}")  # Placeholder: print the information sent
+    print(
+        f"Received toggle_lock_banner intent: id={entity_id}"
+    )  # Placeholder: print the information sent
     # TODO: Toggle banner lock, update config, broadcast SSE
     return {"success": True}
 
+
 @app.post("/api/intent/toggle_lock_bear_trap")
-async def toggle_lock_bear_trap(data: Dict[str, Any]):
+async def toggle_lock_bear_trap(
+    data: Dict[str, Any], user: dict = Depends(require_auth)
+):
+    """Toggle bear trap lock (requires authentication)."""
     entity_id = data.get("id")
-    print(f"Received toggle_lock_bear_trap intent: id={entity_id}")  # Placeholder: print the information sent
+    print(
+        f"Received toggle_lock_bear_trap intent: id={entity_id}"
+    )  # Placeholder: print the information sent
     # TODO: Toggle bear trap lock, update config, broadcast SSE
     return {"success": True}
 
+
 @app.post("/api/intent/move_castle_away")
-async def move_castle_away(data: Dict[str, Any]):
+async def move_castle_away(data: Dict[str, Any], user: dict = Depends(require_auth)):
+    """Move castle away (requires authentication)."""
     entity_id = data.get("id")
-    print(f"Received move_castle_away intent: id={entity_id}")  # Placeholder: print the information sent
+    print(
+        f"Received move_castle_away intent: id={entity_id}"
+    )  # Placeholder: print the information sent
     # TODO: Move castle to edge position, update config, broadcast SSE
     return {"success": True}
 
+
 # Add after the existing intent routes
 @app.post("/api/intent/mark_busy")
-async def mark_busy(data: Dict[str, Any]):
+async def mark_busy(data: Dict[str, Any], user: dict = Depends(require_auth)):
+    """Mark entity as busy (requires authentication)."""
     entity_id = data.get("id")
     if not entity_id:
         raise HTTPException(400, "Missing id")
@@ -318,8 +415,10 @@ async def mark_busy(data: Dict[str, Any]):
     await broadcast_config(load_config())  # Broadcast with busy
     return {"success": True}
 
+
 @app.post("/api/intent/unmark_busy")
-async def unmark_busy(data: Dict[str, Any]):
+async def unmark_busy(data: Dict[str, Any], user: dict = Depends(require_auth)):
+    """Unmark entity as busy (requires authentication)."""
     entity_id = data.get("id")
     if not entity_id:
         raise HTTPException(400, "Missing id")
@@ -327,57 +426,62 @@ async def unmark_busy(data: Dict[str, Any]):
     await broadcast_config(load_config())  # Broadcast with busy
     return {"success": True}
 
+
 @app.post("/api/castles/add")
-async def add_castle():
+async def add_castle(user: dict = Depends(require_auth)):
+    """Add new castle (requires authentication)."""
     config = load_config()
     new_id = max((c.get("id", 0) for c in config.get("castles", [])), default=0) + 1
-    config["castles"].append({
-        "id": new_id,
-        "player": "",
-        "power": 0,
-        "player_level": 0,
-        "command_centre_level": 0,
-        "attendance": 0,
-        "rallies_30min": 0,
-        "preference": "Both",
-        "locked": False,
-        "priority": None,
-        "efficiency": None,
-        "round_trip": "NA",
-        "last_updated": None,
-        "x": None,
-        "y": None
-    })
+    config["castles"].append(
+        {
+            "id": new_id,
+            "player": "",
+            "power": 0,
+            "player_level": 0,
+            "command_centre_level": 0,
+            "attendance": 0,
+            "rallies_30min": 0,
+            "preference": "Both",
+            "locked": False,
+            "priority": None,
+            "efficiency": None,
+            "round_trip": "NA",
+            "last_updated": None,
+            "x": None,
+            "y": None,
+        }
+    )
     save_config(config)
     await notify_config_updated()
     return {"success": True, "id": new_id}
 
+
 @app.post("/api/bear_traps/add")
-async def add_bear_trap():
+async def add_bear_trap(user: dict = Depends(require_auth)):
+    """Add new bear trap (requires authentication)."""
     config = load_config()
     new_id = f"B{max(len(config.get('bear_traps', [])), 0) + 1}"
-    config["bear_traps"].append({
-        "id": new_id,
-        "locked": False,
-        "x": None,
-        "y": None
-    })
+    config["bear_traps"].append({"id": new_id, "locked": False, "x": None, "y": None})
     save_config(config)
     await notify_config_updated()
     return {"success": True, "id": new_id}
 
 
 @app.post("/api/castles/delete")
-async def delete_castle(data: Dict[str, Any]):
+async def delete_castle(data: Dict[str, Any], user: dict = Depends(require_auth)):
+    """Delete castle (requires authentication)."""
     config = load_config()
     config["castles"] = [c for c in config["castles"] if c.get("id") != data.get("id")]
     save_config(config)
 
     reason = data.get("reason", "No reason provided")
-    print(f"Deleted castle {data.get('id')} - Reason: {reason}")  # Log to console/server logs
+    print(
+        f"Deleted castle {data.get('id')} - Reason: {reason}"
+    )  # Log to console/server logs
 
     await notify_config_updated()
     return {"success": True}
+
 
 # ============================================================
 # GitHub Webhook Handler
@@ -386,22 +490,22 @@ async def delete_castle(data: Dict[str, Any]):
 WEBHOOK_SECRET = os.getenv("GITHUB_WEBHOOK_SECRET")
 UPDATE_SCRIPT_PATH = os.path.join(BASE_DIR, "scripts", "update_and_restart.sh")
 
+
 def verify_webhook_signature(payload_body: bytes, signature_header: str) -> bool:
     """Verify the GitHub webhook signature using HMAC-SHA256."""
     if not WEBHOOK_SECRET:
         return False
-    
+
     if not signature_header or not signature_header.startswith("sha256="):
         return False
-    
+
     hash_object = hmac.new(
-        WEBHOOK_SECRET.encode('utf-8'),
-        msg=payload_body,
-        digestmod=hashlib.sha256
+        WEBHOOK_SECRET.encode("utf-8"), msg=payload_body, digestmod=hashlib.sha256
     )
     expected_signature = "sha256=" + hash_object.hexdigest()
-    
+
     return hmac.compare_digest(expected_signature, signature_header)
+
 
 async def trigger_update():
     """Trigger the update script in the background."""
@@ -410,27 +514,28 @@ async def trigger_update():
         if not os.path.isfile(UPDATE_SCRIPT_PATH):
             print(f"Error: Update script not found at {UPDATE_SCRIPT_PATH}")
             return
-        
+
         if not os.access(UPDATE_SCRIPT_PATH, os.X_OK):
             print(f"Error: Update script is not executable: {UPDATE_SCRIPT_PATH}")
             return
-        
+
         # Run the update script in the background
         subprocess.Popen(
             [UPDATE_SCRIPT_PATH],
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
-            start_new_session=True
+            start_new_session=True,
         )
         print(f"Update script triggered: {UPDATE_SCRIPT_PATH}")
     except Exception as e:
         print(f"Error triggering update script: {e}")
 
+
 @app.post("/webhook/github")
 async def github_webhook(
     request: Request,
     x_hub_signature_256: str = Header(None),
-    x_github_event: str = Header(None)
+    x_github_event: str = Header(None),
 ):
     """
     Handle GitHub webhook events.
@@ -438,34 +543,32 @@ async def github_webhook(
     """
     # Read the raw payload
     payload_body = await request.body()
-    
+
     # Verify the webhook signature
     if not verify_webhook_signature(payload_body, x_hub_signature_256):
         raise HTTPException(status_code=401, detail="Invalid signature")
-    
+
     # Parse the JSON payload
     try:
         payload = json.loads(payload_body)
     except json.JSONDecodeError:
         raise HTTPException(status_code=400, detail="Invalid JSON payload")
-    
+
     # Check if this is a push event to the main branch
     if x_github_event == "push":
         ref = payload.get("ref", "")
         if ref == "refs/heads/main":
-            print(f"Received push event to main branch")
+            print("Received push event to main branch")
             # Trigger update in background
             asyncio.create_task(trigger_update())
-            return {
-                "status": "success",
-                "message": "Update triggered for main branch"
-            }
-    
+            return {"status": "success", "message": "Update triggered for main branch"}
+
     # For other events, just acknowledge receipt
     return {
         "status": "ok",
-        "message": f"Event {x_github_event} received but not processed"
+        "message": f"Event {x_github_event} received but not processed",
     }
+
 
 # ============================================================
 # Static files
