@@ -102,6 +102,8 @@ const Sync = (() => {
     if (msg.type === "busy" && msg.id) {
       updateRemoteBusy(msg.id, true);
       redraw();
+      // Note: No toast for busy events as they don't include user info
+      // and are transient (user is just starting to edit)
       return;
     }
 
@@ -119,6 +121,39 @@ const Sync = (() => {
 
     if (typeof window.applyRemoteUpdate === "function") {
       window.applyRemoteUpdate(update);
+    }
+
+    // Show toast notification for the update
+    if (window.ToastManager && update.updated_by) {
+      showUpdateToast(update);
+    }
+  }
+
+  function showUpdateToast(update) {
+    if (!update || !update.id) return;
+
+    // Determine entity type from ID
+    let entityType = "entity";
+    if (update.id.startsWith("Castle")) {
+      entityType = "castle";
+    } else if (update.id.startsWith("Bear")) {
+      entityType = "bear trap";
+    } else if (update.id.startsWith("B")) {
+      entityType = "banner";
+    }
+
+    // Detect what changed to show appropriate toast
+    // Check if position changed (move)
+    if (update.x !== undefined || update.y !== undefined) {
+      window.ToastManager.showMove(update.id, entityType, update.updated_by);
+    }
+    // Check if lock changed
+    else if (update.locked !== undefined) {
+      window.ToastManager.showLock(update.id, entityType, update.locked, update.updated_by);
+    }
+    // Otherwise, it's a general edit
+    else {
+      window.ToastManager.showEdit(update.id, entityType, update.updated_by);
     }
   }
 
