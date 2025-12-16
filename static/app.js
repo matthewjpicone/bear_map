@@ -23,6 +23,13 @@ window.remoteBusy = new Set(); // sync / optimistic UI guard
 // Tooltip state
 let hoveredCastleOnCanvas = null;
 
+// Selection state
+let selectedCastleId = null;
+
+// Filter state
+let visibleCastleIds = new Set();
+let hoveredCastleId = null;
+
 const canvas = document.getElementById("map");
 if (!canvas) throw new Error("Canvas #map not found");
 const ctx = canvas.getContext("2d");
@@ -335,6 +342,45 @@ function hideCastleTooltip() {
 }
 
 // ==========================
+// Selection Functions
+// ==========================
+function selectCastle(castleId) {
+  selectedCastleId = castleId;
+  updateSelectedCastleDisplay();
+  drawMap(mapData);
+}
+
+function clearSelection() {
+  selectedCastleId = null;
+  updateSelectedCastleDisplay();
+  drawMap(mapData);
+}
+
+function updateSelectedCastleDisplay() {
+  const display = document.getElementById("selectedCastleDisplay");
+  if (!display) return;
+
+  if (!selectedCastleId || !mapData) {
+    display.classList.remove("active");
+    display.innerHTML = "";
+    return;
+  }
+
+  const castle = mapData.castles.find(c => c.id === selectedCastleId);
+  if (!castle) {
+    display.classList.remove("active");
+    display.innerHTML = "";
+    return;
+  }
+
+  display.classList.add("active");
+  display.innerHTML = `
+    <span class="selected-label">Selected:</span>
+    <span class="selected-player">${castle.player || castle.id}</span>
+  `;
+}
+
+// ==========================
 // Input Builders
 // ==========================
 function createTextInput(value, onChange) {
@@ -634,6 +680,12 @@ function renderCastleTable() {
 
   castles.forEach(c => {
     const tr = document.createElement("tr");
+    tr.dataset.castleId = c.id;
+
+    // Add selection styling if this castle is selected
+    if (selectedCastleId === c.id) {
+      tr.classList.add("selected-row");
+    }
 
     tr.addEventListener("mouseenter", (e) => {
       hoveredCastleId = c.id;
@@ -651,19 +703,33 @@ function renderCastleTable() {
         showCastleTooltip(c, e.clientX, e.clientY);
       }
     });
-tr.addEventListener("click", () => {
-  // Pan to center of castle in rotated view
-  const castleCenterX = c.x * TILE_SIZE + TILE_SIZE;
-  const castleCenterY = c.y * TILE_SIZE + TILE_SIZE;
-  const rad = (ISO_DEG * Math.PI) / 180;
-  const cos = Math.cos(rad);
-  const sin = Math.sin(rad);
-  const rx = castleCenterX * cos - castleCenterY * sin;
-  const ry = castleCenterX * sin + castleCenterY * cos;
-  viewOffsetX = rx;
-  viewOffsetY = ry;
-  drawMap(mapData);
-});
+    tr.addEventListener("click", (e) => {
+      // Don't trigger selection if clicking on input fields or buttons
+      if (e.target.tagName === "INPUT" || e.target.tagName === "SELECT" || e.target.tagName === "BUTTON") {
+        return;
+      }
+      
+      // Toggle selection
+      if (selectedCastleId === c.id) {
+        clearSelection();
+      } else {
+        selectCastle(c.id);
+      }
+
+      // Pan to center of castle in rotated view if it's placed
+      if (c.x != null && c.y != null) {
+        const castleCenterX = c.x * TILE_SIZE + TILE_SIZE;
+        const castleCenterY = c.y * TILE_SIZE + TILE_SIZE;
+        const rad = (ISO_DEG * Math.PI) / 180;
+        const cos = Math.cos(rad);
+        const sin = Math.sin(rad);
+        const rx = castleCenterX * cos - castleCenterY * sin;
+        const ry = castleCenterX * sin + castleCenterY * cos;
+        viewOffsetX = rx;
+        viewOffsetY = ry;
+        drawMap(mapData);
+      }
+    });
 
     /* ID */
     const idTd = document.createElement("td");
@@ -1108,6 +1174,8 @@ function drawCastle(castle) {
     window.remoteBusy?.has(castle.id) &&
     draggingCastle?.id !== castle.id;
 
+  const isSelected = selectedCastleId === castle.id;
+
   const isVisible = visibleCastleIds.size === 0 || visibleCastleIds.has(castle.id);
   if (!isVisible) {
     ctx.globalAlpha = 0.3;  // Fade non-filtered
@@ -1119,8 +1187,17 @@ function drawCastle(castle) {
 
   // -------- border --------
   ctx.save();
-  ctx.strokeStyle = isRemoteBusy ? "#dc2626" : "#e5e7eb";
-  ctx.lineWidth = (isRemoteBusy ? 3 : 1) / viewZoom;  // Scale line width
+  // Use accent color for selected castle, red for busy, default otherwise
+  if (isSelected) {
+    ctx.strokeStyle = "#38bdf8";  // Accent color
+    ctx.lineWidth = 3 / viewZoom;  // Thicker border
+  } else if (isRemoteBusy) {
+    ctx.strokeStyle = "#dc2626";
+    ctx.lineWidth = 3 / viewZoom;
+  } else {
+    ctx.strokeStyle = "#e5e7eb";
+    ctx.lineWidth = 1 / viewZoom;
+  }
   ctx.strokeRect(px + 2, py + 2, size - 4, size - 4);
   ctx.restore();
 
@@ -1215,20 +1292,31 @@ function onMouseDown(e) {
   // Simple debug log
   console.log(`Mouse: (${mouseCanvasX}, ${mouseCanvasY}), Grid: (${x}, ${y}), Zoom: ${viewZoom}`);
 
+  let clickedOnEntity = false;
+
   // ---- CASTLES FIRST ----
   for (let castle of mapData.castles || []) {
     if (castle.x == null || castle.y == null) continue;
     if (isPointInEntity(x, y, castle)) {
-      if (castle.locked) return;
-      if (window.remoteBusy?.has(castle.id)) return;
+      clickedOnEntity = true;
+      
+      // Select the castle (even if locked or busy)
+      if (selectedCastleId === castle.id) {
+        clearSelection();
+      } else {
+        selectCastle(castle.id);
+      }
 
-      draggingCastle = castle;
-      castle._original = { x: castle.x, y: castle.y };
-      castle._grab = { dx: x - castle.x, dy: y - castle.y };
+      // Only allow dragging if not locked and not busy
+      if (!castle.locked && !window.remoteBusy?.has(castle.id)) {
+        draggingCastle = castle;
+        castle._original = { x: castle.x, y: castle.y };
+        castle._grab = { dx: x - castle.x, dy: y - castle.y };
 
-      Sync.markBusy(castle.id);  // Mark as busy for sync
+        Sync.markBusy(castle.id);  // Mark as busy for sync
 
-      drawMap(mapData);
+        drawMap(mapData);
+      }
       return;
     }
   }
@@ -1236,6 +1324,7 @@ function onMouseDown(e) {
   // ---- THEN BANNERS ----
   for (let banner of mapData.banners || []) {
     if (isPointInEntity(x, y, banner)) {
+      clickedOnEntity = true;
       if (banner.locked) return;
       if (window.remoteBusy?.has(banner.id)) return;
 
@@ -1252,6 +1341,7 @@ function onMouseDown(e) {
   // ---- THEN BEARS ----
   for (let bear of mapData.bear_traps || []) {
     if (isPointInEntity(x, y, bear)) {
+      clickedOnEntity = true;
       if (bear.locked) return;
       if (window.remoteBusy?.has(bear.id)) return;
 
@@ -1261,10 +1351,15 @@ function onMouseDown(e) {
       Sync.markBusy(bear.id);  // Mark as busy for sync
 
       drawMap(mapData);
+      return;
     }
   }
 
-  // If no entity hit, start panning
+  // If no entity hit, clear selection and start panning
+  if (!clickedOnEntity) {
+    clearSelection();
+  }
+  
   isPanning = true;
   lastPanX = e.clientX;
   lastPanY = e.clientY;
