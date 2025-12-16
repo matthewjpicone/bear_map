@@ -503,3 +503,46 @@ footer {
   background: red;
   color: white;
 }
+
+/* ================= CASTLE TOOLTIP ================= */
+#castleTooltip {
+  position: fixed;
+  display: none;
+  background: rgba(2, 6, 23, 0.95);
+  border: 1px solid var(--accent);
+  border-radius: 8px;
+  padding: 12px;
+  font-size: 12px;
+  z-index: 1000;
+  pointer-events: none;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
+  backdrop-filter: blur(6px);
+  min-width: 200px;
+}
+
+#castleTooltip .tooltip-title {
+  font-weight: 600;
+  font-size: 14px;
+  margin-bottom: 8px;
+  color: var(--accent);
+  border-bottom: 1px solid var(--border);
+  padding-bottom: 6px;
+}
+
+#castleTooltip .tooltip-row {
+  display: flex;
+  justify-content: space-between;
+  padding: 3px 0;
+  gap: 12px;
+}
+
+#castleTooltip .tooltip-label {
+  color: var(--muted);
+  font-weight: 500;
+}
+
+#castleTooltip .tooltip-value {
+  color: var(--text);
+  font-weight: 400;
+  text-align: right;
+}
