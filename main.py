@@ -166,6 +166,17 @@ def sanitise_int(value: Any, *, allow_none=False) -> int | None:
 
 @app.post("/api/castles/update")
 async def update_castle(payload: Dict[str, Any] = Body(...)):
+    """Update a single castle's fields.
+
+    Args:
+        payload: Dictionary containing castle id and fields to update.
+
+    Returns:
+        Dictionary with status and castle id.
+
+    Raises:
+        HTTPException: If castle not found or validation fails.
+    """
     if "id" not in payload:
         raise HTTPException(400, "Missing castle id")
 
@@ -212,6 +223,94 @@ async def update_castle(payload: Dict[str, Any] = Body(...)):
         "status": "ok",
         "id": castle_id,
     }
+
+
+@app.post("/api/castles/bulk_update")
+async def bulk_update_castles(payload: Dict[str, Any] = Body(...)):
+    """Update multiple castles with the same field values.
+
+    Args:
+        payload: Dictionary containing:
+            - ids: List of castle IDs to update
+            - updates: Dictionary of field names and values to apply
+
+    Returns:
+        Dictionary with status, count of updated castles, and list of IDs.
+
+    Raises:
+        HTTPException: If validation fails or no valid updates provided.
+    """
+    if "ids" not in payload or not isinstance(payload["ids"], list):
+        raise HTTPException(400, "Missing or invalid 'ids' field")
+
+    if "updates" not in payload or not isinstance(payload["updates"], dict):
+        raise HTTPException(400, "Missing or invalid 'updates' field")
+
+    castle_ids = payload["ids"]
+    updates = payload["updates"]
+
+    if not castle_ids:
+        raise HTTPException(400, "No castle IDs provided")
+
+    if not updates:
+        raise HTTPException(400, "No updates provided")
+
+    # Validate that only allowed fields are being updated
+    for key in updates.keys():
+        if key not in ALLOWED_CASTLE_FIELDS and key != "locked":
+            raise HTTPException(400, f"Illegal field: {key}")
+
+    # Validate preference if provided
+    if "preference" in updates and updates["preference"] not in VALID_PREFERENCES:
+        raise HTTPException(400, "Invalid preference")
+
+    config = load_config()
+    castles = config.get("castles", [])
+
+    # Find castles to update
+    updated_ids = []
+    not_found_ids = []
+
+    for castle_id in castle_ids:
+        castle = next((c for c in castles if c.get("id") == castle_id), None)
+        if not castle:
+            not_found_ids.append(castle_id)
+            continue
+
+        # Apply updates to this castle
+        for key, value in updates.items():
+            if key == "player":
+                castle["player"] = sanitise_player_name(str(value))
+            elif key == "preference":
+                castle["preference"] = value
+            elif key == "attendance":
+                castle[key] = sanitise_int(value, allow_none=True)
+            elif key == "locked":
+                # Special handling for locked field (boolean)
+                if not isinstance(value, bool):
+                    raise HTTPException(400, "Invalid locked value")
+                castle[key] = value
+            else:
+                castle[key] = sanitise_int(value)
+
+        updated_ids.append(castle_id)
+
+    if not updated_ids:
+        raise HTTPException(404, "No castles found to update")
+
+    save_config(config)
+    await notify_config_updated()
+
+    result = {
+        "status": "ok",
+        "updated_count": len(updated_ids),
+        "updated_ids": updated_ids,
+    }
+
+    if not_found_ids:
+        result["not_found_ids"] = not_found_ids
+
+    return result
 
 @app.post("/api/intent/move_castle")
 async def move_castle(data: Dict[str, Any]):

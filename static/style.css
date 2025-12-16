@@ -546,3 +546,48 @@ footer {
   font-weight: 400;
   text-align: right;
 }
+
+/* ================= BULK OPERATIONS TOOLBAR ================= */
+.bulk-ops-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 16px;
+  background: var(--panel-soft);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  margin: 10px 16px;
+  flex-wrap: wrap;
+}
+
+.bulk-selection-count {
+  font-weight: 600;
+  color: var(--accent);
+  margin-right: 10px;
+}
+
+.bulk-ops-toolbar select,
+.bulk-ops-toolbar input {
+  padding: 6px 10px;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  color: var(--text);
+  font-size: 14px;
+}
+
+.bulk-ops-toolbar button {
+  padding: 6px 14px;
+  font-size: 14px;
+}
+
+/* Checkbox column styling */
+.checkbox-col {
+  width: 40px;
+  text-align: center;
+}
+
+.checkbox-col input[type="checkbox"] {
+  cursor: pointer;
+}
+}
