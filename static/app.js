@@ -20,6 +20,9 @@ const MIN_ZOOM = 0.1;
 const MAX_ZOOM = 3;
 window.remoteBusy = new Set(); // sync / optimistic UI guard
 
+// Grid visibility state
+let showGrid = true;
+
 // Tooltip state
 let hoveredCastleOnCanvas = null;
 
@@ -840,12 +843,14 @@ function drawMap(data) {
   // Apply the shared matrix
   ctx.setTransform(getViewMatrix());
 
-  // Grid
-  ctx.strokeStyle = "#ccc";
-  ctx.lineWidth = 1 / viewZoom;
-  for (let x = 0; x < size; x++) {
-    for (let y = 0; y < size; y++) {
-      ctx.strokeRect(x * TILE_SIZE, y * TILE_SIZE, TILE_SIZE, TILE_SIZE);
+  // Grid (conditionally rendered based on showGrid state)
+  if (showGrid) {
+    ctx.strokeStyle = "#ccc";
+    ctx.lineWidth = 1 / viewZoom;
+    for (let x = 0; x < size; x++) {
+      for (let y = 0; y < size; y++) {
+        ctx.strokeRect(x * TILE_SIZE, y * TILE_SIZE, TILE_SIZE, TILE_SIZE);
+      }
     }
   }
 
@@ -2029,6 +2034,28 @@ TIP
 
 
 document.getElementById("castleLimit").addEventListener("change", renderCastleTable);
+
+// ==========================
+// Grid Toggle
+// ==========================
+// Load grid preference from localStorage
+const savedGridPreference = localStorage.getItem('showGrid');
+if (savedGridPreference !== null) {
+  showGrid = savedGridPreference === 'true';
+}
+
+// Update checkbox state to match loaded preference
+const gridToggleCheckbox = document.getElementById('gridToggle');
+if (gridToggleCheckbox) {
+  gridToggleCheckbox.checked = showGrid;
+  
+  // Add event listener for grid toggle
+  gridToggleCheckbox.addEventListener('change', (e) => {
+    showGrid = e.target.checked;
+    localStorage.setItem('showGrid', showGrid);
+    drawMap(mapData);
+  });
+}
 
 // document
 //   .getElementById("castleTable")
