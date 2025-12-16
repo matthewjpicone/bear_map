@@ -12,6 +12,8 @@ jobs:
     steps:
     - name: Checkout Code
       uses: actions/checkout@v4
+      with:
+        token: ${{ secrets.GITHUB_TOKEN }}
 
     - name: Set up Python
       uses: actions/setup-python@v4
@@ -26,7 +28,23 @@ jobs:
     - name: Check Requirements Up-to-Date
       run: |
         pip freeze > frozen_reqs.txt
-        diff requirements.txt frozen_reqs.txt || (echo "requirements.txt out of date!" && exit 1)
+        if ! diff requirements.txt frozen_reqs.txt > /dev/null 2>&1; then
+          echo "requirements.txt is out of date. Updating..."
+          pip freeze > requirements.txt
+          echo "REQUIREMENTS_UPDATED=true" >> $GITHUB_ENV
+        else
+          echo "requirements.txt is up to date."
+          echo "REQUIREMENTS_UPDATED=false" >> $GITHUB_ENV
+        fi
+
+    - name: Commit and Push Updated Requirements
+      if: env.REQUIREMENTS_UPDATED == 'true' && github.ref == 'refs/heads/main' && github.event_name == 'push'
+      run: |
+        git config --local user.email "github-actions[bot]@users.noreply.github.com"
+        git config --local user.name "github-actions[bot]"
+        git add requirements.txt
+        git commit -m "chore: auto-update requirements.txt [skip ci]"
+        git push
 
     - name: Format Code (Black)
       run: |
