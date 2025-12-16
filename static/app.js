@@ -2038,4 +2038,27 @@ document.getElementById("castleLimit").addEventListener("change", renderCastleTa
 //     sortCastles(th.dataset.sort);
 //   });
 
+// ==========================
+// Version Display
+// ==========================
+async function fetchAndDisplayVersion() {
+  try {
+    const response = await fetch('/api/version');
+    const data = await response.json();
+    const versionElement = document.getElementById('appVersion');
+    if (versionElement && data.version) {
+      versionElement.textContent = `v${data.version}`;
+    }
+  } catch (error) {
+    console.error('Failed to fetch version:', error);
+    const versionElement = document.getElementById('appVersion');
+    if (versionElement) {
+      versionElement.textContent = 'Version unavailable';
+    }
+  }
+}
+
+// Fetch version on page load
+fetchAndDisplayVersion();
+
 window.Sync = Sync;
