@@ -30,7 +30,9 @@ header {
   padding: 18px;
   background: linear-gradient(180deg, #020617, var(--panel));
   border-bottom: 1px solid var(--border);
-  text-align: center;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
   flex-shrink: 0;
 }
 
@@ -38,6 +40,68 @@ header h1 {
   margin: 0;
   font-size: 24px;
   font-weight: 600;
+}
+
+/* User Section */
+.user-section {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.user-info {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 6px 12px;
+  background: var(--panel-soft);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+}
+
+.user-avatar {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  border: 2px solid var(--accent);
+}
+
+.user-name {
+  color: var(--text);
+  font-weight: 500;
+  font-size: 14px;
+}
+
+.login-btn {
+  padding: 8px 16px;
+  background: #5865F2;
+  color: white;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  font-weight: 500;
+  font-size: 14px;
+  transition: background 0.2s;
+}
+
+.login-btn:hover {
+  background: #4752C4;
+}
+
+.logout-btn {
+  padding: 6px 12px;
+  background: var(--panel);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 12px;
+  transition: all 0.2s;
+}
+
+.logout-btn:hover {
+  background: var(--border);
+  color: var(--accent);
 }
 
 /* ================= TOP TOOLBAR ================= */

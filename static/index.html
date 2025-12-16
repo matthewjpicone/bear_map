@@ -12,6 +12,14 @@
 
 <header>
   <h1>🐻 Bear Planner</h1>
+  <div id="userSection" class="user-section">
+    <div id="userInfo" class="user-info" style="display: none;">
+      <img id="userAvatar" class="user-avatar" alt="User avatar" />
+      <span id="userName" class="user-name"></span>
+      <button id="logoutBtn" class="logout-btn">Logout</button>
+    </div>
+    <button id="loginBtn" class="login-btn" style="display: none;">Login with Discord</button>
+  </div>
 </header>
 
 <!-- TOP TOOLBAR -->
@@ -127,6 +135,7 @@
     <button id="confirmDelete">Delete</button>
   </div>
 </div>
+<script src="/static/js/auth.js"></script>
 <script src="/static/sync.js"></script>
 <script src="/static/app.js"></script>
 
