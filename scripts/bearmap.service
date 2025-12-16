@@ -1,7 +1,18 @@
+[Unit]
+Description=Bear Map (FastAPI / Uvicorn)
+Wants=network-online.target
+After=network-online.target
+
 [Service]
+Type=simple
 User=matthewpicone
-WorkingDirectory=/home/matthewpicone/bearMap
-EnvironmentFile=/home/matthewpicone/bearMap/.env
-ExecStart=/home/matthewpicone/bearMap/.venv/bin/python -m uvicorn main:app --host 0.0.0.0 --port 3000
+Group=matthewpicone
+WorkingDirectory=/home/matthewpicone/bear_map
+EnvironmentFile=/home/matthewpicone/bear_map/.env
+Environment=PYTHONUNBUFFERED=1
+ExecStart=/home/matthewpicone/bear_map/.venv/bin/python -m uvicorn main:app --host 0.0.0.0 --port 3000 --proxy-headers --forwarded-allow-ips="*" --log-level info
 Restart=on-failure
 RestartSec=3
+
+[Install]
+WantedBy=multi-user.target
