@@ -2039,6 +2039,54 @@ document.getElementById("castleLimit").addEventListener("change", renderCastleTa
 //   });
 
 // ==========================
+// Lock All / Unlock All
+// ==========================
+async function lockAllPlaced() {
+  try {
+    const response = await fetch('/api/intent/lock_all_placed', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' }
+    });
+    
+    if (!response.ok) {
+      throw new Error(`Failed to lock castles: ${response.statusText}`);
+    }
+    
+    const result = await response.json();
+    console.log(`Locked ${result.locked_count} placed castles`);
+    
+    // UI will update via SSE, but we can show a quick notification
+    alert(`Locked ${result.locked_count} placed castle(s)`);
+  } catch (error) {
+    console.error('Error locking castles:', error);
+    alert('Failed to lock castles. See console for details.');
+  }
+}
+
+async function unlockAll() {
+  try {
+    const response = await fetch('/api/intent/unlock_all', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' }
+    });
+    
+    if (!response.ok) {
+      throw new Error(`Failed to unlock entities: ${response.statusText}`);
+    }
+    
+    const result = await response.json();
+    const total = result.unlocked_castles + result.unlocked_banners + result.unlocked_bear_traps;
+    console.log(`Unlocked ${result.unlocked_castles} castles, ${result.unlocked_banners} banners, ${result.unlocked_bear_traps} bear traps`);
+    
+    // UI will update via SSE, but we can show a quick notification
+    alert(`Unlocked ${total} entity/entities (${result.unlocked_castles} castles, ${result.unlocked_banners} banners, ${result.unlocked_bear_traps} bear traps)`);
+  } catch (error) {
+    console.error('Error unlocking entities:', error);
+    alert('Failed to unlock entities. See console for details.');
+  }
+}
+
+// ==========================
 // Version Display
 // ==========================
 async function fetchAndDisplayVersion() {

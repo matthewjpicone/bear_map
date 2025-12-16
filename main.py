@@ -662,6 +662,77 @@ async def toggle_lock_bear_trap(data: Dict[str, Any] = Body(...)):
     return {"success": True, "locked": bear_trap["locked"]}
 
 
+@app.post("/api/intent/lock_all_placed")
+async def lock_all_placed():
+    """Lock all castles that have been placed on the grid.
+
+    Only locks castles that have valid x and y coordinates (i.e., are placed).
+    Unplaced castles (x=None or y=None) are not affected.
+
+    Returns:
+        Dictionary with success status and count of locked castles.
+    """
+    config = load_config()
+    castles = config.get("castles", [])
+
+    locked_count = 0
+    for castle in castles:
+        # Only lock castles that are placed on the grid
+        if castle.get("x") is not None and castle.get("y") is not None:
+            if not castle.get("locked", False):
+                castle["locked"] = True
+                locked_count += 1
+
+    save_config(config)
+    await notify_config_updated()
+
+    return {"success": True, "locked_count": locked_count}
+
+
+@app.post("/api/intent/unlock_all")
+async def unlock_all():
+    """Unlock all castles, banners, and bear traps.
+
+    Sets the locked state to False for all entities across the map.
+
+    Returns:
+        Dictionary with success status and counts of unlocked entities.
+    """
+    config = load_config()
+    castles = config.get("castles", [])
+    banners = config.get("banners", [])
+    bear_traps = config.get("bear_traps", [])
+
+    unlocked_castles = 0
+    unlocked_banners = 0
+    unlocked_bear_traps = 0
+
+    for castle in castles:
+        if castle.get("locked", False):
+            castle["locked"] = False
+            unlocked_castles += 1
+
+    for banner in banners:
+        if banner.get("locked", False):
+            banner["locked"] = False
+            unlocked_banners += 1
+
+    for bear_trap in bear_traps:
+        if bear_trap.get("locked", False):
+            bear_trap["locked"] = False
+            unlocked_bear_traps += 1
+
+    save_config(config)
+    await notify_config_updated()
+
+    return {
+        "success": True,
+        "unlocked_castles": unlocked_castles,
+        "unlocked_banners": unlocked_banners,
+        "unlocked_bear_traps": unlocked_bear_traps,
+    }
+
+
 @app.post("/api/intent/move_castle_away")
 async def move_castle_away(data: Dict[str, Any] = Body(...)):
     """Move a castle to an edge position (off the main grid).
