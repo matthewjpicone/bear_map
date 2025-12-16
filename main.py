@@ -12,6 +12,11 @@ from fastapi.staticfiles import StaticFiles
 from dotenv import load_dotenv
 
 from server.sync import router as sync_router
+from audit_log import (
+    get_audit_logger,
+    log_castle_update,
+    log_entity_action
+)
 
 # Load environment variables
 load_dotenv()
@@ -178,6 +183,9 @@ async def update_castle(payload: Dict[str, Any] = Body(...)):
     if not castle:
         raise HTTPException(404, f"Castle '{castle_id}' not found")
 
+    # Store before state for audit log
+    before_state = castle.copy()
+
     updated = False
 
     for key, value in payload.items():
@@ -204,6 +212,9 @@ async def update_castle(payload: Dict[str, Any] = Body(...)):
         raise HTTPException(400, "No valid fields supplied")
 
     save_config(config)
+
+    # Log the change to audit log
+    log_castle_update(str(castle_id), before_state, castle)
 
     # ✅ THIS is now safe
     await notify_config_updated()
@@ -330,8 +341,22 @@ async def unmark_busy(data: Dict[str, Any]):
 @app.post("/api/castles/add")
 async def add_castle():
     config = load_config()
-    new_id = max((c.get("id", 0) for c in config.get("castles", [])), default=0) + 1
-    config["castles"].append({
+    # Extract numeric part from castle IDs (e.g., "Castle 9" -> 9)
+    existing_ids = []
+    for c in config.get("castles", []):
+        castle_id = c.get("id", "")
+        if isinstance(castle_id, str) and " " in castle_id:
+            try:
+                existing_ids.append(int(castle_id.split()[-1]))
+            except (ValueError, IndexError):
+                pass
+        elif isinstance(castle_id, int):
+            existing_ids.append(castle_id)
+    
+    new_id_num = max(existing_ids, default=0) + 1
+    new_id = f"Castle {new_id_num}"
+    
+    new_castle = {
         "id": new_id,
         "player": "",
         "power": 0,
@@ -347,8 +372,13 @@ async def add_castle():
         "last_updated": None,
         "x": None,
         "y": None
-    })
+    }
+    config["castles"].append(new_castle)
     save_config(config)
+    
+    # Log the creation
+    log_entity_action("castle", str(new_id), "create", new_castle)
+    
     await notify_config_updated()
     return {"success": True, "id": new_id}
 
@@ -356,13 +386,18 @@ async def add_castle():
 async def add_bear_trap():
     config = load_config()
     new_id = f"B{max(len(config.get('bear_traps', [])), 0) + 1}"
-    config["bear_traps"].append({
+    new_trap = {
         "id": new_id,
         "locked": False,
         "x": None,
         "y": None
-    })
+    }
+    config["bear_traps"].append(new_trap)
     save_config(config)
+    
+    # Log the creation
+    log_entity_action("bear_trap", new_id, "create", new_trap)
+    
     await notify_config_updated()
     return {"success": True, "id": new_id}
 
@@ -370,14 +405,159 @@ async def add_bear_trap():
 @app.post("/api/castles/delete")
 async def delete_castle(data: Dict[str, Any]):
     config = load_config()
-    config["castles"] = [c for c in config["castles"] if c.get("id") != data.get("id")]
+    castle_id = data.get("id")
+    
+    # Find the castle before deleting for audit log
+    castle = next((c for c in config["castles"] if c.get("id") == castle_id), None)
+    
+    config["castles"] = [c for c in config["castles"] if c.get("id") != castle_id]
     save_config(config)
 
     reason = data.get("reason", "No reason provided")
-    print(f"Deleted castle {data.get('id')} - Reason: {reason}")  # Log to console/server logs
+    print(f"Deleted castle {castle_id} - Reason: {reason}")  # Log to console/server logs
+    
+    # Log the deletion
+    if castle:
+        logger = get_audit_logger()
+        logger.log_change(
+            entity_type="castle",
+            entity_id=str(castle_id),
+            action="delete",
+            before_value=castle,
+            metadata={"reason": reason}
+        )
 
     await notify_config_updated()
     return {"success": True}
+
+# ============================================================
+# Audit Log API Endpoints
+# ============================================================
+
+@app.get("/api/audit/entity/{entity_type}/{entity_id}")
+def get_entity_audit_logs(entity_type: str, entity_id: str, limit: int = 100):
+    """Get audit logs for a specific entity.
+    
+    Args:
+        entity_type: Type of entity (castle, bear_trap, banner, settings).
+        entity_id: ID of the entity.
+        limit: Maximum number of logs to return.
+        
+    Returns:
+        List of audit log entries.
+    """
+    logger = get_audit_logger()
+    logs = logger.get_entity_logs(entity_type, entity_id, limit)
+    return {"logs": logs, "count": len(logs)}
+
+
+@app.get("/api/audit/global")
+def get_global_audit_logs(
+    limit: int = 100,
+    entity_type: str = None,
+    action: str = None,
+    start_date: str = None,
+    end_date: str = None
+):
+    """Get global audit logs with optional filters.
+    
+    Args:
+        limit: Maximum number of logs to return.
+        entity_type: Filter by entity type.
+        action: Filter by action type.
+        start_date: Filter by start date (ISO format).
+        end_date: Filter by end date (ISO format).
+        
+    Returns:
+        List of audit log entries.
+    """
+    logger = get_audit_logger()
+    logs = logger.get_global_logs(
+        limit=limit,
+        entity_type=entity_type,
+        action=action,
+        start_date=start_date,
+        end_date=end_date
+    )
+    return {"logs": logs, "count": len(logs)}
+
+
+@app.get("/api/audit/stats")
+def get_audit_stats():
+    """Get statistics about audit logs.
+    
+    Returns:
+        Dictionary containing log statistics.
+    """
+    logger = get_audit_logger()
+    return logger.get_stats()
+
+
+@app.get("/api/audit/export")
+def export_audit_logs(
+    format: str = "json",
+    entity_type: str = None,
+    action: str = None,
+    start_date: str = None,
+    end_date: str = None
+):
+    """Export audit logs in JSON or CSV format.
+    
+    Args:
+        format: Export format (json or csv).
+        entity_type: Filter by entity type.
+        action: Filter by action type.
+        start_date: Filter by start date (ISO format).
+        end_date: Filter by end date (ISO format).
+        
+    Returns:
+        Audit logs in the requested format.
+    """
+    logger = get_audit_logger()
+    logs = logger.get_global_logs(
+        entity_type=entity_type,
+        action=action,
+        start_date=start_date,
+        end_date=end_date
+    )
+    
+    if format == "csv":
+        import csv
+        import io
+        
+        output = io.StringIO()
+        if logs:
+            fieldnames = ["id", "timestamp", "entity_type", "entity_id", 
+                         "action", "user", "changes", "metadata"]
+            writer = csv.DictWriter(output, fieldnames=fieldnames, extrasaction='ignore')
+            writer.writeheader()
+            
+            for log in logs:
+                # Flatten nested JSON for CSV
+                row = {
+                    "id": log.get("id"),
+                    "timestamp": log.get("timestamp"),
+                    "entity_type": log.get("entity_type"),
+                    "entity_id": log.get("entity_id"),
+                    "action": log.get("action"),
+                    "user": log.get("user"),
+                    "changes": json.dumps(log.get("changes")) if log.get("changes") else "",
+                    "metadata": json.dumps(log.get("metadata")) if log.get("metadata") else ""
+                }
+                writer.writerow(row)
+        
+        return StreamingResponse(
+            iter([output.getvalue()]),
+            media_type="text/csv",
+            headers={"Content-Disposition": "attachment; filename=audit_logs.csv"}
+        )
+    else:  # JSON format
+        from fastapi.responses import JSONResponse
+        return JSONResponse(
+            content={"logs": logs, "count": len(logs)},
+            headers={"Content-Disposition": "attachment; filename=audit_logs.json"}
+        )
+
 
 # ============================================================
 # GitHub Webhook Handler

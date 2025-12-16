@@ -1737,6 +1737,23 @@
       "x": 6,
       "y": 21,
       "locked": false
+    },
+    {
+      "id": "Castle 100",
+      "player": "Test Player",
+      "power": 1000000,
+      "player_level": 0,
+      "command_centre_level": 0,
+      "attendance": 0,
+      "rallies_30min": 0,
+      "preference": "Both",
+      "locked": false,
+      "priority": null,
+      "efficiency": null,
+      "round_trip": "NA",
+      "last_updated": null,
+      "x": null,
+      "y": null
     }
   ],
   "banners": [
