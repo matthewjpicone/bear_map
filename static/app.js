@@ -2041,7 +2041,7 @@ document.getElementById("castleLimit").addEventListener("change", renderCastleTa
 // ==========================
 // Lock All / Unlock All
 // ==========================
-async function lockAllPlaced() {
+document.getElementById("lockAllBtn").addEventListener("click", async () => {
   try {
     const response = await fetch('/api/intent/lock_all_placed', {
       method: 'POST',
@@ -2061,9 +2061,9 @@ async function lockAllPlaced() {
     console.error('Error locking castles:', error);
     alert('Failed to lock castles. See console for details.');
   }
-}
+});
 
-async function unlockAll() {
+document.getElementById("unlockAllBtn").addEventListener("click", async () => {
   try {
     const response = await fetch('/api/intent/unlock_all', {
       method: 'POST',
@@ -2084,7 +2084,7 @@ async function unlockAll() {
     console.error('Error unlocking entities:', error);
     alert('Failed to unlock entities. See console for details.');
   }
-}
+});
 
 // ==========================
 // Version Display
