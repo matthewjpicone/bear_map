@@ -1930,22 +1930,71 @@ window.applyRemoteUpdate = function (update) {
 
   // 1️⃣ Try castles first
   let entity = mapData.castles?.find(c => c.id === update.id);
+  let entityType = "Castle";
 
   // 2️⃣ Then bears
   if (!entity) {
     entity = mapData.bear_traps?.find(b => b.id === update.id);
+    entityType = "Bear Trap";
   }
 
   // 3️⃣ Unknown entity → ignore safely
   if (!entity) return;
 
-  // 4️⃣ Apply update (efficiency comes from server)
+  // 4️⃣ Detect what changed and build toast message
+  const changes = detectChanges(entity, update, entityType);
+  
+  // 5️⃣ Apply update (efficiency comes from server)
   Object.assign(entity, update);
 
-  // 5️⃣ Redraw (no local recompute)
+  // 6️⃣ Show toast notification if there were changes
+  if (changes && update.updated_by_name) {
+    const userName = update.updated_by_name || "Someone";
+    const message = `${userName} ${changes}`;
+    if (typeof window.Toast !== "undefined") {
+      window.Toast.info(message);
+    }
+  }
+
+  // 7️⃣ Redraw (no local recompute)
   drawMap(mapData);
   renderCastleTable?.();
 };
+
+// Helper function to detect what changed
+function detectChanges(oldEntity, newEntity, entityType) {
+  const changes = [];
+
+  // Check for position changes
+  if (oldEntity.x !== newEntity.x || oldEntity.y !== newEntity.y) {
+    const entityName = oldEntity.player || oldEntity.id;
+    changes.push(`moved ${entityName}`);
+  }
+
+  // Check for lock status changes
+  if (oldEntity.locked !== newEntity.locked) {
+    const entityName = oldEntity.player || oldEntity.id;
+    const action = newEntity.locked ? "locked" : "unlocked";
+    changes.push(`${action} ${entityName}`);
+  }
+
+  // Check for info edits (player name, power, etc.)
+  const infoFields = ["player", "power", "player_level", "command_centre_level", 
+                      "attendance", "preference", "rallies_30min", "round_trip", "priority"];
+  const infoChanges = infoFields.filter(field => 
+    oldEntity[field] !== undefined && 
+    newEntity[field] !== undefined && 
+    oldEntity[field] !== newEntity[field]
+  );
+
+  if (infoChanges.length > 0) {
+    const entityName = oldEntity.player || oldEntity.id;
+    changes.push(`updated ${entityName}`);
+  }
+
+  // Return combined changes or null
+  return changes.length > 0 ? changes.join(", ") : null;
+}
 
 
 function applyStateToEntities(localList, remoteMap) {

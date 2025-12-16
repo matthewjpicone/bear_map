@@ -164,10 +164,11 @@ async def broadcast(payload, sender=None):
         clients.remove(d)
 
 
-async def broadcast_lock_release(obj_id: str):
+async def broadcast_lock_release(obj_id: str, user_name: str = None):
     await broadcast({
         "type": "release",
-        "id": obj_id
+        "id": obj_id,
+        "user_name": user_name
     })
 
 
@@ -259,7 +260,8 @@ async def websocket_endpoint(ws: WebSocket):
 
                 await broadcast({
                     "type": "busy",
-                    "id": obj_id
+                    "id": obj_id,
+                    "user_name": msg.get("user_name")
                 }, ws)
 
             # --------------------------
@@ -273,7 +275,11 @@ async def websocket_endpoint(ws: WebSocket):
                 lock = soft_locks.get(obj_id)
                 if lock and lock["owner"] is ws:
                     del soft_locks[obj_id]
-                    await broadcast_lock_release(obj_id)
+                    await broadcast({
+                        "type": "release",
+                        "id": obj_id,
+                        "user_name": msg.get("user_name")
+                    })
 
     except WebSocketDisconnect:
         clients.remove(ws)

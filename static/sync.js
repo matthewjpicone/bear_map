@@ -9,10 +9,21 @@ const Sync = (() => {
   let started = false;
 
   const userId = crypto.randomUUID();
+  let userName = getUserName();
   let saveTimer = null;
   let pendingUpdates = [];
 
   const locallyBusyIds = new Set();
+
+  // ---------- USERNAME ----------
+  function getUserName() {
+    let name = localStorage.getItem("bearPlannerUsername");
+    if (!name) {
+      name = prompt("Please enter your name for the Bear Planner:") || "Anonymous";
+      localStorage.setItem("bearPlannerUsername", name);
+    }
+    return name;
+  }
 
   // ---------- INIT ----------
   function init() {
@@ -56,7 +67,8 @@ const Sync = (() => {
     const stamped = {
       ...update,
       updated_at: Date.now(),
-      updated_by: userId
+      updated_by: userId,
+      updated_by_name: userName
     };
 
     // coalesce by id (last write wins)
@@ -101,12 +113,26 @@ const Sync = (() => {
 
     if (msg.type === "busy" && msg.id) {
       updateRemoteBusy(msg.id, true);
+      
+      // Show toast for editing start
+      if (msg.user_name && typeof window.Toast !== "undefined") {
+        const entityName = getEntityName(msg.id);
+        window.Toast.info(`${msg.user_name} is editing ${entityName}`);
+      }
+      
       redraw();
       return;
     }
 
     if (msg.type === "release" && msg.id) {
       updateRemoteBusy(msg.id, false);
+      
+      // Show toast for editing finish
+      if (msg.user_name && typeof window.Toast !== "undefined") {
+        const entityName = getEntityName(msg.id);
+        window.Toast.info(`${msg.user_name} finished editing ${entityName}`);
+      }
+      
       redraw();
       return;
     }
@@ -141,13 +167,36 @@ const Sync = (() => {
     }
   }
 
+  // ---------- HELPERS ----------
+  function getEntityName(id) {
+    if (!window.mapData) return id;
+    
+    // Try to find castle
+    const castle = window.mapData.castles?.find(c => c.id === id);
+    if (castle) {
+      return castle.player || castle.id;
+    }
+    
+    // Try to find bear trap
+    const bear = window.mapData.bear_traps?.find(b => b.id === id);
+    if (bear) {
+      return bear.id;
+    }
+    
+    return id;
+  }
+
   // ---------- LOCAL LOCKING ----------
   function markBusy(id) {
     if (!id) return;
     locallyBusyIds.add(id);
 
     if (socket && socket.readyState === WebSocket.OPEN) {
-      socket.send(JSON.stringify({ type: "busy", id }));
+      socket.send(JSON.stringify({ 
+        type: "busy", 
+        id,
+        user_name: userName
+      }));
     }
   }
 
@@ -156,7 +205,11 @@ const Sync = (() => {
     locallyBusyIds.delete(id);
 
     if (socket && socket.readyState === WebSocket.OPEN) {
-      socket.send(JSON.stringify({ type: "release", id }));
+      socket.send(JSON.stringify({ 
+        type: "release", 
+        id,
+        user_name: userName
+      }));
     }
   }
 
