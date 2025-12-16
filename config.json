@@ -1820,5 +1820,11 @@
       "x": 24,
       "y": 24
     }
-  ]
+  ],
+  "discord": {
+    "enabled": false,
+    "channel_id": null,
+    "channel_name": null,
+    "linked_at": null
+  }
 }

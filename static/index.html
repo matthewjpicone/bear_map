@@ -100,6 +100,63 @@
     </div>
   </section>
 
+  <!-- DISCORD PANEL -->
+  <section class="discord-panel">
+    <h2>Discord Integration</h2>
+    
+    <div id="discordStatus" class="discord-status">
+      <span class="status-indicator" id="discordStatusIndicator">●</span>
+      <span id="discordStatusText">Checking connection...</span>
+    </div>
+    
+    <div id="discordNotConfigured" style="display: none;">
+      <p>⚠️ Discord bot token not configured. Please set the <code>DISCORD_BOT_TOKEN</code> environment variable.</p>
+      <p>See <code>.env.example</code> for instructions.</p>
+    </div>
+    
+    <div id="discordControls" style="display: none;">
+      <div class="discord-link-controls">
+        <div id="discordLinked" style="display: none;">
+          <p>✅ Linked to: <strong id="linkedChannelName"></strong></p>
+          <p><small>Channel ID: <span id="linkedChannelId"></span></small></p>
+          <button id="unlinkDiscordBtn" class="secondary">Unlink Channel</button>
+          <button id="refreshMessagesBtn">Refresh Messages</button>
+        </div>
+        
+        <div id="discordNotLinked" style="display: none;">
+          <p>No Discord channel linked yet.</p>
+          <div style="margin-top: 10px;">
+            <label for="discordChannelId">Discord Channel/Thread ID:</label>
+            <input 
+              type="text" 
+              id="discordChannelId" 
+              placeholder="123456789012345678"
+              style="width: 100%; margin-top: 5px; padding: 5px;"
+            />
+            <small style="display: block; margin-top: 5px; color: var(--text-dim);">
+              To get a channel ID: Enable Developer Mode in Discord, right-click the channel, and select "Copy ID"
+            </small>
+          </div>
+          <button id="linkDiscordBtn" style="margin-top: 10px;">Link Channel</button>
+        </div>
+      </div>
+      
+      <div id="discordMessages" style="display: none; margin-top: 20px;">
+        <h3>Recent Messages</h3>
+        <div class="message-controls" style="margin-bottom: 10px;">
+          <label for="messageLimit">Show:</label>
+          <select id="messageLimit" style="margin-left: 5px;">
+            <option value="10">10 messages</option>
+            <option value="25">25 messages</option>
+            <option value="50" selected>50 messages</option>
+            <option value="100">100 messages</option>
+          </select>
+        </div>
+        <div id="messageList" class="message-list"></div>
+      </div>
+    </div>
+  </section>
+
 </main>
 
 <input type="file" id="csvUpload" accept=".csv" hidden aria-label="CSV file input" />
@@ -126,6 +183,7 @@
 </div>
 <script src="/static/sync.js"></script>
 <script src="/static/app.js"></script>
+<script src="/static/discord.js"></script>
 
 </body>
 </html>

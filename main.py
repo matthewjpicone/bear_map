@@ -6,8 +6,12 @@ from datetime import datetime
 from fastapi import FastAPI, Body, Request
 from fastapi.responses import HTMLResponse, FileResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
+from dotenv import load_dotenv
 
 from server.sync import router as sync_router
+
+# Load environment variables from .env file
+load_dotenv()
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 CONFIG_PATH = os.path.join(BASE_DIR, "config.json")
@@ -368,6 +372,135 @@ async def delete_castle(data: Dict[str, Any]):
 
     await notify_config_updated()
     return {"success": True}
+
+# ============================================================
+# Discord Integration
+# ============================================================
+
+from server.discord_integration import get_discord_client
+
+@app.get("/api/discord/status")
+async def get_discord_status():
+    """Get Discord connection status and current configuration."""
+    config = load_config()
+    discord_config = config.get("discord", {})
+    
+    client = await get_discord_client()
+    connected = client.is_connected() if client else False
+    
+    return {
+        "connected": connected,
+        "enabled": discord_config.get("enabled", False),
+        "channel_id": discord_config.get("channel_id"),
+        "channel_name": discord_config.get("channel_name"),
+        "linked_at": discord_config.get("linked_at"),
+        "bot_token_configured": os.getenv("DISCORD_BOT_TOKEN") is not None,
+    }
+
+@app.post("/api/discord/link")
+async def link_discord_channel(data: Dict[str, Any]):
+    """
+    Link a Discord channel or thread to the workspace.
+    
+    Request body:
+        channel_id: Discord channel or thread ID (as string or int)
+    """
+    channel_id_str = data.get("channel_id")
+    if not channel_id_str:
+        raise HTTPException(400, "channel_id is required")
+    
+    try:
+        channel_id = int(channel_id_str)
+    except (TypeError, ValueError):
+        raise HTTPException(400, "channel_id must be a valid number")
+    
+    # Get Discord client
+    client = await get_discord_client()
+    if not client:
+        raise HTTPException(503, "Discord bot token not configured. Set DISCORD_BOT_TOKEN environment variable.")
+    
+    if not client.is_connected():
+        raise HTTPException(503, "Discord client is not connected")
+    
+    # Get channel info to verify it exists and is accessible
+    channel_info = await client.get_channel_info(channel_id)
+    if not channel_info:
+        raise HTTPException(404, "Channel not found or bot does not have access")
+    
+    # Update config
+    config = load_config()
+    config["discord"] = {
+        "enabled": True,
+        "channel_id": str(channel_id),
+        "channel_name": channel_info.get("name"),
+        "linked_at": datetime.now().isoformat(),
+    }
+    save_config(config)
+    
+    await notify_config_updated()
+    
+    return {
+        "success": True,
+        "channel": channel_info,
+    }
+
+@app.post("/api/discord/unlink")
+async def unlink_discord_channel():
+    """Unlink the Discord channel from the workspace."""
+    config = load_config()
+    config["discord"] = {
+        "enabled": False,
+        "channel_id": None,
+        "channel_name": None,
+        "linked_at": None,
+    }
+    save_config(config)
+    
+    await notify_config_updated()
+    
+    return {"success": True}
+
+@app.get("/api/discord/messages")
+async def get_discord_messages(limit: int = 50):
+    """
+    Fetch messages from the linked Discord channel.
+    
+    Query params:
+        limit: Maximum number of messages to fetch (default: 50, max: 100)
+    """
+    config = load_config()
+    discord_config = config.get("discord", {})
+    
+    if not discord_config.get("enabled"):
+        raise HTTPException(400, "Discord is not enabled")
+    
+    channel_id_str = discord_config.get("channel_id")
+    if not channel_id_str:
+        raise HTTPException(400, "No channel linked")
+    
+    try:
+        channel_id = int(channel_id_str)
+    except (TypeError, ValueError):
+        raise HTTPException(500, "Invalid channel_id in configuration")
+    
+    # Get Discord client
+    client = await get_discord_client()
+    if not client:
+        raise HTTPException(503, "Discord bot token not configured")
+    
+    if not client.is_connected():
+        raise HTTPException(503, "Discord client is not connected")
+    
+    # Fetch messages
+    limit = min(max(1, limit), 100)  # Clamp between 1 and 100
+    messages = await client.fetch_messages(channel_id, limit)
+    
+    return {
+        "messages": messages,
+        "count": len(messages),
+        "channel_id": channel_id_str,
+        "channel_name": discord_config.get("channel_name"),
+    }
 
 # ============================================================
 # Static files
