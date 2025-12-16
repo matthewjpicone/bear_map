@@ -51,6 +51,10 @@ else
 fi
 
 # Restart systemd service
+# Note: This requires sudo access. Configure sudoers to allow the service user
+# to run 'systemctl restart bearmap.service' without a password prompt.
+# Example sudoers entry:
+#   matthewpicone ALL=(ALL) NOPASSWD: /usr/bin/systemctl restart bearmap.service
 log_message "Restarting $SERVICE_NAME..."
 if sudo systemctl restart "$SERVICE_NAME"; then
     log_message "Successfully restarted $SERVICE_NAME"

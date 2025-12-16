@@ -341,14 +341,6 @@ async def add_castle():
     await notify_config_updated()
     return {"success": True, "id": new_id}
 
-@app.post("/api/castles/delete")
-async def delete_castle(data: Dict[str, Any]):
-    config = load_config()
-    config["castles"] = [c for c in config["castles"] if c.get("id") != data.get("id")]
-    save_config(config)
-    await notify_config_updated()
-    return {"success": True}
-
 @app.post("/api/bear_traps/add")
 async def add_bear_trap():
     config = load_config()
@@ -403,6 +395,15 @@ def verify_webhook_signature(payload_body: bytes, signature_header: str) -> bool
 async def trigger_update():
     """Trigger the update script in the background."""
     try:
+        # Validate the update script exists and is executable
+        if not os.path.isfile(UPDATE_SCRIPT_PATH):
+            print(f"Error: Update script not found at {UPDATE_SCRIPT_PATH}")
+            return
+        
+        if not os.access(UPDATE_SCRIPT_PATH, os.X_OK):
+            print(f"Error: Update script is not executable: {UPDATE_SCRIPT_PATH}")
+            return
+        
         # Run the update script in the background
         subprocess.Popen(
             [UPDATE_SCRIPT_PATH],
