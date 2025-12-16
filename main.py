@@ -113,7 +113,7 @@ def get_version():
         with open(VERSION_PATH, "r", encoding="utf-8") as f:
             version_data = json.load(f)
         return version_data
-    except FileNotFoundError:
+    except (FileNotFoundError, json.JSONDecodeError, KeyError):
         return {"version": DEFAULT_VERSION}
 
 from fastapi import APIRouter, HTTPException, Body
