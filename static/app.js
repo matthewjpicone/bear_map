@@ -23,6 +23,13 @@ window.remoteBusy = new Set(); // sync / optimistic UI guard
 // Tooltip state
 let hoveredCastleOnCanvas = null;
 
+// ==========================
+// Animation state
+// ==========================
+const ANIMATION_DURATION = 300; // ms
+const animationState = new Map(); // Map<entityId, {fromX, fromY, toX, toY, startTime}>
+let animationFrameId = null;
+
 const canvas = document.getElementById("map");
 if (!canvas) throw new Error("Canvas #map not found");
 const ctx = canvas.getContext("2d");
@@ -325,12 +332,19 @@ function showCastleTooltip(castle, mouseX, mouseY) {
   if (rect.top < 0) {
     tooltip.style.top = `${offsetY}px`;
   }
+  
+  // Trigger animation after positioning
+  setTimeout(() => tooltip.classList.add("visible"), 10);
 }
 
 function hideCastleTooltip() {
   const tooltip = document.getElementById("castleTooltip");
   if (tooltip) {
-    tooltip.style.display = "none";
+    tooltip.classList.remove("visible");
+    // Hide after animation completes
+    setTimeout(() => {
+      tooltip.style.display = "none";
+    }, 150);
   }
 }
 
@@ -449,12 +463,15 @@ function tdDelete(c) {
   btn.classList.add("delete-btn");
   btn.innerHTML = "🗑️";
   btn.onclick = () => {
+    const modal = document.getElementById("deleteModal");
     document.getElementById("deleteTitle").textContent = `Delete Player ${c.player}`;
-    document.getElementById("deleteModal").dataset.castleId = c.id;  // Store ID
-    document.getElementById("deleteModal").style.display = "block";
+    modal.dataset.castleId = c.id;  // Store ID
+    modal.style.display = "block";
     document.getElementById("deleteReason").value = "";
     document.getElementById("deleteOther").style.display = "none";
     document.getElementById("deleteOther").value = "";
+    // Trigger animation after display
+    setTimeout(() => modal.classList.add("visible"), 10);
   };
   td.appendChild(btn);
   return td;
@@ -634,6 +651,8 @@ function renderCastleTable() {
 
   castles.forEach(c => {
     const tr = document.createElement("tr");
+    tr.dataset.castleId = c.id; // Track castle ID for animations
+    tr.classList.add("fade-in"); // Add fade-in animation for new rows
 
     tr.addEventListener("mouseenter", (e) => {
       hoveredCastleId = c.id;
@@ -823,6 +842,71 @@ function gridToScreen(gridX, gridY) {
   };
 }
 
+// ==========================
+// Animation helpers
+// ==========================
+function startAnimation(entityId, fromX, fromY, toX, toY) {
+  if (fromX === toX && fromY === toY) return; // No movement needed
+  
+  animationState.set(entityId, {
+    fromX,
+    fromY,
+    toX,
+    toY,
+    startTime: performance.now()
+  });
+  
+  if (!animationFrameId) {
+    animationFrameId = requestAnimationFrame(animationLoop);
+  }
+}
+
+function animationLoop(currentTime) {
+  let hasActiveAnimations = false;
+  
+  for (const [entityId, anim] of animationState.entries()) {
+    const elapsed = currentTime - anim.startTime;
+    const progress = Math.min(elapsed / ANIMATION_DURATION, 1);
+    
+    if (progress >= 1) {
+      animationState.delete(entityId);
+    } else {
+      hasActiveAnimations = true;
+    }
+  }
+  
+  // Redraw with interpolated positions
+  drawMap(mapData);
+  
+  if (hasActiveAnimations) {
+    animationFrameId = requestAnimationFrame(animationLoop);
+  } else {
+    animationFrameId = null;
+  }
+}
+
+function getAnimatedPosition(entity) {
+  if (!entity || entity.x == null || entity.y == null) {
+    return { x: entity?.x, y: entity?.y };
+  }
+  
+  const anim = animationState.get(entity.id);
+  if (!anim) {
+    return { x: entity.x, y: entity.y };
+  }
+  
+  const elapsed = performance.now() - anim.startTime;
+  const progress = Math.min(elapsed / ANIMATION_DURATION, 1);
+  
+  // Ease-out cubic for smooth deceleration
+  const eased = 1 - Math.pow(1 - progress, 3);
+  
+  return {
+    x: anim.fromX + (anim.toX - anim.fromX) * eased,
+    y: anim.fromY + (anim.toY - anim.fromY) * eased
+  };
+}
+
 function drawMap(data) {
   if (!data || !canvas || !ctx) return;
 
@@ -862,10 +946,12 @@ function drawBanner(banner) {
   if (!banner || banner.x == null || banner.y == null || !mapData) return;
 
   const gridSize = mapData.grid_size;
-  const px = banner.x * TILE_SIZE;
-  const py = banner.y * TILE_SIZE;
-  const cx = banner.x;
-  const cy = banner.y;
+  // Use animated position if available
+  const pos = getAnimatedPosition(banner);
+  const px = pos.x * TILE_SIZE;
+  const py = pos.y * TILE_SIZE;
+  const cx = Math.round(pos.x);
+  const cy = Math.round(pos.y);
 
   const isRemoteBusy =
     window.remoteBusy?.has(banner.id) &&
@@ -943,8 +1029,10 @@ function drawBearTrap(bear) {
   if (!bear || bear.x == null || bear.y == null || !mapData) return;
 
   const gridSize = mapData.grid_size;
-  const cx = bear.x;
-  const cy = bear.y;
+  // Use animated position if available
+  const pos = getAnimatedPosition(bear);
+  const cx = Math.round(pos.x);
+  const cy = Math.round(pos.y);
 
   const isRemoteBusy =
     window.remoteBusy?.has(bear.id) &&
@@ -969,8 +1057,8 @@ function drawBearTrap(bear) {
   /* ===============================
      Bear circle
   =============================== */
-  const px = cx * TILE_SIZE + TILE_SIZE / 2;
-  const py = cy * TILE_SIZE + TILE_SIZE / 2;
+  const px = pos.x * TILE_SIZE + TILE_SIZE / 2;
+  const py = pos.y * TILE_SIZE + TILE_SIZE / 2;
 
   // slightly smaller than 3x3 influence
   const radius = TILE_SIZE * 1.35;
@@ -1100,8 +1188,10 @@ function drawBearTrap(bear) {
 function drawCastle(castle) {
   if (!castle || castle.x == null || castle.y == null) return;
 
-  const px = castle.x * TILE_SIZE;
-  const py = castle.y * TILE_SIZE;
+  // Use animated position if available
+  const pos = getAnimatedPosition(castle);
+  const px = pos.x * TILE_SIZE;
+  const py = pos.y * TILE_SIZE;
   const size = TILE_SIZE * 2;
 
   const isRemoteBusy =
@@ -1835,7 +1925,11 @@ document.getElementById("confirmDelete").addEventListener("click", async () => {
     return;
   }
 
-  modal.style.display = "none";
+  modal.classList.remove("visible");
+  setTimeout(() => {
+    modal.style.display = "none";
+  }, 200);
+  
   try {
     await fetch("/api/castles/delete", {
       method: "POST",
@@ -1849,7 +1943,11 @@ document.getElementById("confirmDelete").addEventListener("click", async () => {
 });
 
 document.getElementById("cancelDelete").addEventListener("click", () => {
-  document.getElementById("deleteModal").style.display = "none";
+  const modal = document.getElementById("deleteModal");
+  modal.classList.remove("visible");
+  setTimeout(() => {
+    modal.style.display = "none";
+  }, 200);
 });
 canvas.addEventListener("wheel", onWheel, { passive: false });
 canvas.addEventListener("mousedown", onMouseDownPan);
@@ -1923,6 +2021,22 @@ document
     });
 
 // ==========================
+// Table row flash animation
+// ==========================
+function flashTableRow(castleId) {
+  const row = document.querySelector(`tr[data-castle-id="${castleId}"]`);
+  if (!row) return;
+  
+  row.classList.remove("row-updated");
+  // Force reflow to restart animation
+  void row.offsetWidth;
+  row.classList.add("row-updated");
+  
+  // Remove class after animation completes
+  setTimeout(() => row.classList.remove("row-updated"), 600);
+}
+
+// ==========================
 // Sync → App hooks
 // ==========================
 window.applyRemoteUpdate = function (update) {
@@ -1930,19 +2044,40 @@ window.applyRemoteUpdate = function (update) {
 
   // 1️⃣ Try castles first
   let entity = mapData.castles?.find(c => c.id === update.id);
-
+  let isCastle = !!entity;
+  
   // 2️⃣ Then bears
   if (!entity) {
     entity = mapData.bear_traps?.find(b => b.id === update.id);
   }
+  
+  // 3️⃣ Try banners
+  if (!entity) {
+    entity = mapData.banners?.find(b => b.id === update.id);
+  }
 
-  // 3️⃣ Unknown entity → ignore safely
+  // 4️⃣ Unknown entity → ignore safely
   if (!entity) return;
 
-  // 4️⃣ Apply update (efficiency comes from server)
+  // 5️⃣ Check for position changes and start animation
+  const hasPositionChange = 
+    update.x != null && update.y != null &&
+    (entity.x != null && entity.y != null) &&
+    (update.x !== entity.x || update.y !== entity.y);
+  
+  if (hasPositionChange) {
+    startAnimation(entity.id, entity.x, entity.y, update.x, update.y);
+  }
+
+  // 6️⃣ Apply update (efficiency comes from server)
   Object.assign(entity, update);
 
-  // 5️⃣ Redraw (no local recompute)
+  // 7️⃣ Flash table row for castle updates
+  if (isCastle) {
+    flashTableRow(update.id);
+  }
+
+  // 8️⃣ Redraw (no local recompute)
   drawMap(mapData);
   renderCastleTable?.();
 };
