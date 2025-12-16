@@ -51,7 +51,13 @@
       "id": "Bear 2",
       "x": 15,
       "y": 14,
-      "locked": true
+      "locked": false
+    },
+    {
+      "id": "Bear 3",
+      "locked": false,
+      "x": null,
+      "y": null
     }
   ],
   "castles": [
@@ -68,8 +74,8 @@
       "recommended_trap": null,
       "priority": 28,
       "efficiency": 5,
-      "x": 6,
-      "y": 12,
+      "x": 1,
+      "y": 1,
       "locked": true
     },
     {
@@ -85,9 +91,9 @@
       "recommended_trap": null,
       "priority": 13,
       "efficiency": 11,
-      "x": 8,
-      "y": 23,
-      "locked": false
+      "x": 4,
+      "y": 1,
+      "locked": true
     },
     {
       "id": "Castle 63",
@@ -102,9 +108,9 @@
       "recommended_trap": null,
       "priority": 13,
       "efficiency": 9,
-      "x": 8,
-      "y": 25,
-      "locked": false
+      "x": 7,
+      "y": 1,
+      "locked": true
     },
     {
       "id": "Castle 56",
@@ -119,9 +125,9 @@
       "recommended_trap": null,
       "priority": 14,
       "efficiency": 8,
-      "x": 4,
-      "y": 25,
-      "locked": false
+      "x": 10,
+      "y": 1,
+      "locked": true
     },
     {
       "id": "Castle 39",
@@ -136,9 +142,9 @@
       "recommended_trap": null,
       "priority": 20,
       "efficiency": 10,
-      "x": 4,
-      "y": 24,
-      "locked": false
+      "x": 13,
+      "y": 1,
+      "locked": true
     },
     {
       "id": "Castle 35",
@@ -153,8 +159,8 @@
       "recommended_trap": null,
       "priority": 20,
       "efficiency": 7,
-      "x": 10,
-      "y": 20,
+      "x": 16,
+      "y": 1,
       "locked": true
     },
     {
@@ -170,8 +176,8 @@
       "recommended_trap": null,
       "priority": 5,
       "efficiency": 6,
-      "x": 2,
-      "y": 22,
+      "x": 19,
+      "y": 1,
       "locked": true
     },
     {
@@ -187,9 +193,9 @@
       "recommended_trap": null,
       "priority": 12,
       "efficiency": 7,
-      "x": 16,
-      "y": 16,
-      "locked": false
+      "x": 22,
+      "y": 1,
+      "locked": true
     },
     {
       "id": "Castle 83",
@@ -204,9 +210,9 @@
       "recommended_trap": null,
       "priority": 8,
       "efficiency": 10,
-      "x": 7,
-      "y": 27,
-      "locked": false
+      "x": 25,
+      "y": 1,
+      "locked": true
     },
     {
       "id": "Castle 30",
@@ -221,8 +227,8 @@
       "recommended_trap": null,
       "priority": 24,
       "efficiency": 3,
-      "x": 17,
-      "y": 13,
+      "x": 1,
+      "y": 4,
       "locked": true
     },
     {
@@ -238,9 +244,9 @@
       "recommended_trap": null,
       "priority": 15,
       "efficiency": 11,
-      "x": 4,
-      "y": 23,
-      "locked": false
+      "x": 16,
+      "y": 13,
+      "locked": true
     },
     {
       "id": "Castle 67",
@@ -255,9 +261,9 @@
       "recommended_trap": null,
       "priority": 10,
       "efficiency": 8,
-      "x": 6,
-      "y": 27,
-      "locked": false
+      "x": 19,
+      "y": 13,
+      "locked": true
     },
     {
       "id": "Castle 40",
@@ -273,7 +279,7 @@
       "priority": 18,
       "efficiency": 5,
       "x": 10,
-      "y": 18,
+      "y": 19,
       "locked": true
     },
     {
@@ -323,9 +329,9 @@
       "recommended_trap": null,
       "priority": 8,
       "efficiency": 13,
-      "x": 9,
-      "y": 23,
-      "locked": false
+      "x": 4,
+      "y": 4,
+      "locked": true
     },
     {
       "id": "Castle 69",
@@ -340,9 +346,9 @@
       "recommended_trap": null,
       "priority": 8,
       "efficiency": 9,
-      "x": 12,
-      "y": 15,
-      "locked": false
+      "x": 7,
+      "y": 4,
+      "locked": true
     },
     {
       "id": "Castle 31",
@@ -374,9 +380,9 @@
       "recommended_trap": null,
       "priority": 9,
       "efficiency": 11,
-      "x": 18,
-      "y": 14,
-      "locked": false
+      "x": 10,
+      "y": 4,
+      "locked": true
     },
     {
       "id": "Castle 13",
@@ -408,9 +414,9 @@
       "recommended_trap": null,
       "priority": 7,
       "efficiency": 13,
-      "x": 16,
-      "y": 17,
-      "locked": false
+      "x": 13,
+      "y": 4,
+      "locked": true
     },
     {
       "id": "Castle 52",
@@ -425,9 +431,9 @@
       "recommended_trap": null,
       "priority": 13,
       "efficiency": 9,
-      "x": 14,
-      "y": 12,
-      "locked": false
+      "x": 16,
+      "y": 4,
+      "locked": true
     },
     {
       "id": "Castle 64",
@@ -442,9 +448,9 @@
       "recommended_trap": null,
       "priority": 11,
       "efficiency": 8,
-      "x": 4,
-      "y": 26,
-      "locked": false
+      "x": 19,
+      "y": 4,
+      "locked": true
     },
     {
       "id": "Castle 12",
@@ -476,9 +482,9 @@
       "recommended_trap": null,
       "priority": 11,
       "efficiency": 10,
-      "x": 8,
-      "y": 22,
-      "locked": false
+      "x": 22,
+      "y": 4,
+      "locked": true
     },
     {
       "id": "Castle 49",
@@ -493,9 +499,9 @@
       "recommended_trap": null,
       "priority": 14,
       "efficiency": 5,
-      "x": 5,
-      "y": 22,
-      "locked": false
+      "x": 25,
+      "y": 4,
+      "locked": true
     },
     {
       "id": "Castle 22",
@@ -527,9 +533,9 @@
       "recommended_trap": null,
       "priority": 10,
       "efficiency": 12,
-      "x": 9,
-      "y": 24,
-      "locked": false
+      "x": 4,
+      "y": 7,
+      "locked": true
     },
     {
       "id": "Castle 80",
@@ -544,9 +550,9 @@
       "recommended_trap": null,
       "priority": 9,
       "efficiency": 8,
-      "x": 3,
-      "y": 23,
-      "locked": false
+      "x": 10,
+      "y": 7,
+      "locked": true
     },
     {
       "id": "Castle 47",
@@ -561,9 +567,9 @@
       "recommended_trap": null,
       "priority": 14,
       "efficiency": 8,
-      "x": 5,
-      "y": 26,
-      "locked": false
+      "x": 13,
+      "y": 7,
+      "locked": true
     },
     {
       "id": "Castle 17",
@@ -578,9 +584,9 @@
       "recommended_trap": null,
       "priority": 17,
       "efficiency": 7,
-      "x": 13,
-      "y": 14,
-      "locked": false
+      "x": 16,
+      "y": 7,
+      "locked": true
     },
     {
       "id": "Castle 37",
@@ -612,9 +618,9 @@
       "recommended_trap": null,
       "priority": 3,
       "efficiency": 13,
-      "x": 8,
-      "y": 27,
-      "locked": false
+      "x": 19,
+      "y": 7,
+      "locked": true
     },
     {
       "id": "Castle 25",
@@ -646,9 +652,9 @@
       "recommended_trap": null,
       "priority": 14,
       "efficiency": 6,
-      "x": 13,
-      "y": 15,
-      "locked": false
+      "x": 22,
+      "y": 7,
+      "locked": true
     },
     {
       "id": "Castle 42",
@@ -697,9 +703,9 @@
       "recommended_trap": null,
       "priority": 3,
       "efficiency": 9,
-      "x": 9,
-      "y": 22,
-      "locked": false
+      "x": 25,
+      "y": 7,
+      "locked": true
     },
     {
       "id": "Castle 95",
@@ -714,9 +720,9 @@
       "recommended_trap": null,
       "priority": 11,
       "efficiency": 7,
-      "x": 8,
-      "y": 26,
-      "locked": false
+      "x": 1,
+      "y": 10,
+      "locked": true
     },
     {
       "id": "Castle 8",
@@ -748,9 +754,9 @@
       "recommended_trap": null,
       "priority": 13,
       "efficiency": 10,
-      "x": 16,
-      "y": 12,
-      "locked": false
+      "x": 22,
+      "y": 10,
+      "locked": true
     },
     {
       "id": "Castle 75",
@@ -765,9 +771,9 @@
       "recommended_trap": null,
       "priority": 9,
       "efficiency": 7,
-      "x": 3,
-      "y": 25,
-      "locked": false
+      "x": 25,
+      "y": 10,
+      "locked": true
     },
     {
       "id": "Castle 28",
@@ -799,9 +805,9 @@
       "recommended_trap": null,
       "priority": 10,
       "efficiency": 13,
-      "x": 15,
-      "y": 11,
-      "locked": false
+      "x": 1,
+      "y": 13,
+      "locked": true
     },
     {
       "id": "Castle 88",
@@ -816,9 +822,9 @@
       "recommended_trap": null,
       "priority": 6,
       "efficiency": 10,
-      "x": 18,
-      "y": 15,
-      "locked": false
+      "x": 22,
+      "y": 13,
+      "locked": true
     },
     {
       "id": "Castle 60",
@@ -833,9 +839,9 @@
       "recommended_trap": null,
       "priority": 9,
       "efficiency": 8,
-      "x": 0,
-      "y": 3,
-      "locked": false
+      "x": 25,
+      "y": 13,
+      "locked": true
     },
     {
       "id": "Castle 84",
@@ -850,9 +856,9 @@
       "recommended_trap": null,
       "priority": 6,
       "efficiency": 11,
-      "x": 3,
-      "y": 22,
-      "locked": false
+      "x": 1,
+      "y": 16,
+      "locked": true
     },
     {
       "id": "Castle 29",
@@ -884,9 +890,9 @@
       "recommended_trap": null,
       "priority": 1,
       "efficiency": 10,
-      "x": 13,
-      "y": 17,
-      "locked": false
+      "x": 19,
+      "y": 16,
+      "locked": true
     },
     {
       "id": "Castle 16",
@@ -918,9 +924,9 @@
       "recommended_trap": null,
       "priority": 5,
       "efficiency": 17,
-      "x": 4,
-      "y": 9,
-      "locked": false
+      "x": 22,
+      "y": 16,
+      "locked": true
     },
     {
       "id": "Castle 45",
@@ -935,9 +941,9 @@
       "recommended_trap": null,
       "priority": 16,
       "efficiency": 12,
-      "x": 6,
-      "y": 22,
-      "locked": false
+      "x": 25,
+      "y": 16,
+      "locked": true
     },
     {
       "id": "Castle 41",
@@ -969,8 +975,8 @@
       "recommended_trap": null,
       "priority": 17,
       "efficiency": 5,
-      "x": 14,
-      "y": 18,
+      "x": 4,
+      "y": 19,
       "locked": true
     },
     {
@@ -986,9 +992,9 @@
       "recommended_trap": null,
       "priority": 17,
       "efficiency": 11,
-      "x": 15,
-      "y": 12,
-      "locked": false
+      "x": 19,
+      "y": 19,
+      "locked": true
     },
     {
       "id": "Castle 5",
@@ -1020,9 +1026,9 @@
       "recommended_trap": null,
       "priority": 15,
       "efficiency": 5,
-      "x": 17,
-      "y": 14,
-      "locked": false
+      "x": 22,
+      "y": 19,
+      "locked": true
     },
     {
       "id": "Castle 23",
@@ -1054,9 +1060,9 @@
       "recommended_trap": null,
       "priority": 6,
       "efficiency": 11,
-      "x": 3,
-      "y": 26,
-      "locked": false
+      "x": 25,
+      "y": 19,
+      "locked": true
     },
     {
       "id": "Castle 79",
@@ -1071,9 +1077,9 @@
       "recommended_trap": null,
       "priority": 3,
       "efficiency": 13,
-      "x": 9,
-      "y": 26,
-      "locked": false
+      "x": 10,
+      "y": 22,
+      "locked": true
     },
     {
       "id": "Castle 76",
@@ -1089,8 +1095,8 @@
       "priority": 6,
       "efficiency": 9,
       "x": 13,
-      "y": 11,
-      "locked": false
+      "y": 22,
+      "locked": true
     },
     {
       "id": "Castle 33",
@@ -1156,9 +1162,9 @@
       "recommended_trap": null,
       "priority": 17,
       "efficiency": 9,
-      "x": 15,
-      "y": 16,
-      "locked": false
+      "x": 16,
+      "y": 22,
+      "locked": true
     },
     {
       "id": "Castle 32",
@@ -1207,9 +1213,9 @@
       "recommended_trap": null,
       "priority": 12,
       "efficiency": 8,
-      "x": 4,
+      "x": 19,
       "y": 22,
-      "locked": false
+      "locked": true
     },
     {
       "id": "Castle 15",
@@ -1241,9 +1247,9 @@
       "recommended_trap": null,
       "priority": 14,
       "efficiency": 6,
-      "x": 7,
+      "x": 22,
       "y": 22,
-      "locked": false
+      "locked": true
     },
     {
       "id": "Castle 61",
@@ -1258,9 +1264,9 @@
       "recommended_trap": null,
       "priority": 9,
       "efficiency": 11,
-      "x": 5,
-      "y": 1,
-      "locked": false
+      "x": 25,
+      "y": 22,
+      "locked": true
     },
     {
       "id": "Castle 20",
@@ -1275,9 +1281,9 @@
       "recommended_trap": null,
       "priority": 11,
       "efficiency": 10,
-      "x": 13,
-      "y": 16,
-      "locked": false
+      "x": 1,
+      "y": 25,
+      "locked": true
     },
     {
       "id": "Castle 93",
@@ -1309,9 +1315,9 @@
       "recommended_trap": null,
       "priority": 9,
       "efficiency": 11,
-      "x": 7,
-      "y": 21,
-      "locked": false
+      "x": 6,
+      "y": 6,
+      "locked": true
     },
     {
       "id": "Castle 74",
@@ -1326,9 +1332,9 @@
       "recommended_trap": null,
       "priority": 9,
       "efficiency": 12,
-      "x": 12,
-      "y": 13,
-      "locked": false
+      "x": 13,
+      "y": 25,
+      "locked": true
     },
     {
       "id": "Castle 3",
@@ -1377,9 +1383,9 @@
       "recommended_trap": null,
       "priority": 11,
       "efficiency": 7,
-      "x": 17,
-      "y": 12,
-      "locked": false
+      "x": 16,
+      "y": 25,
+      "locked": true
     },
     {
       "id": "Castle 7",
@@ -1394,9 +1400,9 @@
       "recommended_trap": null,
       "priority": 11,
       "efficiency": 8,
-      "x": 17,
-      "y": 16,
-      "locked": false
+      "x": 19,
+      "y": 25,
+      "locked": true
     },
     {
       "id": "Castle 81",
@@ -1411,9 +1417,9 @@
       "recommended_trap": null,
       "priority": 7,
       "efficiency": 10,
-      "x": 18,
-      "y": 13,
-      "locked": false
+      "x": 22,
+      "y": 25,
+      "locked": true
     },
     {
       "id": "Castle 77",
@@ -1428,9 +1434,9 @@
       "recommended_trap": null,
       "priority": 4,
       "efficiency": 10,
-      "x": 4,
-      "y": 27,
-      "locked": false
+      "x": 25,
+      "y": 25,
+      "locked": true
     },
     {
       "id": "Castle 50",
@@ -1447,7 +1453,7 @@
       "efficiency": 5,
       "x": 13,
       "y": 13,
-      "locked": false
+      "locked": true
     },
     {
       "id": "Castle 87",
@@ -1515,7 +1521,7 @@
       "efficiency": 13,
       "x": 9,
       "y": 25,
-      "locked": false
+      "locked": true
     },
     {
       "id": "Castle 71",
@@ -1532,7 +1538,7 @@
       "efficiency": 10,
       "x": 14,
       "y": 17,
-      "locked": false
+      "locked": true
     },
     {
       "id": "Castle 48",
@@ -1547,9 +1553,9 @@
       "recommended_trap": null,
       "priority": 14,
       "efficiency": 9,
-      "x": 7,
-      "y": 26,
-      "locked": false
+      "x": 20,
+      "y": 9,
+      "locked": true
     },
     {
       "id": "Castle 96",
@@ -1564,9 +1570,9 @@
       "recommended_trap": null,
       "priority": 16,
       "efficiency": 8,
-      "x": 6,
-      "y": 26,
-      "locked": false
+      "x": 8,
+      "y": 6,
+      "locked": true
     },
     {
       "id": "Castle 11",
@@ -1600,7 +1606,7 @@
       "efficiency": 8,
       "x": 13,
       "y": 12,
-      "locked": false
+      "locked": true
     },
     {
       "id": "Castle 14",
@@ -1651,7 +1657,7 @@
       "efficiency": 15,
       "x": 8,
       "y": 21,
-      "locked": false
+      "locked": true
     },
     {
       "id": "Castle 46",
@@ -1668,7 +1674,7 @@
       "efficiency": 9,
       "x": 8,
       "y": 24,
-      "locked": false
+      "locked": true
     },
     {
       "id": "Castle 27",
@@ -1702,7 +1708,7 @@
       "efficiency": 14,
       "x": 15,
       "y": 17,
-      "locked": false
+      "locked": true
     },
     {
       "id": "Castle 26",
@@ -1736,7 +1742,24 @@
       "efficiency": 9,
       "x": 6,
       "y": 21,
-      "locked": false
+      "locked": true
+    },
+    {
+      "id": "Castle 100",
+      "player": "",
+      "power": 0,
+      "player_level": 0,
+      "command_centre_level": 0,
+      "attendance": 0,
+      "rallies_30min": 0,
+      "preference": "Both",
+      "locked": false,
+      "priority": null,
+      "efficiency": null,
+      "round_trip": "NA",
+      "last_updated": null,
+      "x": null,
+      "y": null
     }
   ],
   "banners": [
