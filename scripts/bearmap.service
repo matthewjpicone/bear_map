@@ -1,0 +1,7 @@
+[Service]
+User=matthewpicone
+WorkingDirectory=/home/matthewpicone/bearMap
+EnvironmentFile=/home/matthewpicone/bearMap/.env
+ExecStart=/home/matthewpicone/bearMap/.venv/bin/python -m uvicorn main:app --host 0.0.0.0 --port 3000
+Restart=on-failure
+RestartSec=3
