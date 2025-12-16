@@ -12,6 +12,7 @@ from server.sync import router as sync_router
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 CONFIG_PATH = os.path.join(BASE_DIR, "config.json")
 PLAYERS_CSV = os.path.join(BASE_DIR, "players.csv")
+VERSION_PATH = os.path.join(BASE_DIR, "version.json")
 
 app = FastAPI(title="Bear Planner MVP")
 app.include_router(sync_router)
@@ -104,6 +105,15 @@ def get_map():
         "bear_traps": config.get("bear_traps", []),
         "castles": config.get("castles", [])
     }
+
+@app.get("/api/version")
+def get_version():
+    try:
+        with open(VERSION_PATH, "r", encoding="utf-8") as f:
+            version_data = json.load(f)
+        return version_data
+    except FileNotFoundError:
+        return {"version": "1.0.4"}
 
 from fastapi import APIRouter, HTTPException, Body
 from typing import Any, Dict

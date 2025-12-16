@@ -42,6 +42,16 @@ jobs:
       run: |
         grep -r "TODO" . --exclude-dir=.git || echo "No TODOs found"
 
+    - name: Semantic Release
+      if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+      uses: cycjimmy/semantic-release-action@v4
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        extra_plugins: |
+          @semantic-release/exec
+          @semantic-release/git
+
     - name: Deploy to Server (Only on Push to Main)
       if: github.ref == 'refs/heads/main' && github.event_name == 'push'
       uses: appleboy/ssh-action@v1.0.0
