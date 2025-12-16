@@ -290,18 +290,40 @@ function showCastleTooltip(castle, mouseX, mouseY) {
     </div>
   `;
 
-  // Position the tooltip near the mouse
+  // Position the tooltip over the castle
   tooltip.style.display = "block";
-  tooltip.style.left = `${mouseX + 15}px`;
-  tooltip.style.top = `${mouseY + 15}px`;
+  
+  // If castle has grid coordinates, position tooltip over the castle
+  if (castle.x != null && castle.y != null) {
+    const screenPos = gridToScreen(castle.x, castle.y);
+    tooltip.style.left = `${screenPos.x}px`;
+    tooltip.style.top = `${screenPos.y}px`;
+  } else {
+    // Fallback to mouse position for castles not on the map
+    tooltip.style.left = `${mouseX + 15}px`;
+    tooltip.style.top = `${mouseY + 15}px`;
+  }
 
   // Adjust position if tooltip goes off-screen
   const rect = tooltip.getBoundingClientRect();
+  const offsetX = 10;
+  const offsetY = 10;
+  
+  // Check if tooltip goes off right edge
   if (rect.right > window.innerWidth) {
-    tooltip.style.left = `${mouseX - rect.width - 15}px`;
+    tooltip.style.left = `${window.innerWidth - rect.width - offsetX}px`;
   }
+  // Check if tooltip goes off bottom edge
   if (rect.bottom > window.innerHeight) {
-    tooltip.style.top = `${mouseY - rect.height - 15}px`;
+    tooltip.style.top = `${window.innerHeight - rect.height - offsetY}px`;
+  }
+  // Check if tooltip goes off left edge
+  if (rect.left < 0) {
+    tooltip.style.left = `${offsetX}px`;
+  }
+  // Check if tooltip goes off top edge
+  if (rect.top < 0) {
+    tooltip.style.top = `${offsetY}px`;
   }
 }
 
@@ -781,6 +803,23 @@ function screenToGrid(mouseX, mouseY) {
   return {
     x: clamp(gridX, 0, size - 1),
     y: clamp(gridY, 0, size - 1)
+  };
+}
+
+function gridToScreen(gridX, gridY) {
+  if (!mapData) return { x: 0, y: 0 };
+
+  const rect = canvas.getBoundingClientRect();
+  // Convert grid coordinates to pixel coordinates on the canvas
+  const px = (gridX + 0.5) * TILE_SIZE; // Center of the tile
+  const py = (gridY + 0.5) * TILE_SIZE; // Center of the tile
+  
+  // Apply the view matrix transformation
+  const p = new DOMPoint(px, py).matrixTransform(getViewMatrix());
+  
+  return {
+    x: p.x + rect.left,
+    y: p.y + rect.top
   };
 }
 
