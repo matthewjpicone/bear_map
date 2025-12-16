@@ -13,6 +13,7 @@ BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 CONFIG_PATH = os.path.join(BASE_DIR, "config.json")
 PLAYERS_CSV = os.path.join(BASE_DIR, "players.csv")
 VERSION_PATH = os.path.join(BASE_DIR, "version.json")
+DEFAULT_VERSION = "1.0.4"
 
 app = FastAPI(title="Bear Planner MVP")
 app.include_router(sync_router)
@@ -113,7 +114,7 @@ def get_version():
             version_data = json.load(f)
         return version_data
     except FileNotFoundError:
-        return {"version": "1.0.4"}
+        return {"version": DEFAULT_VERSION}
 
 from fastapi import APIRouter, HTTPException, Body
 from typing import Any, Dict

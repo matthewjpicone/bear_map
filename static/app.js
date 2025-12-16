@@ -2053,7 +2053,7 @@ async function fetchAndDisplayVersion() {
     console.error('Failed to fetch version:', error);
     const versionElement = document.getElementById('appVersion');
     if (versionElement) {
-      versionElement.textContent = 'v1.0.4';
+      versionElement.textContent = 'Version unavailable';
     }
   }
 }
