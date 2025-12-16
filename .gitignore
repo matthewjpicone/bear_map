@@ -3,3 +3,6 @@
 __pycache__/
 *.pyc
 *.pyo
+server/__pycache__/__init__.cpython-312.pyc
+/server/__pycache__
+/__pycache__
