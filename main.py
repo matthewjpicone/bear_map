@@ -1,13 +1,20 @@
 import json
 import os
 import asyncio
+import hmac
+import hashlib
+import subprocess
 from datetime import datetime
 
-from fastapi import FastAPI, Body, Request
+from fastapi import FastAPI, Body, Request, HTTPException, Header
 from fastapi.responses import HTMLResponse, FileResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
+from dotenv import load_dotenv
 
 from server.sync import router as sync_router
+
+# Load environment variables
+load_dotenv()
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 CONFIG_PATH = os.path.join(BASE_DIR, "config.json")
@@ -368,6 +375,85 @@ async def delete_castle(data: Dict[str, Any]):
 
     await notify_config_updated()
     return {"success": True}
+
+# ============================================================
+# GitHub Webhook Handler
+# ============================================================
+
+WEBHOOK_SECRET = os.getenv("GITHUB_WEBHOOK_SECRET")
+UPDATE_SCRIPT_PATH = os.path.join(BASE_DIR, "scripts", "update_and_restart.sh")
+
+def verify_webhook_signature(payload_body: bytes, signature_header: str) -> bool:
+    """Verify the GitHub webhook signature using HMAC-SHA256."""
+    if not WEBHOOK_SECRET:
+        return False
+    
+    if not signature_header or not signature_header.startswith("sha256="):
+        return False
+    
+    hash_object = hmac.new(
+        WEBHOOK_SECRET.encode('utf-8'),
+        msg=payload_body,
+        digestmod=hashlib.sha256
+    )
+    expected_signature = "sha256=" + hash_object.hexdigest()
+    
+    return hmac.compare_digest(expected_signature, signature_header)
+
+async def trigger_update():
+    """Trigger the update script in the background."""
+    try:
+        # Run the update script in the background
+        subprocess.Popen(
+            [UPDATE_SCRIPT_PATH],
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            start_new_session=True
+        )
+        print(f"Update script triggered: {UPDATE_SCRIPT_PATH}")
+    except Exception as e:
+        print(f"Error triggering update script: {e}")
+
+@app.post("/webhook/github")
+async def github_webhook(
+    request: Request,
+    x_hub_signature_256: str = Header(None),
+    x_github_event: str = Header(None)
+):
+    """
+    Handle GitHub webhook events.
+    Validates the payload signature and triggers updates on push to main branch.
+    """
+    # Read the raw payload
+    payload_body = await request.body()
+    
+    # Verify the webhook signature
+    if not verify_webhook_signature(payload_body, x_hub_signature_256):
+        raise HTTPException(status_code=401, detail="Invalid signature")
+    
+    # Parse the JSON payload
+    try:
+        payload = json.loads(payload_body)
+    except json.JSONDecodeError:
+        raise HTTPException(status_code=400, detail="Invalid JSON payload")
+    
+    # Check if this is a push event to the main branch
+    if x_github_event == "push":
+        ref = payload.get("ref", "")
+        if ref == "refs/heads/main":
+            print(f"Received push event to main branch")
+            # Trigger update in background
+            asyncio.create_task(trigger_update())
+            return {
+                "status": "success",
+                "message": "Update triggered for main branch"
+            }
+    
+    # For other events, just acknowledge receipt
+    return {
+        "status": "ok",
+        "message": f"Event {x_github_event} received but not processed"
+    }
 
 # ============================================================
 # Static files
