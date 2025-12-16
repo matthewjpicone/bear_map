@@ -9,7 +9,7 @@ const Sync = (() => {
   let started = false;
 
   const userId = crypto.randomUUID();
-  let userName = getUserName();
+  let userName = null;
   let saveTimer = null;
   let pendingUpdates = [];
 
@@ -17,18 +17,23 @@ const Sync = (() => {
 
   // ---------- USERNAME ----------
   function getUserName() {
-    let name = localStorage.getItem("bearPlannerUsername");
-    if (!name) {
-      name = prompt("Please enter your name for the Bear Planner:") || "Anonymous";
-      localStorage.setItem("bearPlannerUsername", name);
+    if (!userName) {
+      userName = localStorage.getItem("bearPlannerUsername");
+      if (!userName) {
+        userName = prompt("Please enter your name for the Bear Planner:") || "Anonymous";
+        localStorage.setItem("bearPlannerUsername", userName);
+      }
     }
-    return name;
+    return userName;
   }
 
   // ---------- INIT ----------
   function init() {
     if (started) return;
     started = true;
+
+    // Get username after page loads
+    getUserName();
 
     connectWebSocket();
 
