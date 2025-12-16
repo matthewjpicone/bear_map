@@ -108,8 +108,67 @@
 <div id="castleTooltip" aria-live="polite"></div>
 
 <footer>
-  © 2025 Matthew Picone — All rights reserved | <span id="appVersion">Loading version...</span>
+  © 2025 Matthew Picone — All rights reserved | <span id="appVersion">Loading version...</span> | 
+  <span id="userInfo">
+    <span id="loggedInUser" style="display: none;">Logged in as: <strong id="username"></strong> | <a href="#" id="logoutBtn">Logout</a></span>
+    <span id="notLoggedIn"><a href="#" id="loginBtn">Login</a></span>
+  </span>
 </footer>
+
+<!-- Login Modal -->
+<div id="loginModal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 1000;">
+  <div style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); background: var(--panel); border: 1px solid var(--border); padding: 30px; border-radius: 8px; max-width: 400px; width: 90%;">
+    <h2>Login</h2>
+    <div id="loginError" style="color: #ef4444; margin-bottom: 10px; display: none;"></div>
+    <form id="loginForm">
+      <div style="margin-bottom: 15px;">
+        <label for="loginUsername" style="display: block; margin-bottom: 5px;">Username:</label>
+        <input type="text" id="loginUsername" required style="width: 100%; padding: 8px; box-sizing: border-box;" />
+      </div>
+      <div style="margin-bottom: 20px;">
+        <label for="loginPassword" style="display: block; margin-bottom: 5px;">Password:</label>
+        <input type="password" id="loginPassword" required style="width: 100%; padding: 8px; box-sizing: border-box;" />
+      </div>
+      <div style="display: flex; gap: 10px; justify-content: flex-end;">
+        <button type="button" id="cancelLogin">Cancel</button>
+        <button type="submit" class="primary">Login</button>
+      </div>
+    </form>
+    <div style="margin-top: 20px; padding-top: 20px; border-top: 1px solid var(--border); text-align: center;">
+      <p>Don't have an account? <a href="#" id="showRegister">Register</a></p>
+    </div>
+  </div>
+</div>
+
+<!-- Register Modal -->
+<div id="registerModal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 1000;">
+  <div style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); background: var(--panel); border: 1px solid var(--border); padding: 30px; border-radius: 8px; max-width: 400px; width: 90%;">
+    <h2>Register</h2>
+    <div id="registerError" style="color: #ef4444; margin-bottom: 10px; display: none;"></div>
+    <div id="registerSuccess" style="color: #10b981; margin-bottom: 10px; display: none;"></div>
+    <form id="registerForm">
+      <div style="margin-bottom: 15px;">
+        <label for="registerUsername" style="display: block; margin-bottom: 5px;">Username:</label>
+        <input type="text" id="registerUsername" required style="width: 100%; padding: 8px; box-sizing: border-box;" />
+      </div>
+      <div style="margin-bottom: 15px;">
+        <label for="registerFullName" style="display: block; margin-bottom: 5px;">Full Name:</label>
+        <input type="text" id="registerFullName" style="width: 100%; padding: 8px; box-sizing: border-box;" />
+      </div>
+      <div style="margin-bottom: 20px;">
+        <label for="registerPassword" style="display: block; margin-bottom: 5px;">Password:</label>
+        <input type="password" id="registerPassword" required minlength="6" style="width: 100%; padding: 8px; box-sizing: border-box;" />
+      </div>
+      <div style="display: flex; gap: 10px; justify-content: flex-end;">
+        <button type="button" id="cancelRegister">Cancel</button>
+        <button type="submit" class="primary">Register</button>
+      </div>
+    </form>
+    <div style="margin-top: 20px; padding-top: 20px; border-top: 1px solid var(--border); text-align: center;">
+      <p>Already have an account? <a href="#" id="showLogin">Login</a></p>
+    </div>
+  </div>
+</div>
 
 <!-- Delete Modal -->
 <div id="deleteModal" style="display: none; position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); background: var(--panel); border: 1px solid var(--border); padding: 20px; z-index: 10; border-radius: 8px;">
@@ -127,6 +186,7 @@
     <button id="confirmDelete">Delete</button>
   </div>
 </div>
+<script src="/static/auth.js"></script>
 <script src="/static/sync.js"></script>
 <script src="/static/app.js"></script>
 

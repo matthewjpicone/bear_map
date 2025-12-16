@@ -1,4 +1,58 @@
 // ==========================
+// Toast Notification System
+// ==========================
+function showToast(message, type = 'info') {
+  const toast = document.createElement('div');
+  toast.textContent = message;
+  toast.style.cssText = `
+    position: fixed;
+    bottom: 20px;
+    right: 20px;
+    padding: 15px 20px;
+    border-radius: 5px;
+    color: white;
+    font-weight: 500;
+    z-index: 10000;
+    animation: slideIn 0.3s ease-out;
+    max-width: 400px;
+  `;
+
+  // Set color based on type
+  const colors = {
+    success: '#10b981',
+    error: '#ef4444',
+    info: '#3b82f6',
+    warning: '#f59e0b'
+  };
+  toast.style.backgroundColor = colors[type] || colors.info;
+
+  document.body.appendChild(toast);
+
+  // Remove after 3 seconds
+  setTimeout(() => {
+    toast.style.animation = 'slideOut 0.3s ease-out';
+    setTimeout(() => toast.remove(), 300);
+  }, 3000);
+}
+
+// Add CSS animation
+if (!document.getElementById('toastStyles')) {
+  const style = document.createElement('style');
+  style.id = 'toastStyles';
+  style.textContent = `
+    @keyframes slideIn {
+      from { transform: translateX(400px); opacity: 0; }
+      to { transform: translateX(0); opacity: 1; }
+    }
+    @keyframes slideOut {
+      from { transform: translateX(0); opacity: 1; }
+      to { transform: translateX(400px); opacity: 0; }
+    }
+  `;
+  document.head.appendChild(style);
+}
+
+// ==========================
 // State variables
 // ==========================
 let draggingBear = null;        // mouse interaction only

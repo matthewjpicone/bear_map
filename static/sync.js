@@ -8,11 +8,22 @@ const Sync = (() => {
   let socket = null;
   let started = false;
 
-  const userId = crypto.randomUUID();
+  let userId = crypto.randomUUID();  // Fallback to random UUID
   let saveTimer = null;
   let pendingUpdates = [];
 
   const locallyBusyIds = new Set();
+
+  // Get user ID from Auth if available
+  function getUserId() {
+    if (typeof Auth !== 'undefined' && Auth.getUser) {
+      const user = Auth.getUser();
+      if (user && user.username) {
+        return user.username;
+      }
+    }
+    return userId;
+  }
 
   // ---------- INIT ----------
   function init() {
@@ -56,7 +67,7 @@ const Sync = (() => {
     const stamped = {
       ...update,
       updated_at: Date.now(),
-      updated_by: userId
+      updated_by: getUserId()
     };
 
     // coalesce by id (last write wins)
@@ -114,7 +125,7 @@ const Sync = (() => {
 
   function applyUpdate(update) {
     if (!update || !update.id) return;
-    if (update.updated_by === userId) return;
+    if (update.updated_by === getUserId()) return;
     if (locallyBusyIds.has(update.id)) return;
 
     if (typeof window.applyRemoteUpdate === "function") {
