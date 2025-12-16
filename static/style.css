@@ -9,7 +9,6 @@
 }
 
 /* ================= RESET ================= */
-
 * {
   box-sizing: border-box;
 }
@@ -22,7 +21,6 @@ body {
 }
 
 /* ================= HEADER ================= */
-
 header {
   padding: 18px;
   background: linear-gradient(180deg, #020617, var(--panel));
@@ -37,7 +35,6 @@ header h1 {
 }
 
 /* ================= TOP TOOLBAR ================= */
-
 .toolbar {
   display: flex;
   justify-content: center;
@@ -53,7 +50,6 @@ header h1 {
 }
 
 /* ================= BUTTONS ================= */
-
 button {
   background: var(--panel-soft);
   color: var(--text);
@@ -73,7 +69,6 @@ button:active {
 }
 
 /* ================= MAIN LAYOUT ================= */
-
 main {
   padding: 20px;
   display: grid;
@@ -88,7 +83,6 @@ main {
 }
 
 /* ================= CANVAS AREA ================= */
-
 .canvas-column {
   display: flex;
   flex-direction: column;
@@ -109,17 +103,20 @@ main {
   overflow: auto;
   min-width: 820px;
   height: 75vh;
+  display: flex;
+  justify-content: center;
+  align-items: center;
 }
 
 canvas {
   background: #ffffff;
   border-radius: 8px;
   display: block;
-  margin: auto;
+  max-width: 100%;
+  max-height: 100%;
 }
 
 /* ================= EFFICIENCY LEGEND ================= */
-
 .efficiency-legend {
   position: absolute;
   top: 12px;
@@ -149,7 +146,6 @@ canvas {
 }
 
 /* ================= CASTLE PANEL ================= */
-
 .castle-panel {
   background: var(--panel);
   border: 1px solid var(--border);
@@ -167,7 +163,6 @@ canvas {
 }
 
 /* ================= SEARCH + ACTIONS ================= */
-
 .castle-toolbar {
   display: flex;
   gap: 8px;
@@ -193,8 +188,7 @@ canvas {
   border-color: var(--accent);
 }
 
-/* ================= TABLE (FIXED & ALIGNED) ================= */
-
+/* ================= TABLE ================= */
 .table-wrap {
   flex: 1;
   overflow-y: auto;
@@ -202,25 +196,25 @@ canvas {
   border: 1px solid var(--border);
 }
 
-/* Force predictable layout */
 table {
   width: 100%;
   border-collapse: collapse;
-  table-layout: fixed;              /* KEY FIX */
+  table-layout: fixed;
   font-size: 12.5px;
 }
 
-/* Sticky header */
 thead th {
   position: sticky;
   top: 0;
   z-index: 2;
   background: #020617;
   border-bottom: 1px solid var(--border);
+  padding: 6px 8px;
+  font-weight: 600;
+  color: var(--muted);
+  text-align: left;
 }
 
-/* Shared cells */
-th,
 td {
   padding: 6px 8px;
   border-bottom: 1px solid var(--border);
@@ -230,216 +224,7 @@ td {
   vertical-align: middle;
 }
 
-/* Alignment */
-th {
-  font-weight: 600;
-  color: var(--muted);
-}
-
-/* Numeric columns */
-.num {
-  text-align: right;
-  font-variant-numeric: tabular-nums;
-}
-
-/* Checkbox columns */
-.checkbox {
-  text-align: center;
-}
-
-/* ================= COLUMN WIDTHS ================= */
-/* Order matters – this matches your table structure */
-
-th:nth-child(1),  td:nth-child(1)  { width: 50px; }   /* ID */
-th:nth-child(2),  td:nth-child(2)  { width: 100px; }  /* Player */
-th:nth-child(3),  td:nth-child(3)  { width: 50px; }  /* Power */
-th:nth-child(4),  td:nth-child(4)  { width: 48px; }   /* Lv */
-th:nth-child(5),  td:nth-child(5)  { width: 48px; }   /* CC */
-th:nth-child(6),  td:nth-child(6)  { width: 64px; }   /* Attend */
-th:nth-child(7),  td:nth-child(7)  { width: 64px; }   /* Rallies */
-th:nth-child(8),  td:nth-child(8)  { width: 90px; }   /* Preference */
-th:nth-child(9),  td:nth-child(9)  { width: 60px; }   /* Locked */
-th:nth-child(10), td:nth-child(10) { width: 64px; }   /* Priority */
-th:nth-child(11), td:nth-child(11) { width: 70px; }   /* Efficiency */
-
-/* ================= INPUTS ================= */
-
-td input,
-td select {
-  width: 100%;
-  max-width: 100%;
-  background: transparent;
-  color: var(--text);
-  border: 1px solid transparent;
-  font: inherit;
-  padding: 2px 6px;
-  border-radius: 4px;
-}
-
-td select {
-  appearance: none;
-  text-align: left;
-}
-
-td input[type="number"] {
-  text-align: right;
-  font-variant-numeric: tabular-nums;
-}
-
-td input[type="checkbox"] {
-  width: auto;
-  margin: 0;
-}
-
-/* Focus state */
-td input:focus,
-td select:focus {
-  outline: none;
-  border-color: var(--accent);
-  background: rgba(56, 189, 248, 0.06);
-}
-
-/* ================= ROW STATES ================= */
-
-.locked-row {
-  opacity: 0.6;
-}
-
-/* Hover clarity */
-tbody tr:hover {
-  background: rgba(255, 255, 255, 0.03);
-}
-/* ================= TABLE FINAL OVERRIDES ================= */
-
-/* Player column — sized for 20 chars max */
-th:nth-child(2),
-td:nth-child(2) {
-  width: 140px;               /* 20 chars @ 12.5px font */
-  max-width: 140px;
-}
-
-/* Truncate safely (no wrapping ever) */
-td:nth-child(2) {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-/* Header alignment must match data intent */
-thead th {
-  text-align: left;
-}
-
-/* Numeric headers + cells aligned */
-th:nth-child(3),
-th:nth-child(4),
-th:nth-child(5),
-th:nth-child(6),
-th:nth-child(7),
-td:nth-child(3),
-td:nth-child(4),
-td:nth-child(5),
-td:nth-child(6),
-td:nth-child(7) {
-  text-align: right;
-}
-
-/* Preference column tightened */
-th:nth-child(8),
-td:nth-child(8) {
-  padding-left: 6px;
-  padding-right: 6px;
-}
-
-/* Checkbox column locked dead-center */
-th:nth-child(9),
-td:nth-child(9) {
-  text-align: center;
-}
-
-/* Slightly denser header */
-thead th {
-  padding-top: 5px;
-  padding-bottom: 5px;
-  font-size: 12px;
-}
-
-/* Improve row readability */
-tbody tr {
-  line-height: 1.35;
-}
-
-/* ================= EFFICIENCY CELLS ================= */
-
-.eff-cell {
-  text-align: right;
-  font-variant-numeric: tabular-nums;
-  border-radius: 4px;
-  padding: 3px 6px;
-}
-
-.eff-excellent { background: rgba(30, 58, 95, 0.45); }
-.eff-good      { background: rgba(31, 78, 61, 0.45); }
-.eff-poor      { background: rgba(90, 74, 31, 0.45); }
-.eff-bad       { background: rgba(75, 45, 45, 0.55); }
-
-
-
-/* ================= SEARCH HIGHLIGHT (VISUAL ONLY) ================= */
-
-tr.search-match {
-  background: rgba(56, 189, 248, 0.10);
-}
-
-mark.search-hit {
-  background: rgba(56, 189, 248, 0.35);
-  color: var(--text);
-  padding: 0 2px;
-  border-radius: 3px;
-}
-
-/* ================= EFFICIENCY CELLS ================= */
-
-.eff-cell {
-  text-align: right;
-  font-variant-numeric: tabular-nums;
-  border-radius: 4px;
-  padding: 3px 6px;
-}
-
-.eff-excellent {
-  background: rgba(30, 58, 95, 0.45);
-}
-
-.eff-good {
-  background: rgba(31, 78, 61, 0.45);
-}
-
-.eff-poor {
-  background: rgba(90, 74, 31, 0.45);
-}
-
-.eff-bad {
-  background: rgba(75, 45, 45, 0.55);
-}
-
-/* ================= LOCKED VISUAL STATE ================= */
-
-.locked-row {
-  opacity: 0.6;
-}
-
-/* ================= TABLE ACTION BUTTONS ================= */
-
-.actions {
-  margin-top: 10px;
-  display: flex;
-  justify-content: flex-end;
-  gap: 8px;
-}
-
 /* ================= FOOTER ================= */
-
 footer {
   padding: 12px;
   text-align: center;

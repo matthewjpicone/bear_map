@@ -877,76 +877,7 @@ function drawBanner(banner) {
     ctx.restore();
 }
 
-// function drawBearTrap(bear) {
-//     if (!bear || bear.x == null || bear.y == null || !mapData) return;
-//
-//     const gridSize = mapData.grid_size;
-//
-//     // Consider bear "busy" if another client marked it busy (or if you're currently dragging it)
-//     const isRemoteBusy =
-//         (window.remoteBusy?.has?.(bear.id) && draggingBear?.id !== bear.id) ||
-//         (draggingBear?.id === bear.id);
-//
-//     const cx = bear.x;
-//     const cy = bear.y;
-//
-//     // -------- Influence tiles --------
-//     ctx.fillStyle = "rgba(120,120,120,0.35)";
-//     for (let x = cx - 1; x <= cx + 1; x++) {
-//         for (let y = cy - 1; y <= cy + 1; y++) {
-//             if (x < 0 || y < 0 || x >= gridSize || y >= gridSize) continue;
-//             ctx.fillRect(x * TILE_SIZE, y * TILE_SIZE, TILE_SIZE, TILE_SIZE);
-//         }
-//     }
-//
-//     // -------- Bear body (circle) --------
-//     const px = cx * TILE_SIZE + TILE_SIZE / 2;
-//     const py = cy * TILE_SIZE + TILE_SIZE / 2;
-//
-//     const radius = TILE_SIZE * 0.95; // circle size (tweak if you want bigger/smaller)
-//
-//     ctx.beginPath();
-//     ctx.arc(px, py, radius, 0, Math.PI * 2);
-//
-//     ctx.fillStyle = isRemoteBusy
-//         ? "#7f1d1d"       // dark red when in use
-//         : (bear.locked ? "#1e293b" : "#0a1f44");
-//
-//     ctx.fill();
-//
-//     // subtle outline to read better on grid
-//     ctx.save();
-//     ctx.strokeStyle = isRemoteBusy ? "#ef4444" : "rgba(255,255,255,0.35)";
-//     ctx.lineWidth = isRemoteBusy ? 3 : 1;
-//     ctx.stroke();
-//     ctx.restore();
-//
-//     // -------- Text helper (keep text upright relative to your rotated map) --------
-//     const drawRotText = (text, ox, oy, font, fillStyle) => {
-//         ctx.save();
-//         ctx.translate(px + ox, py + oy);
-//         ctx.rotate(-Math.PI / 4);
-//         ctx.font = font;
-//         ctx.fillStyle = fillStyle;
-//         ctx.textAlign = "center";
-//         ctx.textBaseline = "middle";
-//         ctx.fillText(text, 0, 0);
-//         ctx.restore();
-//     };
-//
-//     // -------- Label (center) --------
-//     drawRotText(String(bear.id ?? ""), 0, 0, `bold ${Math.max(12, TILE_SIZE * 0.35)}px sans-serif`, "#ffffff");
-//
-//     // -------- IN USE label --------
-//     if (isRemoteBusy) {
-//         drawRotText("IN USE", 0, -radius - 12, "bold 11px sans-serif", "#ffb4b4");
-//     }
-//
-//     // -------- Locked indicator (lower + centered) --------
-//     if (bear.locked) {
-//         drawRotText("🔒", 0, radius + 14, "16px sans-serif", "#ffffff");
-//     }
-// }
+
 function drawBearTrap(bear) {
   if (!bear || bear.x == null || bear.y == null || !mapData) return;
 
@@ -1061,7 +992,6 @@ if (bear.locked) {
 }
 
 }
-
 
 function drawCastle(castle) {
     if (!castle || castle.x == null || castle.y == null) return;

@@ -3,12 +3,21 @@
 // ==========================
 let draggingBear = null;        // mouse interaction only
 let draggingCastle = null;     // mouse interaction only
+let draggingBanner = null;
 let mapData = null;            // hydrated from server, mutated locally for UI
 let castleSort = {             // table UI concern
   key: null,
   asc: true
 };
-
+// Viewport state
+let viewZoom = 2;     // Zoom level (1 = 100%)
+let viewOffsetX = 0;  // Pan offset X
+let viewOffsetY = 0;  // Pan offset Y
+let isPanning = false;
+let lastPanX = 0;
+let lastPanY = 0;
+const MIN_ZOOM = 0.1;
+const MAX_ZOOM = 3;
 window.remoteBusy = new Set(); // sync / optimistic UI guard
 
 const canvas = document.getElementById("map");
@@ -43,23 +52,25 @@ function initSSE() {
       // Browser will auto-retry; no manual reconnect needed
     };
 
-    // Generic message (optional)
-    sse.onmessage = evt => {
-      console.log("[SSE] message:", evt.data);
+    // Single message handler for all events
+    sse.onmessage = async evt => {
+      try {
+        const msg = JSON.parse(evt.data);
+        console.log("[SSE] message:", evt.data);  // Log all messages
+
+        if (msg.type === "config_update") {
+          // Authoritative signal: server says map data changed
+          const ok = await loadMapData();
+          if (!ok) return;
+
+          renderCastleTable();
+          drawMap(mapData);
+        }
+        // Add more type checks here if needed
+      } catch (error) {
+        console.error("[SSE] Error parsing message:", error);
+      }
     };
-
-    // Authoritative signal: server says map data changed
-sse.onmessage = async evt => {
-  const msg = JSON.parse(evt.data);
-  if (msg.type !== "config_update") return;
-
-  const ok = await loadMapData();
-  if (!ok) return;
-
-  renderCastleTable();
-  drawMap(mapData);
-};
-
 
     // Optional: server tells us it's ready
     sse.addEventListener("server_ready", () => {
@@ -75,8 +86,12 @@ sse.onmessage = async evt => {
   const ok = await loadMapData();
   if (!ok) return;
 
+  // Center the rotated grid
+  viewOffsetX = 0;
+  viewOffsetY = (mapData.grid_size * TILE_SIZE) * (Math.SQRT2 / 2);
+
   renderCastleTable();
-  // drawMap(mapData);
+  drawMap(mapData);
 
   initSSE();
 
@@ -93,7 +108,8 @@ function normaliseBear(bear, index) {
     id: bear.id ?? `Bear ${index + 1}`,
     x: typeof bear.x === "number" ? bear.x : null,
     y: typeof bear.y === "number" ? bear.y : null,
-    locked: !!bear.locked
+    locked: !!bear.locked,
+    size: { w: 3, h: 3, ox: 1, oy: 1 }  // 3x3 centered on (x,y)
   };
 }
 
@@ -118,7 +134,8 @@ function normaliseCastle(castle, index) {
     x: typeof castle.x === "number" ? castle.x : null,
     y: typeof castle.y === "number" ? castle.y : null,
 
-    locked: !!castle.locked
+    locked: !!castle.locked,
+    size: { w: 2, h: 2, ox: 0, oy: 0 }  // 2x2 square from (x,y)
   };
 }
 
@@ -127,7 +144,8 @@ function normaliseBanner(banner, index) {
     id: banner.id ?? `B${index + 1}`,
     x: typeof banner.x === "number" ? banner.x : null,
     y: typeof banner.y === "number" ? banner.y : null,
-    locked: !!banner.locked
+    locked: !!banner.locked,
+    size: { w: 1, h: 1, ox: 0, oy: 0 }  // 1x1 square from (x,y)
   };
 }
 
@@ -182,19 +200,6 @@ async function loadMapData() {
     return false;
   }
 }
-
-(async () => {
-  const ok = await loadMapData();
-  if (!ok) return;
-
-  renderCastleTable();
-  // drawMap(mapData);
-
-  if (window.Sync?.init) {
-    Sync.init();
-  }
-})();
-
 
 // ==========================
 // Utilities
@@ -366,6 +371,19 @@ async function updateCastleField(castleId, field, value) {
 }
 
 // ==========================
+// Unified Entity Hit Detection
+// ==========================
+function isPointInEntity(gx, gy, entity) {
+  const size = entity.size;
+  return (
+    gx >= entity.x - size.ox &&
+    gx < entity.x - size.ox + size.w &&
+    gy >= entity.y - size.oy &&
+    gy < entity.y - size.oy + size.h
+  );
+}
+
+// ==========================
 // Table Rendering
 // ==========================
 
@@ -375,25 +393,44 @@ function renderCastleTable() {
     .trim()
     .toLowerCase();
 
+  // Always use the latest mapData.castles (updated by SSE)
+  let castles = [...mapData.castles];  // Shallow copy to avoid modifying original
+
+  // Apply current sort to the copy
+  if (castleSort.key) {
+    castles.sort((a, b) => {
+      let va = a[castleSort.key];
+      let vb = b[castleSort.key];
+
+      if (va == null && vb == null) return 0;
+      if (va == null) return 1;
+      if (vb == null) return -1;
+
+      if (typeof va === "boolean") return (va === vb ? 0 : va ? 1 : -1) * (castleSort.asc ? 1 : -1);
+      if (typeof va === "number") return (va - vb) * (castleSort.asc ? 1 : -1);
+      return va.toString().localeCompare(vb.toString()) * (castleSort.asc ? 1 : -1);
+    });
+  }
+
+  // Apply filter to the (possibly sorted) copy
+  if (query) {
+    castles = castles.filter(c => {
+      const haystack = [c.id, c.player, c.preference].join(" ").toLowerCase();
+      return haystack.includes(query);
+    });
+  }
+
   tbody.innerHTML = "";
 
-  mapData.castles.forEach(c => {
-    const haystack = [
-      c.id,
-      c.player,
-      c.preference
-    ].join(" ").toLowerCase();
-
-    if (query && !haystack.includes(query)) return;
-
+  castles.forEach(c => {
     const tr = document.createElement("tr");
 
-    /* ID (plain text → mark highlight) */
+    /* ID */
     const idTd = document.createElement("td");
     idTd.appendChild(highlightText(c.id, query));
     tr.appendChild(idTd);
 
-    /* Player (input → outline highlight) */
+    /* Player */
     const playerTd = tdInput("player", c);
     if (query && c.player?.toLowerCase().includes(query)) {
       playerTd.querySelector("input")?.classList.add("match-input");
@@ -406,7 +443,7 @@ function renderCastleTable() {
     tr.appendChild(tdNumber("attendance", c));
     tr.appendChild(tdNumber("rallies_30min", c));
 
-    /* Preference (select → outline highlight) */
+    /* Preference */
     const prefTd = tdSelect("preference", c, ["Bear 1", "Bear 2", "both"]);
     if (query && c.preference?.toLowerCase().includes(query)) {
       prefTd.querySelector("select")?.classList.add("match-input");
@@ -419,10 +456,10 @@ function renderCastleTable() {
 
     tbody.appendChild(tr);
   });
-    enableTableSorting();
+
+  enableTableSorting();
   updateSortIndicators();
 }
-
 
 // Function to update sort indicators (arrows) on the table header
 function updateSortIndicators() {
@@ -482,12 +519,13 @@ function sortCastles(key) {
 // Function to enable sorting by clicking on table headers
 function enableTableSorting() {
   document
-    .querySelectorAll("#castleTable th[data-sort]") // Select all sortable table headers
+    .querySelectorAll("#castleTable th[data-sort]")
     .forEach(th => {
-      th.style.cursor = "pointer"; // Change cursor to pointer to indicate it's clickable
-
-      // Attach an event listener to each header for sorting
-      th.onclick = () => sortCastles(th.dataset.sort);
+      th.style.cursor = "pointer";
+      th.onclick = () => {
+        console.log("Sorting by:", th.dataset.sort);  // Debug log
+        sortCastles(th.dataset.sort);
+      };
     });
 }
 
@@ -495,723 +533,922 @@ function enableTableSorting() {
 enableTableSorting();
 updateSortIndicators();
 
-// // ==========================
-// // Render and Placement
-// // ==========================
-// function getCastleTiles(castle) {
-//     const tiles = [];
-//     for (let dx = 0; dx < 2; dx++) {
-//         for (let dy = 0; dy < 2; dy++) {
-//             tiles.push({
-//                 x: castle.x + dx,
-//                 y: castle.y + dy
-//             });
-//         }
-//     }
-//     return tiles;
-// }
-//
-// function screenToGrid(mouseX, mouseY) {
-//     if (!mapData) return {x: 0, y: 0};
-//
-//     const size = mapData.grid_size;
-//     const mapPixelSize = size * TILE_SIZE;
-//     const center = mapPixelSize / 2;
-//
-//     let x = mouseX - canvas.width / 2;
-//     let y = mouseY - canvas.height / 2;
-//
-//     const angle = -Math.PI / 4;
-//     const rx = x * Math.cos(angle) - y * Math.sin(angle);
-//     const ry = x * Math.sin(angle) + y * Math.cos(angle);
-//
-//     return {
-//         x: Math.max(0, Math.min(size - 1, Math.floor((rx + center) / TILE_SIZE))),
-//         y: Math.max(0, Math.min(size - 1, Math.floor((ry + center) / TILE_SIZE)))
-//     };
-// }
-//
-// function getCastleRole(castle) {
-//     const pref = (castle.preference || "").toLowerCase();
-//     if (pref === "bear 1") return "bear1";
-//     if (pref === "bear 2") return "bear2";
-//     return "both";
-// }
-//
-// function hasPlacement(c) {
-//     return c.x != null && c.y != null;
-// }
-//
-// function drawMap(data) {
-//     if (!data || !canvas || !ctx) return;
-//
-//     const size = data.grid_size ?? 0;
-//     const banners = data.banners ?? [];
-//     const bears = data.bear_traps ?? [];
-//     const castles = data.castles ?? [];
-//
-//     const mapPixelSize = size * TILE_SIZE;
-//     const center = mapPixelSize / 2;
-//
-//     ctx.clearRect(0, 0, canvas.width, canvas.height);
-//
-//     ctx.save();
-//
-//     // rotate around canvas centre
-//     ctx.translate(canvas.width / 2, canvas.height / 2);
-//     ctx.rotate(Math.PI / 4);
-//     ctx.translate(-center, -center);
-//
-//     // -------- GRID (batched for performance) --------
-//     ctx.strokeStyle = "#ccc";
-//     ctx.lineWidth = 1;
-//     ctx.beginPath();
-//
-//     for (let x = 0; x < size; x++) {
-//         for (let y = 0; y < size; y++) {
-//             ctx.rect(
-//                 x * TILE_SIZE,
-//                 y * TILE_SIZE,
-//                 TILE_SIZE,
-//                 TILE_SIZE
-//             );
-//         }
-//     }
-//
-//     ctx.stroke();
-//
-//     // -------- ENTITIES --------
-//     banners.forEach(b => drawBanner?.(b));
-//     bears.forEach(b => drawBearTrap?.(b));
-//     castles.forEach(c => drawCastle?.(c));
-//
-//     ctx.restore();
-// }
-//
-// function drawBanner(banner) {
-//     if (!banner || banner.x == null || banner.y == null) return;
-//
-//     const px = banner.x * TILE_SIZE;
-//     const py = banner.y * TILE_SIZE;
-//
-//     ctx.fillStyle = "#1e3a8a";
-//     ctx.fillRect(px, py, TILE_SIZE, TILE_SIZE);
-//
-//     ctx.strokeStyle = "#ffffff";
-//     ctx.lineWidth = 1;
-//     ctx.strokeRect(px, py, TILE_SIZE, TILE_SIZE);
-//
-//     ctx.save();
-//     ctx.translate(px + TILE_SIZE / 2, py + TILE_SIZE / 2);
-//     ctx.rotate(-Math.PI / 4);
-//
-//     ctx.fillStyle = "#ffffff";
-//     ctx.font = `bold ${Math.max(12, TILE_SIZE * 0.35)}px sans-serif`;
-//     ctx.textAlign = "center";
-//     ctx.textBaseline = "middle";
-//
-//     ctx.fillText(String(banner.id ?? ""), 0, 0);
-//     ctx.restore();
-// }
-//
-// function drawBearTrap(bear) {
-//   if (!bear || bear.x == null || bear.y == null || !mapData) return;
-//
-//   const gridSize = mapData.grid_size;
-//   const cx = bear.x;
-//   const cy = bear.y;
-//
-//   const isRemoteBusy =
-//     window.remoteBusy?.has(bear.id) &&
-//     draggingBear?.id !== bear.id;
-//
-//   /* ===============================
-//      Influence tiles (3x3)
-//   =============================== */
-//   ctx.fillStyle = "rgba(120,120,120,0.35)";
-//   for (let x = cx - 1; x <= cx + 1; x++) {
-//     for (let y = cy - 1; y <= cy + 1; y++) {
-//       if (x < 0 || y < 0 || x >= gridSize || y >= gridSize) continue;
-//       ctx.fillRect(
-//         x * TILE_SIZE,
-//         y * TILE_SIZE,
-//         TILE_SIZE,
-//         TILE_SIZE
-//       );
-//     }
-//   }
-//
-//   /* ===============================
-//      Bear circle
-//   =============================== */
-//   const px = cx * TILE_SIZE + TILE_SIZE / 2;
-//   const py = cy * TILE_SIZE + TILE_SIZE / 2;
-//
-//   // slightly smaller than 3x3 influence
-//   const radius = TILE_SIZE * 1.35;
-//
-//   ctx.beginPath();
-//   ctx.arc(px, py, radius, 0, Math.PI * 2);
-//
-//   // fill NEVER changes due to remote busy
-//   ctx.fillStyle = bear.locked ? "#1e293b" : "#0a1f44";
-//   ctx.fill();
-//
-//   // stroke ONLY shows busy
-//   if (isRemoteBusy) {
-//     ctx.strokeStyle = "#dc2626";
-//     ctx.lineWidth = 3;
-//     ctx.stroke();
-//   }
-//
-//   /* ===============================
-//      Bear label
-//   =============================== */
-//   ctx.save();
-//   ctx.translate(px, py);
-//   ctx.rotate(-Math.PI / 4);
-//   ctx.fillStyle = "#ffffff";
-//   ctx.font = `bold ${Math.max(12, TILE_SIZE * 0.35)}px sans-serif`;
-//   ctx.textAlign = "center";
-//   ctx.textBaseline = "middle";
-//   ctx.fillText(String(bear.id ?? ""), 0, 0);
-//   ctx.restore();
-//
-//   /* ===============================
-//      IN USE label (centred)
-//   =============================== */
-// /* ===============================
-//    IN USE label (centred on circle)
-// =============================== */
-// if (isRemoteBusy) {
-//   ctx.save();
-//
-//   // 1. Move to exact circle centre
-//   ctx.translate(px, py);
-//
-//   // 2. Rotate once
-//   ctx.rotate(-Math.PI / 4);
-//
-//   // 3. Move UP after rotation (pure Y axis)
-//   ctx.translate(0, -radius + 10);
-//
-//   ctx.fillStyle = "#dc2626";
-//   ctx.font = "bold 11px sans-serif";
-//   ctx.textAlign = "center";
-//   ctx.textBaseline = "middle";
-//
-//   ctx.fillText("IN USE", 0, 20);
-//
-//   ctx.restore();
-// }
-//
-//
-// // -------- Locked indicator --------
-// if (bear.locked) {
-//   ctx.save();
-//
-//   // anchor exactly at bear centre
-//   ctx.translate(px, py);
-//
-//   // same rotation as labels
-//   ctx.rotate(-Math.PI / 4);
-//
-//   ctx.font = "14px sans-serif";
-//   ctx.textAlign = "center";
-//   ctx.textBaseline = "middle";
-//   ctx.fillStyle = "#ffffff";
-//
-//   // draw lock slightly below centre (Y only)
-//   ctx.fillText("🔒", 0, TILE_SIZE * 0.45);
-//
-//   ctx.restore();
-// }
-//
-// }
-//
-// function drawCastle(castle) {
-//     if (!castle || castle.x == null || castle.y == null) return;
-//
-//     const px = castle.x * TILE_SIZE;
-//     const py = castle.y * TILE_SIZE;
-//     const size = TILE_SIZE * 2;
-//
-//     const isRemoteBusy =
-//         window.remoteBusy?.has(castle.id) &&
-//         draggingCastle?.id !== castle.id;
-//
-//
-//     // -------- body --------
-//     // ctx.fillStyle = castle.locked
-//     //     ? "#374151"
-//     //     : efficiencyColor(castle.efficiency ?? 99);
-//
-//     ctx.fillStyle = efficiencyColor(castle.efficiency ?? 99);
-//
-//     ctx.fillRect(px + 2, py + 2, size - 4, size - 4);
-//
-//     // -------- border --------
-//     ctx.save();
-//     ctx.strokeStyle = isRemoteBusy ? "#dc2626" : "#e5e7eb";
-//     ctx.lineWidth = isRemoteBusy ? 3 : 1;
-//
-//     ctx.strokeRect(px + 2, py + 2, size - 4, size - 4);
-//     ctx.restore();
-//
-//     // -------- text --------
-//     ctx.save();
-//     ctx.translate(px + size / 2, py + size / 2);
-//     ctx.rotate(-Math.PI / 4);
-//
-//     ctx.fillStyle = "white";
-//     ctx.textAlign = "center";
-//
-//     ctx.font = "bold 10px sans-serif";
-//     ctx.fillText(String(castle.player ?? ""), 0, -6);
-//
-//     ctx.font = "12px sans-serif";
-//     ctx.fillText(`Lv ${castle.player_level ?? "-"}`, 0, 10);
-//
-//     ctx.font = "11px sans-serif";
-//     ctx.fillText(`Pref: ${castle.preference ?? ""}`, 0, 24);
-//
-//     if (isRemoteBusy) {
-//         ctx.fillStyle = "#d90000";
-//         ctx.font = "bold 11px sans-serif";
-//         ctx.fillText("IN USE", 0, -20);
-//     }
-//     ctx.restore();
-//
-//     // -------- lock icon --------
-//     if (castle.locked) {
-//         ctx.save();
-//         ctx.translate(px + size / 2, py + size + 8);
-//         ctx.rotate(-Math.PI / 4);
-//         ctx.font = "12px sans-serif";
-//         ctx.textAlign = "center";
-//         ctx.fillStyle = "white";
-//         ctx.fillText("🔒", 35, 5);
-//         ctx.restore();
-//     }
-//
-//
-// }
-//
-// function efficiencyColor(value) {
-//     if (value == null) return "#374151";
-//     if (!mapData?.efficiency_scale) return "#374151";
-//
-//     for (const tier of mapData.efficiency_scale) {
-//         if (value <= tier.max) {
-//             return tier.color;
-//         }
-//     }
-//
-//     return mapData.efficiency_scale.at(-1).color;
-// }
-//
-// function renderEfficiencyLegend() {
-//     const container = document.getElementById("efficiencyLegend");
-//     if (!container || !mapData?.efficiency_scale) return;
-//
-//     container.innerHTML = "";
-//
-//     mapData.efficiency_scale.forEach(tier => {
-//         const row = document.createElement("div");
-//         row.className = "legend-row";
-//
-//         const swatch = document.createElement("span");
-//         swatch.className = "legend-swatch";
-//         swatch.style.background = tier.color;
-//
-//         const label = document.createElement("span");
-//         label.textContent = tier.label;
-//
-//         row.appendChild(swatch);
-//         row.appendChild(label);
-//         container.appendChild(row);
-//     });
-// }
-//
-// renderEfficiencyLegend();
-//
-// function onMouseDown(e) {
-//   if (!mapData) return;
-//   if (draggingCastle || draggingBear) return;
-//
-//   const rect = canvas.getBoundingClientRect();
-//   const { x, y } = screenToGrid(
-//     e.clientX - rect.left,
-//     e.clientY - rect.top
-//   );
-//
-//   // ---- CASTLES FIRST ----
-//   for (let castle of mapData.castles || []) {
-//     if (castle.x == null || castle.y == null) continue;
-//
-//     if (isPointInCastle(x, y, castle)) {
-//       if (castle.locked) return;
-//       if (window.remoteBusy?.has(castle.id)) return;
-//
-//       draggingCastle = castle;
-//       Sync.markBusy(castle.id);
-//
-//       castle._original = { x: castle.x, y: castle.y };
-//       castle._grab = { dx: x - castle.x, dy: y - castle.y };
-//
-//       drawMap(mapData);
-//       return;
-//     }
-//   }
-//
-//   // ---- THEN BEARS ----
-//   for (let bear of mapData.bear_traps || []) {
-//     if (
-//       x >= bear.x - 1 && x <= bear.x + 1 &&
-//       y >= bear.y - 1 && y <= bear.y + 1
-//     ) {
-//       if (bear.locked) return;
-//       if (window.remoteBusy?.has(bear.id)) return;
-//
-//       draggingBear = bear;
-//       Sync.markBusy(bear.id);
-//
-//       bear._original = { x: bear.x, y: bear.y };
-//
-//       drawMap(mapData);
-//       return;
-//     }
-//   }
-// }
-//
-// function onMouseMove(e) {
-//     if (!mapData) return;
-//     if (!draggingCastle && !draggingBear) return;
-//
-//     const rect = canvas.getBoundingClientRect();
-//     const {x, y} = screenToGrid(
-//         e.clientX - rect.left,
-//         e.clientY - rect.top
-//     );
-//
-//     // ---- CASTLE DRAG ----
-//     if (draggingCastle) {
-//         if (!draggingCastle._grab) return;
-//
-//         const nx = x - draggingCastle._grab.dx;
-//         const ny = y - draggingCastle._grab.dy;
-//
-//         // clamp to grid bounds (soft clamp)
-//         draggingCastle.x = Math.max(
-//             0,
-//             Math.min(mapData.grid_size - 2, nx)
-//         );
-//         draggingCastle.y = Math.max(
-//             0,
-//             Math.min(mapData.grid_size - 2, ny)
-//         );
-//
-//         drawMap(mapData);
-//         return;
-//     }
-//
-//     // ---- BEAR DRAG ----
-//     if (draggingBear) {
-//         draggingBear.x = Math.max(
-//             0,
-//             Math.min(mapData.grid_size - 1, x)
-//         );
-//         draggingBear.y = Math.max(
-//             0,
-//             Math.min(mapData.grid_size - 1, y)
-//         );
-//
-//         drawMap(mapData);
-//     }
-// }
-//
-// function onMouseUp() {
-//   if (!draggingCastle) return;
-//
-//   const c = draggingCastle;
-//   draggingCastle = null;
-//
-//   // snap to integers ONLY for visuals
-//   const x = Math.round(c.x);
-//   const y = Math.round(c.y);
-//
-//   fetch("/api/intent/move_castle", {
-//     method: "POST",
-//     headers: { "Content-Type": "application/json" },
-//     body: JSON.stringify({ id: c.id, x, y })
-//   });
-//
-//   Sync.unmarkBusy(c.id);
-// }
-//
-// function onCanvasContextMenu(e) {
-//   e.preventDefault();
-//   if (!mapData) return;
-//
-//   const rect = canvas.getBoundingClientRect();
-//   const { x, y } = screenToGrid(
-//     e.clientX - rect.left,
-//     e.clientY - rect.top
-//   );
-//
-//   // ---- CASTLES FIRST ----
-//   for (let castle of mapData.castles || []) {
-//     if (isPointInCastle(x, y, castle)) {
-//       castle.locked = !castle.locked;
-//
-//       drawMap(mapData);
-//       renderCastleTable();
-//
-//       Sync.scheduleUpdate({
-//         id: castle.id,
-//         locked: castle.locked
-//       });
-//
-//       autosaveCastle(castle, ["locked"]);
-//       return;
-//     }
-//   }
-//
-//   // ---- THEN BEARS ----
-//   for (let bear of mapData.bear_traps || []) {
-//     if (
-//       x >= bear.x - 1 && x <= bear.x + 1 &&
-//       y >= bear.y - 1 && y <= bear.y + 1
-//     ) {
-//       bear.locked = !bear.locked;
-//
-//       drawMap(mapData);
-//
-//       Sync.scheduleUpdate({
-//         id: bear.id,
-//         locked: bear.locked
-//       });
-// autosaveBear(bear, ["locked"]);
-//       return;
-//     }
-//   }
-// }
-//
-// // ==========================
-// // Event Listeners
-// // ==========================
-// function toggleCastleLock(castle) {
-//   if (!castle) return;
-//
-//   castle.locked = !castle.locked;
-//
-//   drawMap(mapData);
-//   renderCastleTable();
-//
-//   if (window.Sync?.scheduleUpdate) {
-//     Sync.scheduleUpdate({
-//       id: castle.id,
-//       locked: castle.locked
-//     });
-//   }
-//
-//   autosaveCastle(castle, ["locked"]);
-// }
-// function toggleBearLock(bear) {
-//   if (!bear) return;
-//
-//   bear.locked = !bear.locked;
-//
-//   drawMap(mapData);
-//
-//   if (window.Sync?.scheduleUpdate) {
-//     Sync.scheduleUpdate({
-//       id: bear.id,
-//       locked: bear.locked
-//     });
-//   }
-// }
-//
-// canvas.addEventListener("mousedown", onMouseDown);
-// canvas.addEventListener("mousemove", onMouseMove);
-// canvas.addEventListener("mouseup", onMouseUp);
-// canvas.addEventListener("mouseleave", onMouseUp);
-// canvas.addEventListener("contextmenu", onCanvasContextMenu);
-//
-// //
-// // document
-// //     .getElementById("downloadBtn")
-// //     .addEventListener("click", downloadMapImage);
-// //
-// // document.getElementById("autoPlaceBtn")
-// //     ?.addEventListener("click", autoPlaceCastles);
-// //
-// // document
-// //     .getElementById("uploadCsvBtn")
-// //     .addEventListener("click", () => {
-// //         document.getElementById("csvUpload").click();
-// //     });
-//
-// document
-//     .getElementById("csvUpload")
-//     .addEventListener("change", e => {
-//         const file = e.target.files[0];
-//         if (!file) return;
-//
-//         const reader = new FileReader();
-//
-//         reader.onload = () => {
-//             try {
-//                 const csvText = reader.result;
-//
-//                 //Parse CSV → castles
-//                 const csvCastles = castlesFromCSV(csvText);
-//
-//                 //Merge into CURRENT map state
-//                 mapData.castles = mergeCastles(
-//                     mapData.castles || [],
-//                     csvCastles
-//                 );
-//
-//                 //Compute dynamic priorities
-//                 fetch("/api/recompute/priorities", { method: "POST" });
-//
-//                 //Redraw
-//                 drawMap(mapData);
-//
-//                 // reset input
-//                 e.target.value = "";
-//
-//                 console.log("CSV merged:", mapData.castles.length);
-//             } catch (err) {
-//                 console.error(err);
-//                 alert("Failed to load CSV");
-//             }
-//         };
-//
-//         reader.readAsText(file);
-//     });
-//
-// // ==========================
-// // Sync → App hooks
-// // ==========================
-// window.applyRemoteUpdate = function (update) {
-//   if (!mapData || !update?.id) return;
-//
-//   // 1️⃣ Try castles first
-//   let entity = mapData.castles?.find(c => c.id === update.id);
-//
-//   // 2️⃣ Then bears
-//   if (!entity) {
-//     entity = mapData.bear_traps?.find(b => b.id === update.id);
-//   }
-//
-//   // 3️⃣ Unknown entity → ignore safely
-//   if (!entity) return;
-//
-//   // 4️⃣ Apply update
-//   Object.assign(entity, update);
-//
-//   // 5️⃣ Recompute dependent values if needed
-//   if ("x" in update || "y" in update) {
-//     mapData.castles.forEach(c => {
-//       c.efficiency = calculateEfficiency(c, mapData.bear_traps);
-//     });
-//   }
-//
-//   // 6️⃣ Redraw
-//   drawMap(mapData);
-//   renderCastleTable?.();
-// };
-//
-//
-// function applyStateToEntities(localList, remoteMap) {
-//   if (!localList || !remoteMap) return;
-//
-//   localList.forEach(entity => {
-//     const remote = remoteMap[entity.id];
-//     if (remote) {
-//       Object.assign(entity, remote);
-//     }
-//   });
-// }
-//
-//
-// window.loadFullState = function (state) {
-//   if (!mapData || !state) return;
-//
-//   // ---- CASTLES ----
-//   if (state.castles) {
-//     mapData.castles.forEach(c => {
-//       const remote = state.castles[c.id];
-//       if (remote) Object.assign(c, remote);
-//     });
-//   }
-//
-//   // ---- BEARS ----
-//   if (state.bears) {
-//     mapData.bear_traps.forEach(b => {
-//       const remote = state.bears[b.id];
-//       if (remote) Object.assign(b, remote);
-//     });
-//   }
-//
-//   drawMap(mapData);
-//   renderCastleTable?.();
-// };
-//
-// const searchInput = document.getElementById("castleSearch");
-//
-// if (searchInput) {
-//   searchInput.addEventListener("input", () => {
-//     renderCastleTable();
-//   });
-// }
-//
-// document.getElementById("howToBtn").addEventListener("click", () => {
-//   alert(`
-// BEAR PLANNER — HOW TO USE
-//
-// PLACEMENT
-// • Drag castles to reposition them on the grid
-// • Castles snap to valid tiles only
-// • Auto Place respects player preferences
-//
-// LOCKING
-// • Right-click a CASTLE to lock or unlock it
-// • Locked castles cannot be moved or auto-placed
-// • Right-click a BEAR to lock or unlock its position
-// • If something won’t move — it is locked
-//
-// AUTO PLACE
-// • Places strongest + committed players closest to their bear
-// • Players marked “both” are placed along the spine
-// • Existing locks are never overridden
-//
-// EFFICIENCY
-// • Lower efficiency values are better
-// • Colours indicate placement quality (not errors)
-// • Red is reserved for server or hard lock states
-//
-// TABLE
-// • Use search to filter instantly
-// • Lock All applies to already placed castles
-// • Unlock All clears manual locks
-//
-// TIP
-// • Always lock bears before running Auto Place
-// • Lock priority players manually if required
-// `);
-// });
-//
-//
-//
-document
-  .getElementById("castleTable")
-  .addEventListener("click", e => {
-    const th = e.target.closest("th[data-sort]");
-    if (!th) return;
-    sortCastles(th.dataset.sort);
-  });
+// ==========================
+// Render and Placement
+// ==========================
+const ISO_DEG = 45;
 
-// window.Sync = Sync;
+function clamp(v, min, max) {
+  return Math.max(min, Math.min(max, v));
+}
+
+function getViewMatrix() {
+  const centerX = canvas.width / 2;
+  const centerY = canvas.height / 2;
+
+  // Same order as drawMap:
+  // translate(center) -> scale(zoom) -> translate(-offset) -> rotate(45deg)
+  return new DOMMatrix()
+    .translateSelf(centerX, centerY)
+    .scaleSelf(viewZoom, viewZoom)
+    .translateSelf(-viewOffsetX, -viewOffsetY)
+    .rotateSelf(ISO_DEG);
+}
+
+function screenToGrid(mouseX, mouseY) {
+  if (!mapData) return { x: 0, y: 0 };
+
+  const size = mapData.grid_size;
+  const inv = getViewMatrix().inverse();
+  const p = new DOMPoint(mouseX, mouseY).matrixTransform(inv);
+
+  const gridX = Math.floor(p.x / TILE_SIZE);
+  const gridY = Math.floor(p.y / TILE_SIZE);
+
+  return {
+    x: clamp(gridX, 0, size - 1),
+    y: clamp(gridY, 0, size - 1)
+  };
+}
+
+function drawMap(data) {
+  if (!data || !canvas || !ctx) return;
+
+  const size = data.grid_size ?? 0;
+  if (size <= 0) return;
+
+  const container = canvas.parentElement;
+  canvas.width = container.clientWidth;
+  canvas.height = container.clientHeight;
+
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+  ctx.save();
+
+  // Apply the shared matrix
+  ctx.setTransform(getViewMatrix());
+
+  // Grid
+  ctx.strokeStyle = "#ccc";
+  ctx.lineWidth = 1 / viewZoom;
+  for (let x = 0; x < size; x++) {
+    for (let y = 0; y < size; y++) {
+      ctx.strokeRect(x * TILE_SIZE, y * TILE_SIZE, TILE_SIZE, TILE_SIZE);
+    }
+  }
+
+  data.banners.forEach(drawBanner);
+  data.bear_traps.forEach(drawBearTrap);
+  data.castles.forEach(drawCastle);
+
+  ctx.restore();
+  renderEfficiencyLegend();
+}
+
+
+function drawBanner(banner) {
+  if (!banner || banner.x == null || banner.y == null || !mapData) return;
+
+  const gridSize = mapData.grid_size;
+  const px = banner.x * TILE_SIZE;
+  const py = banner.y * TILE_SIZE;
+  const cx = banner.x;
+  const cy = banner.y;
+
+  const isRemoteBusy =
+    window.remoteBusy?.has(banner.id) &&
+    draggingBanner?.id !== banner.id;
+
+  // -------- Influence area (7x7, light green fill + dark green perimeter stroke) --------
+  // Only show when any banner is being moved (global overlay for all banners)
+  if (draggingBanner) {
+    ctx.fillStyle = "rgba(34, 197, 94, 0.35)";  // Light green fill
+    ctx.strokeStyle = "#166534";  // Dark green stroke
+    ctx.lineWidth = 2 / viewZoom;  // Scale line width
+    for (let x = cx - 3; x <= cx + 3; x++) {
+      for (let y = cy - 3; y <= cy + 3; y++) {
+        if (x < 0 || y < 0 || x >= gridSize || y >= gridSize) continue;
+        const tilePx = x * TILE_SIZE;
+        const tilePy = y * TILE_SIZE;
+        ctx.fillRect(tilePx, tilePy, TILE_SIZE, TILE_SIZE);
+        // Stroke only the perimeter (edges of the 7x7)
+        if (x === cx - 3 || x === cx + 3 || y === cy - 3 || y === cy + 3) {
+          ctx.strokeRect(tilePx, tilePy, TILE_SIZE, TILE_SIZE);
+        }
+      }
+    }
+  }
+
+  // -------- Banner rectangle --------
+  ctx.fillStyle = "#1e3a8a";
+  ctx.fillRect(px, py, TILE_SIZE, TILE_SIZE);
+
+  ctx.strokeStyle = "#ffffff";
+  ctx.lineWidth = 1 / viewZoom;  // Scale line width
+  ctx.strokeRect(px, py, TILE_SIZE, TILE_SIZE);
+
+  // -------- Banner label --------
+  ctx.save();
+  ctx.translate(px + TILE_SIZE / 2, py + TILE_SIZE / 2);
+  ctx.rotate(-Math.PI / 4);
+
+  const scale = Math.min(1 + (viewZoom - 1) * 0.1, 1.2);  // Smoother, smaller max scaling
+  ctx.fillStyle = "#ffffff";
+  ctx.font = `bold ${Math.max(12, TILE_SIZE * 0.35) * scale}px sans-serif`;
+  ctx.textAlign = "center";
+  ctx.textBaseline = "middle";
+
+  ctx.fillText(String(banner.id ?? ""), 0, 0);
+  ctx.restore();
+
+  // -------- IN USE label --------
+  if (isRemoteBusy) {
+    ctx.save();
+    ctx.translate(px + TILE_SIZE / 2, py + TILE_SIZE / 2);
+    ctx.rotate(-Math.PI / 4);
+    ctx.translate(0, -TILE_SIZE / 2 + 10);  // Position above center
+
+    ctx.fillStyle = "#dc2626";
+    ctx.font = `bold ${11 * scale}px sans-serif`;
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+
+    ctx.fillText("IN USE", 0, 0);
+    ctx.restore();
+  }
+
+  // -------- Locked indicator --------
+  if (banner.locked) {
+    ctx.save();
+    ctx.translate(px + TILE_SIZE / 2, py + TILE_SIZE / 2);
+    ctx.rotate(-Math.PI / 4);
+
+    ctx.fillStyle = "#ffffff";
+    ctx.font = `${14 * scale}px sans-serif`;
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+
+    ctx.fillText("🔒", 0, TILE_SIZE * 0.45);  // Below center
+    ctx.restore();
+  }
+}
+
+function drawBearTrap(bear) {
+  if (!bear || bear.x == null || bear.y == null || !mapData) return;
+
+  const gridSize = mapData.grid_size;
+  const cx = bear.x;
+  const cy = bear.y;
+
+  const isRemoteBusy =
+    window.remoteBusy?.has(bear.id) &&
+    draggingBear?.id !== bear.id;
+
+  /* ===============================
+     Influence tiles (3x3)
+  =============================== */
+  ctx.fillStyle = "rgba(120,120,120,0.35)";
+  for (let x = cx - 1; x <= cx + 1; x++) {
+    for (let y = cy - 1; y <= cy + 1; y++) {
+      if (x < 0 || y < 0 || x >= gridSize || y >= gridSize) continue;
+      ctx.fillRect(
+        x * TILE_SIZE,
+        y * TILE_SIZE,
+        TILE_SIZE,
+        TILE_SIZE
+      );
+    }
+  }
+
+  /* ===============================
+     Bear circle
+  =============================== */
+  const px = cx * TILE_SIZE + TILE_SIZE / 2;
+  const py = cy * TILE_SIZE + TILE_SIZE / 2;
+
+  // slightly smaller than 3x3 influence
+  const radius = TILE_SIZE * 1.35;
+
+  ctx.beginPath();
+  ctx.arc(px, py, radius, 0, Math.PI * 2);
+
+  // fill NEVER changes due to remote busy
+  ctx.fillStyle = bear.locked ? "#1e293b" : "#0a1f44";
+  ctx.fill();
+
+  // stroke ONLY shows busy
+  if (isRemoteBusy) {
+    ctx.strokeStyle = "#dc2626";
+    ctx.lineWidth = 3 / viewZoom;  // Scale line width
+    ctx.stroke();
+  }
+
+  /* ===============================
+     Bear label
+  =============================== */
+  ctx.save();
+  ctx.translate(px, py);
+  ctx.rotate(-Math.PI / 4);
+  const scale = Math.min(1 + (viewZoom - 1) * 0.1, 1.2);  // Smoother, smaller max scaling
+  ctx.fillStyle = "#ffffff";
+  ctx.font = `bold ${Math.max(12, TILE_SIZE * 0.35) * scale}px sans-serif`;
+  ctx.textAlign = "center";
+  ctx.textBaseline = "middle";
+  ctx.fillText(String(bear.id ?? ""), 0, 0);
+  ctx.restore();
+
+  /* ===============================
+     IN USE label (centred)
+  =============================== */
+  if (isRemoteBusy) {
+    ctx.save();
+    ctx.translate(px, py);
+    ctx.rotate(-Math.PI / 4);
+    ctx.translate(0, -radius + 10);
+
+    ctx.fillStyle = "#dc2626";
+    ctx.font = `bold ${11 * scale}px sans-serif`;
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+
+    ctx.fillText("IN USE", 0, 20);
+    ctx.restore();
+  }
+
+  // -------- Locked indicator --------
+  if (bear.locked) {
+    ctx.save();
+    ctx.translate(px, py);
+    ctx.rotate(-Math.PI / 4);
+
+    ctx.font = `${14 * scale}px sans-serif`;
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.fillStyle = "#ffffff";
+
+    ctx.fillText("🔒", 0, TILE_SIZE * 0.45);
+    ctx.restore();
+  }
+}
+
+function drawCastle(castle) {
+  if (!castle || castle.x == null || castle.y == null) return;
+
+  const px = castle.x * TILE_SIZE;
+  const py = castle.y * TILE_SIZE;
+  const size = TILE_SIZE * 2;
+
+  const isRemoteBusy =
+    window.remoteBusy?.has(castle.id) &&
+    draggingCastle?.id !== castle.id;
+
+  // -------- body --------
+  ctx.fillStyle = efficiencyColor(castle.efficiency ?? 99);
+  ctx.fillRect(px + 2, py + 2, size - 4, size - 4);
+
+  // -------- border --------
+  ctx.save();
+  ctx.strokeStyle = isRemoteBusy ? "#dc2626" : "#e5e7eb";
+  ctx.lineWidth = (isRemoteBusy ? 3 : 1) / viewZoom;  // Scale line width
+  ctx.strokeRect(px + 2, py + 2, size - 4, size - 4);
+  ctx.restore();
+
+  // -------- text --------
+  ctx.save();
+  ctx.translate(px + size / 2, py + size / 2);
+  ctx.rotate(-Math.PI / 4);
+
+  const scale = Math.min(1 + (viewZoom - 1) * 0.1, 1.2);  // Smoother, smaller max scaling
+  ctx.fillStyle = "white";
+  ctx.textAlign = "center";
+
+  ctx.font = `bold ${10 * scale}px sans-serif`;  // Player name
+  ctx.fillText(String(castle.player ?? ""), 0, -6);
+
+  ctx.font = `${12 * scale}px sans-serif`;  // Level
+  ctx.fillText(`Lv ${castle.player_level ?? "-"}`, 0, 10);
+
+  ctx.font = `${11 * scale}px sans-serif`;  // Preference
+  ctx.fillText(`Pref: ${castle.preference ?? ""}`, 0, 24);
+
+  if (isRemoteBusy) {
+    ctx.fillStyle = "#d90000";
+    ctx.font = `bold ${11 * scale}px sans-serif`;  // IN USE
+    ctx.fillText("IN USE", 0, -20);
+  }
+  ctx.restore();
+
+  // -------- lock icon --------
+  if (castle.locked) {
+    ctx.save();
+    ctx.translate(px + size / 2, py + size + 8);
+    ctx.rotate(-Math.PI / 4);
+    ctx.font = `${12 * scale}px sans-serif`;
+    ctx.textAlign = "center";
+    ctx.fillStyle = "white";
+    ctx.fillText("🔒", 35, 5);
+    ctx.restore();
+  }
+}
+
+function efficiencyColor(value) {
+    if (value == null) return "#374151";
+    if (!mapData?.efficiency_scale) return "#374151";
+
+    for (const tier of mapData.efficiency_scale) {
+        if (value <= tier.max) {
+            return tier.color;
+        }
+    }
+
+    return mapData.efficiency_scale.at(-1).color;
+}
+
+function renderEfficiencyLegend() {
+    const container = document.getElementById("efficiencyLegend");
+    if (!container || !mapData?.efficiency_scale) return;
+
+    container.innerHTML = "";
+
+    mapData.efficiency_scale.forEach(tier => {
+        const row = document.createElement("div");
+        row.className = "legend-row";
+
+        const swatch = document.createElement("span");
+        swatch.className = "legend-swatch";
+        swatch.style.background = tier.color;
+
+        const label = document.createElement("span");
+        label.textContent = tier.label;
+
+        row.appendChild(swatch);
+        row.appendChild(label);
+        container.appendChild(row);
+    });
+}
+
+renderEfficiencyLegend();
+
+function onMouseDown(e) {
+  if (!mapData) return;
+  if (draggingCastle || draggingBear || draggingBanner) return;
+
+  const rect = canvas.getBoundingClientRect();
+  const mouseCanvasX = e.clientX - rect.left;
+  const mouseCanvasY = e.clientY - rect.top;
+  const { x, y } = screenToGrid(mouseCanvasX, mouseCanvasY);
+
+  // Simple debug log
+  console.log(`Mouse: (${mouseCanvasX}, ${mouseCanvasY}), Grid: (${x}, ${y}), Zoom: ${viewZoom}`);
+
+  // ---- CASTLES FIRST ----
+  for (let castle of mapData.castles || []) {
+    if (castle.x == null || castle.y == null) continue;
+    if (isPointInEntity(x, y, castle)) {
+      if (castle.locked) return;
+      if (window.remoteBusy?.has(castle.id)) return;
+
+      draggingCastle = castle;
+      castle._original = { x: castle.x, y: castle.y };
+      castle._grab = { dx: x - castle.x, dy: y - castle.y };
+
+      drawMap(mapData);
+      return;
+    }
+  }
+
+  // ---- THEN BANNERS ----
+  for (let banner of mapData.banners || []) {
+    if (isPointInEntity(x, y, banner)) {
+      if (banner.locked) return;
+      if (window.remoteBusy?.has(banner.id)) return;
+
+      draggingBanner = banner;
+      banner._original = { x: banner.x, y: banner.y };
+
+      drawMap(mapData);
+      return;
+    }
+  }
+
+  // ---- THEN BEARS ----
+  for (let bear of mapData.bear_traps || []) {
+    if (isPointInEntity(x, y, bear)) {
+      if (bear.locked) return;
+      if (window.remoteBusy?.has(bear.id)) return;
+
+      draggingBear = bear;
+      bear._original = { x: bear.x, y: bear.y };
+
+      drawMap(mapData);
+      return;
+    }
+  }
+
+  // If no entity hit, start panning
+  isPanning = true;
+  lastPanX = e.clientX;
+  lastPanY = e.clientY;
+  canvas.style.cursor = 'grabbing';
+}
+
+function onMouseMove(e) {
+    if (!mapData) return;
+    if (!draggingCastle && !draggingBear && !draggingBanner) return;  // Added draggingBanner check
+
+    const rect = canvas.getBoundingClientRect();
+    const {x, y} = screenToGrid(
+        e.clientX - rect.left,
+        e.clientY - rect.top
+    );
+
+    // ---- CASTLE DRAG ----
+    if (draggingCastle) {
+        if (!draggingCastle._grab) return;
+
+        const nx = x - draggingCastle._grab.dx;
+        const ny = y - draggingCastle._grab.dy;
+
+        // clamp to grid bounds (soft clamp)
+        draggingCastle.x = Math.max(
+            0,
+            Math.min(mapData.grid_size - 2, nx)
+        );
+        draggingCastle.y = Math.max(
+            0,
+            Math.min(mapData.grid_size - 2, ny)
+        );
+
+        drawMap(mapData);
+        return;
+    }
+
+    // ---- BANNER DRAG ----
+    if (draggingBanner) {
+        draggingBanner.x = Math.max(
+            0,
+            Math.min(mapData.grid_size - 1, x)
+        );
+        draggingBanner.y = Math.max(
+            0,
+            Math.min(mapData.grid_size - 1, y)
+        );
+
+        drawMap(mapData);
+        return;
+    }
+
+    // ---- BEAR DRAG ----
+    if (draggingBear) {
+        draggingBear.x = Math.max(
+            0,
+            Math.min(mapData.grid_size - 1, x)
+        );
+        draggingBear.y = Math.max(
+            0,
+            Math.min(mapData.grid_size - 1, y)
+        );
+
+        drawMap(mapData);
+    }
+}
+
+function onMouseUp() {
+    if (draggingCastle) {
+        const c = draggingCastle;
+        draggingCastle = null;
+
+        // snap to integers ONLY for visuals
+        const x = Math.round(c.x);
+        const y = Math.round(c.y);
+
+        fetch("/api/intent/move_castle", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ id: c.id, x, y })
+        });
+
+        Sync.unmarkBusy(c.id);
+        return;
+    }
+
+    if (draggingBanner) {
+        const b = draggingBanner;
+        draggingBanner = null;
+
+        const x = Math.round(b.x);
+        const y = Math.round(b.y);
+
+        fetch("/api/intent/move_banner", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ id: b.id, x, y })
+        });
+
+        Sync.unmarkBusy(b.id);
+        return;
+    }
+
+    if (draggingBear) {
+        const bear = draggingBear;
+        draggingBear = null;
+
+        const x = Math.round(bear.x);
+        const y = Math.round(bear.y);
+
+        fetch("/api/intent/move_bear_trap", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ id: bear.id, x, y })
+        });
+
+        Sync.unmarkBusy(bear.id);
+        return;
+    }
+}
+
+function onCanvasContextMenu(e) {
+    e.preventDefault();
+    if (!mapData) return;
+
+    const rect = canvas.getBoundingClientRect();
+    const mouseX = e.clientX;
+    const mouseY = e.clientY;
+    const { x, y } = screenToGrid(
+        e.clientX - rect.left,
+        e.clientY - rect.top
+    );
+
+    let targetEntity = null;
+    let entityType = '';
+
+    // ---- CASTLES FIRST ----
+    for (let castle of mapData.castles || []) {
+        if (isPointInEntity(x, y, castle)) {
+            targetEntity = castle;
+            entityType = 'castle';
+            break;
+        }
+    }
+
+    // ---- THEN BANNERS ----
+    if (!targetEntity) {
+        for (let banner of mapData.banners || []) {
+            if (isPointInEntity(x, y, banner)) {
+                targetEntity = banner;
+                entityType = 'banner';
+                break;
+            }
+        }
+    }
+
+    // ---- THEN BEARS ----
+    if (!targetEntity) {
+        for (let bear of mapData.bear_traps || []) {
+            if (isPointInEntity(x, y, bear)) {
+                targetEntity = bear;
+                entityType = 'bear_trap';
+                break;
+            }
+        }
+    }
+
+    if (!targetEntity) return;
+
+    // Create and show context menu
+    showContextMenu(mouseX, mouseY, targetEntity, entityType);
+}
+
+function showContextMenu(x, y, entity, type) {
+    // Remove any existing menu
+    const existing = document.getElementById('context-menu');
+    if (existing) existing.remove();
+
+    const menu = document.createElement('div');
+    menu.id = 'context-menu';
+    menu.style.position = 'absolute';
+    menu.style.left = `${x}px`;
+    menu.style.top = `${y}px`;
+    menu.style.background = 'white';
+    menu.style.border = '1px solid #ccc';
+    menu.style.padding = '5px';
+    menu.style.zIndex = '1000';
+    menu.style.boxShadow = '0 2px 5px rgba(0,0,0,0.2)';
+    menu.style.color = 'black';  // Added for contrast
+
+    // Option 1: Toggle Lock
+    const toggleLock = document.createElement('div');
+    toggleLock.textContent = 'Toggle Lock';
+    toggleLock.style.cursor = 'pointer';
+    toggleLock.style.padding = '5px';
+    toggleLock.onmouseover = () => toggleLock.style.background = '#f0f0f0';
+    toggleLock.onmouseout = () => toggleLock.style.background = 'white';
+    toggleLock.onclick = async () => {
+        try {
+            const response = await fetch(`/api/intent/toggle_lock_${type}`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ id: entity.id })
+            });
+            if (!response.ok) throw new Error('Failed to toggle lock');
+            // Server will broadcast update and redraw
+        } catch (error) {
+            console.error('Error toggling lock:', error);
+        }
+        menu.remove();
+    };
+    menu.appendChild(toggleLock);
+
+    // Option 2: Move out of the way (castles only)
+    if (type === 'castle') {
+        const moveAway = document.createElement('div');
+        moveAway.textContent = 'Move out of the way';
+        moveAway.style.cursor = 'pointer';
+        moveAway.style.padding = '5px';
+        moveAway.onmouseover = () => moveAway.style.background = '#f0f0f0';
+        moveAway.onmouseout = () => moveAway.style.background = 'white';
+        moveAway.onclick = async () => {
+            try {
+                const response = await fetch('/api/intent/move_castle_away', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ id: entity.id })
+                });
+                if (!response.ok) throw new Error('Failed to move away');
+                // Server will choose edge position, update, and redraw
+            } catch (error) {
+                console.error('Error moving away:', error);
+            }
+            menu.remove();
+        };
+        menu.appendChild(moveAway);
+    }
+
+    // Option 3: Cancel
+    const cancel = document.createElement('div');
+    cancel.textContent = 'Cancel';
+    cancel.style.cursor = 'pointer';
+    cancel.style.padding = '5px';
+    cancel.onmouseover = () => cancel.style.background = '#f0f0f0';
+    cancel.onmouseout = () => cancel.style.background = 'white';
+    cancel.onclick = () => menu.remove();
+    menu.appendChild(cancel);
+
+    document.body.appendChild(menu);
+
+    // Remove menu on click outside
+    const removeMenu = (e) => {
+        if (!menu.contains(e.target)) {
+            menu.remove();
+            document.removeEventListener('click', removeMenu);
+        }
+    };
+    setTimeout(() => document.addEventListener('click', removeMenu), 0);
+}
+// ==========================
+// Event Listeners
+// ==========================
+canvas.addEventListener("mousedown", onMouseDown);
+canvas.addEventListener("mousemove", onMouseMove);
+canvas.addEventListener("mouseup", onMouseUp);
+canvas.addEventListener("mouseleave", onMouseUp);
+canvas.addEventListener("contextmenu", onCanvasContextMenu);
+// Zoom with mouse wheel
+function onWheel(e) {
+  e.preventDefault();
+  const zoomFactor = e.deltaY > 0 ? 0.9 : 1.1;
+  const newZoom = Math.max(MIN_ZOOM, Math.min(MAX_ZOOM, viewZoom * zoomFactor));
+
+  // Zoom at cursor
+  const rect = canvas.getBoundingClientRect();
+  const mouseX = e.clientX - rect.left;
+  const mouseY = e.clientY - rect.top;
+  const worldX = (mouseX - canvas.width / 2) / viewZoom + viewOffsetX;
+  const worldY = (mouseY - canvas.height / 2) / viewZoom + viewOffsetY;
+
+  viewOffsetX = worldX - (mouseX - canvas.width / 2) / newZoom;
+  viewOffsetY = worldY - (mouseY - canvas.height / 2) / newZoom;
+  viewZoom = newZoom;
+
+  drawMap(mapData);
+}
+
+// Pan with middle mouse
+function onMouseDownPan(e) {
+  if (e.button === 1 || e.altKey) {  // Middle click or Alt+click
+    e.preventDefault();
+    isPanning = true;
+    lastPanX = e.clientX;
+    lastPanY = e.clientY;
+    canvas.style.cursor = 'grabbing';
+  }
+}
+
+function onMouseMovePan(e) {
+  if (isPanning) {
+    const dx = e.clientX - lastPanX;
+    const dy = e.clientY - lastPanY;
+    viewOffsetX -= dx / viewZoom;
+    viewOffsetY -= dy / viewZoom;
+    lastPanX = e.clientX;
+    lastPanY = e.clientY;
+    drawMap(mapData);
+  }
+}
+
+function onMouseUpPan(e) {
+  if (isPanning) {
+    isPanning = false;
+    canvas.style.cursor = 'default';
+  }
+}
+
+// Resize on window change
+function onResize() {
+  drawMap(mapData);
+}
+
+// Update existing listeners
+canvas.addEventListener("wheel", onWheel);
+canvas.addEventListener("mousedown", onMouseDownPan);
+canvas.addEventListener("mousemove", onMouseMovePan);
+canvas.addEventListener("mouseup", onMouseUpPan);
+window.addEventListener("resize", onResize);
+document
+    .getElementById("downloadBtn")
+    .addEventListener("click", async () => {
+        try {
+            const response = await fetch('/api/download_map_image');
+            if (!response.ok) throw new Error('Download failed');
+            const blob = await response.blob();
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'map_image.png';  // Adjust filename as needed
+            a.click();
+            URL.revokeObjectURL(url);
+        } catch (error) {
+            console.error('Error downloading map image:', error);
+            alert('Failed to download map image');
+        }
+    });
+
+document.getElementById("autoPlaceBtn")
+    ?.addEventListener("click", async () => {
+        try {
+            const response = await fetch('/api/auto_place_castles', { method: 'POST' });
+            if (!response.ok) throw new Error('Auto-place failed');
+            // Server will handle placement, recompute, and broadcast updates/redraws
+        } catch (error) {
+            console.error('Error auto-placing castles:', error);
+            alert('Failed to auto-place castles');
+        }
+    });
+
+document
+    .getElementById("uploadCsvBtn")
+    .addEventListener("click", () => {
+        document.getElementById("csvUpload").click();
+    });
+
+document
+    .getElementById("csvUpload")
+    .addEventListener("change", async e => {
+        const file = e.target.files[0];
+        if (!file) return;
+
+        const formData = new FormData();
+        formData.append('csv_file', file);
+
+        try {
+            const response = await fetch('/api/upload_csv', {
+                method: 'POST',
+                body: formData
+            });
+            if (!response.ok) throw new Error('Upload failed');
+            // Server will parse, merge castles, recompute priorities, and broadcast updates/redraws
+        } catch (error) {
+            console.error('Error uploading CSV:', error);
+            alert('Failed to upload CSV');
+        }
+
+        // reset input
+        e.target.value = "";
+    });
+
+// ==========================
+// Sync → App hooks
+// ==========================
+window.applyRemoteUpdate = function (update) {
+  if (!mapData || !update?.id) return;
+
+  // 1️⃣ Try castles first
+  let entity = mapData.castles?.find(c => c.id === update.id);
+
+  // 2️⃣ Then bears
+  if (!entity) {
+    entity = mapData.bear_traps?.find(b => b.id === update.id);
+  }
+
+  // 3️⃣ Unknown entity → ignore safely
+  if (!entity) return;
+
+  // 4️⃣ Apply update (efficiency comes from server)
+  Object.assign(entity, update);
+
+  // 5️⃣ Redraw (no local recompute)
+  drawMap(mapData);
+  renderCastleTable?.();
+};
+
+
+function applyStateToEntities(localList, remoteMap) {
+  if (!localList || !remoteMap) return;
+
+  localList.forEach(entity => {
+    const remote = remoteMap[entity.id];
+    if (remote) {
+      Object.assign(entity, remote);
+    }
+  });
+}
+
+
+window.loadFullState = function (state) {
+  if (!mapData || !state) return;
+
+  // ---- CASTLES ----
+  if (state.castles) {
+    mapData.castles.forEach(c => {
+      const remote = state.castles[c.id];
+      if (remote) Object.assign(c, remote);
+    });
+  }
+
+  // ---- BEARS ----
+  if (state.bears) {
+    mapData.bear_traps.forEach(b => {
+      const remote = state.bears[b.id];
+      if (remote) Object.assign(b, remote);
+    });
+  }
+
+  drawMap(mapData);
+  renderCastleTable?.();
+};
+
+const searchInput = document.getElementById("castleSearch");
+
+if (searchInput) {
+  searchInput.addEventListener("input", () => {
+    renderCastleTable();
+  });
+}
+
+document.getElementById("howToBtn").addEventListener("click", () => {
+  alert(`
+BEAR PLANNER — HOW TO USE
+
+PLACEMENT
+• Drag castles to reposition them on the grid
+• Castles snap to valid tiles only
+• Auto Place respects player preferences
+
+LOCKING
+• Right-click a CASTLE to lock or unlock it
+• Locked castles cannot be moved or auto-placed
+• Right-click a BEAR to lock or unlock its position
+• If something won’t move — it is locked
+
+AUTO PLACE
+• Places strongest + committed players closest to their bear
+• Players marked “both” are placed along the spine
+• Existing locks are never overridden
+
+EFFICIENCY
+• Lower efficiency values are better
+• Colours indicate placement quality (not errors)
+• Red is reserved for server or hard lock states
+
+TABLE
+• Use search to filter instantly
+• Lock All applies to already placed castles
+• Unlock All clears manual locks
+
+TIP
+• Always lock bears before running Auto Place
+• Lock priority players manually if required
+`);
+});
+
+
+
+// document
+//   .getElementById("castleTable")
+//   .addEventListener("click", e => {
+//     const th = e.target.closest("th[data-sort]");
+//     if (!th) return;
+//     sortCastles(th.dataset.sort);
+//   });
+
+window.Sync = Sync;

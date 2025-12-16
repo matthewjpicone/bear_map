@@ -183,6 +183,101 @@ async def update_castle(payload: Dict[str, Any] = Body(...)):
         "id": castle_id,
     }
 
+@app.post("/api/intent/move_castle")
+async def move_castle(data: Dict[str, Any]):
+    entity_id = data.get("id")
+    x = data.get("x")
+    y = data.get("y")
+    print(f"Received move_castle intent: id={entity_id}, x={x}, y={y}")  # Placeholder: print the information sent
+    # TODO: Implement castle move validation and placement, including:
+    # - Check grid bounds (0 <= x < grid_size-1, 0 <= y < grid_size-1 for 2x2)
+    # - Ensure no overlaps with other entities
+    # - Validate permissions and busy state
+    # - Update castle position in config
+    # - Broadcast update via SSE
+    # - Unmark busy
+    return {"success": True}
+
+@app.post("/api/intent/move_banner")
+async def move_banner(data: Dict[str, Any]):
+    entity_id = data.get("id")
+    x = data.get("x")
+    y = data.get("y")
+    print(f"Received move_banner intent: id={entity_id}, x={x}, y={y}")  # Placeholder: print the information sent
+    # TODO: Implement banner move validation and placement, including:
+    # - Check grid bounds (0 <= x < grid_size, 0 <= y < grid_size)
+    # - Ensure no overlaps (if applicable)
+    # - Validate permissions and busy state
+    # - Update banner position in config
+    # - Broadcast update via SSE
+    # - Unmark busy
+    return {"success": True}
+
+@app.post("/api/intent/move_bear_trap")
+async def move_bear_trap(data: Dict[str, Any]):
+    entity_id = data.get("id")
+    x = data.get("x")
+    y = data.get("y")
+    print(f"Received move_bear_trap intent: id={entity_id}, x={x}, y={y}")  # Placeholder: print the information sent
+    # TODO: Implement bear trap move validation and placement, including:
+    # - Check grid bounds (0 <= x < grid_size, 0 <= y < grid_size)
+    # - Ensure no overlaps with other bear traps/castles
+    # - Validate permissions and busy state
+    # - Update bear trap position in config
+    # - Broadcast update via SSE
+    # - Unmark busy
+    return {"success": True}
+
+from fastapi import UploadFile, File
+
+@app.post("/api/download_map_image")
+async def download_map_image():
+    print("Received download_map_image request")  # Placeholder: print the information sent
+    # TODO: Generate map image server-side (e.g., render canvas equivalent or use a library), return as image blob
+    # For now, return a dummy image or error
+    return {"error": "Not implemented"}
+
+@app.post("/api/auto_place_castles")
+async def auto_place_castles():
+    print("Received auto_place_castles request")  # Placeholder: print the information sent
+    # TODO: Auto-place castles server-side (algorithm to position them optimally), update config, recompute priorities, broadcast via SSE
+    return {"success": True}
+
+@app.post("/api/upload_csv")
+async def upload_csv(csv_file: UploadFile = File(...)):
+    print(f"Received upload_csv: file={csv_file.filename}")  # Placeholder: print the information sent
+    # TODO: Read and parse CSV server-side, merge into current castles, recompute priorities, update config, broadcast via SSE
+    return {"success": True}
+
+# Added missing endpoints
+@app.post("/api/intent/toggle_lock_castle")
+async def toggle_lock_castle(data: Dict[str, Any]):
+    entity_id = data.get("id")
+    print(f"Received toggle_lock_castle intent: id={entity_id}")  # Placeholder: print the information sent
+    # TODO: Toggle castle lock, update config, broadcast SSE
+    return {"success": True}
+
+@app.post("/api/intent/toggle_lock_banner")
+async def toggle_lock_banner(data: Dict[str, Any]):
+    entity_id = data.get("id")
+    print(f"Received toggle_lock_banner intent: id={entity_id}")  # Placeholder: print the information sent
+    # TODO: Toggle banner lock, update config, broadcast SSE
+    return {"success": True}
+
+@app.post("/api/intent/toggle_lock_bear_trap")
+async def toggle_lock_bear_trap(data: Dict[str, Any]):
+    entity_id = data.get("id")
+    print(f"Received toggle_lock_bear_trap intent: id={entity_id}")  # Placeholder: print the information sent
+    # TODO: Toggle bear trap lock, update config, broadcast SSE
+    return {"success": True}
+
+@app.post("/api/intent/move_castle_away")
+async def move_castle_away(data: Dict[str, Any]):
+    entity_id = data.get("id")
+    print(f"Received move_castle_away intent: id={entity_id}")  # Placeholder: print the information sent
+    # TODO: Move castle to edge position, update config, broadcast SSE
+    return {"success": True}
+
 # ============================================================
 # Static files
 # ============================================================

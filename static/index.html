@@ -22,7 +22,7 @@
   <button>Placeholder 4</button>
   <button>Placeholder 5</button>
 
-<!--  <button id="howToBtn" class="secondary">How to Use</button>-->
+  <button id="howToBtn" class="secondary">How to Use</button>
 </div>
 
 <main>
@@ -30,8 +30,8 @@
   <!-- CANVAS COLUMN -->
   <div class="canvas-column">
     <div class="canvas-actions">
-<!--      <button id="autoPlaceBtn">Auto Place Castles</button>-->
-<!--      <button id="downloadBtn">Download Map</button>-->
+      <button id="autoPlaceBtn">Auto Place Castles</button>
+      <button id="downloadBtn">Download Map</button>
     </div>
 
 
@@ -55,40 +55,40 @@
         placeholder="Search by ID, player, preference…"
         autocomplete="off"
       />
-<!--      <button id="uploadCsvBtn">Upload CSV</button>-->
-<!--      <button class="secondary">Download CSV</button>-->
+      <button id="uploadCsvBtn">Upload CSV</button>
+      <button class="secondary">Download CSV</button>
     </div>
 
     <div class="table-wrap">
-      <table id="castleTable">
-        <thead>
-          <tr>
-            <th>ID</th>
-            <th>Player</th>
-            <th>Power</th>
-            <th>Lv</th>
-            <th>CC</th>
-            <th>Attend</th>
-            <th>Rallies</th>
-            <th>Preference</th>
-            <th>Locked</th>
-            <th>Priority</th>
-            <th>Efficiency</th>
-          </tr>
-        </thead>
-        <tbody id="castleTableBody"></tbody>
-      </table>
+<table id="castleTable">
+  <thead>
+    <tr>
+      <th data-sort="id">ID</th>
+      <th data-sort="player">Player</th>
+      <th data-sort="power">Power</th>
+      <th data-sort="player_level">Lv</th>
+      <th data-sort="command_centre_level">CC</th>
+      <th data-sort="attendance">Attend</th>
+      <th data-sort="rallies_30min">Rallies</th>
+      <th data-sort="preference">Preference</th>
+      <th data-sort="locked">Locked</th>
+      <th data-sort="priority">Priority</th>
+      <th data-sort="efficiency">Efficiency</th>
+    </tr>
+  </thead>
+  <tbody id="castleTableBody"></tbody>
+</table>
     </div>
 
     <div class="actions">
-<!--      <button onclick="lockAllPlaced()">Lock All</button>-->
-<!--      <button onclick="unlockAll()">Unlock All</button>-->
+      <button onclick="lockAllPlaced()">Lock All</button>
+      <button onclick="unlockAll()">Unlock All</button>
     </div>
   </section>
 
 </main>
 
-<!--<input type="file" id="csvUpload" accept=".csv" hidden />-->
+<input type="file" id="csvUpload" accept=".csv" hidden />
 
 <footer>
   © 2025 Matthew Picone — All rights reserved
