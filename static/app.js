@@ -1310,7 +1310,23 @@ function onMouseDown(e) {
   // Simple debug log
   console.log(`Mouse: (${mouseCanvasX}, ${mouseCanvasY}), Grid: (${x}, ${y}), Zoom: ${viewZoom}`);
 
-  // ---- CASTLES FIRST ----
+  // ---- BEARS FIRST ----
+  for (let bear of mapData.bear_traps || []) {
+    if (isPointInEntity(x, y, bear)) {
+      if (bear.locked) return;
+      if (window.remoteBusy?.has(bear.id)) return;
+
+      draggingBear = bear;
+      bear._original = { x: bear.x, y: bear.y };
+
+      Sync.markBusy(bear.id);  // Mark as busy for sync
+
+      drawMap(mapData);
+      return;
+    }
+  }
+
+  // ---- THEN CASTLES ----
   for (let castle of mapData.castles || []) {
     if (castle.x == null || castle.y == null) continue;
     if (isPointInEntity(x, y, castle)) {
@@ -1341,21 +1357,6 @@ function onMouseDown(e) {
 
       drawMap(mapData);
       return;
-    }
-  }
-
-  // ---- THEN BEARS ----
-  for (let bear of mapData.bear_traps || []) {
-    if (isPointInEntity(x, y, bear)) {
-      if (bear.locked) return;
-      if (window.remoteBusy?.has(bear.id)) return;
-
-      draggingBear = bear;
-      bear._original = { x: bear.x, y: bear.y };
-
-      Sync.markBusy(bear.id);  // Mark as busy for sync
-
-      drawMap(mapData);
     }
   }
 
@@ -1683,12 +1684,23 @@ function onCanvasContextMenu(e) {
     let targetEntity = null;
     let entityType = '';
 
-    // ---- CASTLES FIRST ----
-    for (let castle of mapData.castles || []) {
-        if (isPointInEntity(x, y, castle)) {
-            targetEntity = castle;
-            entityType = 'castle';
+    // ---- BEARS FIRST ----
+    for (let bear of mapData.bear_traps || []) {
+        if (isPointInEntity(x, y, bear)) {
+            targetEntity = bear;
+            entityType = 'bear_trap';
             break;
+        }
+    }
+
+    // ---- THEN CASTLES ----
+    if (!targetEntity) {
+        for (let castle of mapData.castles || []) {
+            if (isPointInEntity(x, y, castle)) {
+                targetEntity = castle;
+                entityType = 'castle';
+                break;
+            }
         }
     }
 
@@ -1698,17 +1710,6 @@ function onCanvasContextMenu(e) {
             if (isPointInEntity(x, y, banner)) {
                 targetEntity = banner;
                 entityType = 'banner';
-                break;
-            }
-        }
-    }
-
-    // ---- THEN BEARS ----
-    if (!targetEntity) {
-        for (let bear of mapData.bear_traps || []) {
-            if (isPointInEntity(x, y, bear)) {
-                targetEntity = bear;
-                entityType = 'bear_trap';
                 break;
             }
         }
