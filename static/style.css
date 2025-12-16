@@ -65,14 +65,18 @@ button {
   border-radius: 8px;
   cursor: pointer;
   font-size: 13px;
+  transition: all 0.2s ease;
 }
 
 button:hover {
   border-color: var(--accent);
+  transform: translateY(-1px);
+  box-shadow: 0 2px 8px rgba(56, 189, 248, 0.2);
 }
 
 button:active {
   transform: translateY(1px);
+  box-shadow: none;
 }
 
 /* ================= MAIN LAYOUT ================= */
@@ -239,6 +243,8 @@ canvas {
   display: block;
   max-width: 100%;
   max-height: 100%;
+  cursor: default;
+  transition: cursor 0.1s ease;
 }
 
 /* ================= EFFICIENCY LEGEND ================= */
@@ -256,18 +262,29 @@ canvas {
   gap: 6px;
   z-index: 5;
   backdrop-filter: blur(6px);
+  transition: opacity 0.3s ease;
 }
 
 .legend-row {
   display: flex;
   align-items: center;
   gap: 8px;
+  transition: transform 0.2s ease;
+}
+
+.legend-row:hover {
+  transform: translateX(2px);
 }
 
 .legend-swatch {
   width: 12px;
   height: 12px;
   border-radius: 4px;
+  transition: transform 0.2s ease;
+}
+
+.legend-row:hover .legend-swatch {
+  transform: scale(1.15);
 }
 
 /* ================= CASTLE PANEL ================= */
@@ -305,6 +322,7 @@ canvas {
   border: 1px solid var(--border);
   background: #020617;
   color: var(--text);
+  transition: all 0.2s ease;
 }
 
 #castleSearch::placeholder {
@@ -314,6 +332,7 @@ canvas {
 #castleSearch:focus {
   outline: none;
   border-color: var(--accent);
+  box-shadow: 0 0 0 2px rgba(56, 189, 248, 0.1);
 }
 
 /* ================= DROPDOWN STYLING ================= */
@@ -324,11 +343,13 @@ canvas {
   border: 1px solid var(--border);
   background: var(--bg);
   color: var(--text);
+  transition: all 0.2s ease;
 }
 
 #castleLimit:focus {
   outline: none;
   border-color: var(--accent);
+  box-shadow: 0 0 0 2px rgba(56, 189, 248, 0.1);
 }
 
 /* ================= TABLE ================= */
@@ -385,11 +406,24 @@ td {
   min-width: 80px;  /* Match th */
 }
 
+tbody tr {
+  transition: background-color 0.2s ease;
+}
+
+tbody tr:hover {
+  background: rgba(56, 189, 248, 0.08);
+}
+
 tbody td:nth-child(1) {
   position: sticky;
   left: 0;
   background: var(--panel-soft);
   z-index: 1;
+  transition: background-color 0.2s ease;
+}
+
+tbody tr:hover td:nth-child(1) {
+  background: rgba(56, 189, 248, 0.08);
 }
 
 tbody td:nth-child(2) {
@@ -397,6 +431,11 @@ tbody td:nth-child(2) {
   left: 80px;
   background: var(--panel-soft);
   z-index: 1;
+  transition: background-color 0.2s ease;
+}
+
+tbody tr:hover td:nth-child(2) {
+  background: rgba(56, 189, 248, 0.08);
 }
 
 /* Specific min-widths for columns */
@@ -429,6 +468,7 @@ tbody td:nth-child(14) { min-width: 80px; }
 /* ================= TABLE CELLS & INPUTS ================= */
 td {
   background: var(--panel-soft);
+  transition: background-color 0.2s ease;
 }
 
 table input, table select {
@@ -440,11 +480,13 @@ table input, table select {
   background: var(--bg);
   color: var(--text);
   text-align: left;
+  transition: all 0.2s ease;
 }
 
 table input:focus, table select:focus {
   outline: none;
   border-color: var(--accent);
+  box-shadow: 0 0 0 2px rgba(56, 189, 248, 0.1);
 }
 
 table input::placeholder {
@@ -464,6 +506,35 @@ table input::placeholder {
 /* Optional: Highlight matched inputs */
 .match-input {
   border-color: var(--accent);
+}
+
+/* ================= ANIMATIONS ================= */
+@keyframes flashUpdate {
+  0% {
+    background-color: rgba(56, 189, 248, 0.3);
+  }
+  100% {
+    background-color: transparent;
+  }
+}
+
+.row-updated {
+  animation: flashUpdate 0.6s ease-out;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(-5px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.fade-in {
+  animation: fadeIn 0.3s ease-out;
 }
 
 /* ================= ACTIONS ================= */
@@ -494,6 +565,17 @@ footer {
 }
 
 /* ================= DELETE MODAL ================= */
+#deleteModal {
+  opacity: 0;
+  transform: scale(0.9);
+  transition: opacity 0.2s ease, transform 0.2s ease;
+}
+
+#deleteModal.visible {
+  opacity: 1;
+  transform: scale(1);
+}
+
 #deleteModal h3 {
   margin: 0 0 10px;
 }
@@ -510,6 +592,12 @@ footer {
   border-radius: 4px;
   background: var(--bg);
   color: var(--text);
+  transition: all 0.2s ease;
+}
+
+#deleteModal select:focus, #deleteModal input:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px rgba(56, 189, 248, 0.1);
 }
 
 #deleteModal button {
@@ -519,6 +607,10 @@ footer {
 #confirmDelete {
   background: red;
   color: white;
+}
+
+#confirmDelete:hover {
+  background: darkred;
 }
 
 /* ================= CASTLE TOOLTIP ================= */
@@ -535,6 +627,14 @@ footer {
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
   backdrop-filter: blur(6px);
   min-width: 200px;
+  opacity: 0;
+  transform: scale(0.95);
+  transition: opacity 0.15s ease, transform 0.15s ease;
+}
+
+#castleTooltip.visible {
+  opacity: 1;
+  transform: scale(1);
 }
 
 #castleTooltip .tooltip-title {
