@@ -23,6 +23,11 @@ window.remoteBusy = new Set(); // sync / optimistic UI guard
 // Tooltip state
 let hoveredCastleOnCanvas = null;
 
+// Selection state
+let selectedCastleId = null;
+let mouseDownPos = null;  // Track mouse position to detect clicks vs drags
+const CLICK_THRESHOLD = 5;  // pixels - movement less than this is considered a click
+
 const canvas = document.getElementById("map");
 if (!canvas) throw new Error("Canvas #map not found");
 const ctx = canvas.getContext("2d");
@@ -634,6 +639,11 @@ function renderCastleTable() {
 
   castles.forEach(c => {
     const tr = document.createElement("tr");
+    
+    // Mark selected row
+    if (selectedCastleId === c.id) {
+      tr.classList.add("selected");
+    }
 
     tr.addEventListener("mouseenter", (e) => {
       hoveredCastleId = c.id;
@@ -651,7 +661,15 @@ function renderCastleTable() {
         showCastleTooltip(c, e.clientX, e.clientY);
       }
     });
-tr.addEventListener("click", () => {
+tr.addEventListener("click", (e) => {
+  // Don't select if clicking on input/select/checkbox elements
+  if (e.target.tagName === 'INPUT' || e.target.tagName === 'SELECT' || e.target.tagName === 'BUTTON') {
+    return;
+  }
+  
+  // Select the castle
+  selectCastle(c.id);
+  
   // Pan to center of castle in rotated view
   const castleCenterX = c.x * TILE_SIZE + TILE_SIZE;
   const castleCenterY = c.y * TILE_SIZE + TILE_SIZE;
@@ -1097,6 +1115,16 @@ function drawBearTrap(bear) {
 //   }
 // }
 
+// Helper function to get player initials
+function getPlayerInitials(playerName) {
+  if (!playerName) return "?";
+  const words = playerName.trim().split(/\s+/);
+  if (words.length === 1) {
+    return playerName.substring(0, 2).toUpperCase();
+  }
+  return words.slice(0, 2).map(w => w[0] || '').join('').toUpperCase();
+}
+
 function drawCastle(castle) {
   if (!castle || castle.x == null || castle.y == null) return;
 
@@ -1107,6 +1135,8 @@ function drawCastle(castle) {
   const isRemoteBusy =
     window.remoteBusy?.has(castle.id) &&
     draggingCastle?.id !== castle.id;
+
+  const isSelected = selectedCastleId === castle.id;
 
   const isVisible = visibleCastleIds.size === 0 || visibleCastleIds.has(castle.id);
   if (!isVisible) {
@@ -1119,8 +1149,17 @@ function drawCastle(castle) {
 
   // -------- border --------
   ctx.save();
-  ctx.strokeStyle = isRemoteBusy ? "#dc2626" : "#e5e7eb";
-  ctx.lineWidth = (isRemoteBusy ? 3 : 1) / viewZoom;  // Scale line width
+  if (isSelected) {
+    // Highlight selected castle with cyan stroke
+    ctx.strokeStyle = "#06b6d4";  // cyan-500
+    ctx.lineWidth = 4 / viewZoom;
+  } else if (isRemoteBusy) {
+    ctx.strokeStyle = "#dc2626";
+    ctx.lineWidth = 3 / viewZoom;
+  } else {
+    ctx.strokeStyle = "#e5e7eb";
+    ctx.lineWidth = 1 / viewZoom;
+  }
   ctx.strokeRect(px + 2, py + 2, size - 4, size - 4);
   ctx.restore();
 
@@ -1158,6 +1197,34 @@ function drawCastle(castle) {
     ctx.textAlign = "center";
     ctx.fillStyle = "white";
     ctx.fillText("🔒", 35, 5);
+    ctx.restore();
+  }
+
+  // -------- selected indicator (initials circle) --------
+  if (isSelected) {
+    const initials = getPlayerInitials(castle.player);
+    const circleRadius = 16 / viewZoom;  // Scale with zoom
+    const circleX = px + size + circleRadius - 4;  // Top right, outside castle
+    const circleY = py + 4 + circleRadius;
+
+    ctx.save();
+    // Draw circle background
+    ctx.fillStyle = "#06b6d4";  // cyan-500
+    ctx.beginPath();
+    ctx.arc(circleX, circleY, circleRadius, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Draw white border
+    ctx.strokeStyle = "#ffffff";
+    ctx.lineWidth = 2 / viewZoom;
+    ctx.stroke();
+
+    // Draw initials text
+    ctx.fillStyle = "#ffffff";
+    ctx.font = `bold ${10 / viewZoom}px sans-serif`;
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.fillText(initials, circleX, circleY);
     ctx.restore();
   }
 
@@ -1203,6 +1270,23 @@ function renderEfficiencyLegend() {
 
 renderEfficiencyLegend();
 
+// ==========================
+// Castle Selection
+// ==========================
+function selectCastle(castleId) {
+  if (selectedCastleId === castleId) {
+    // Deselect if clicking the same castle
+    selectedCastleId = null;
+  } else {
+    selectedCastleId = castleId;
+  }
+  
+  if (mapData) {
+    drawMap(mapData);
+    renderCastleTable();  // Re-render table to update row styling
+  }
+}
+
 function onMouseDown(e) {
   if (!mapData) return;
   if (draggingCastle || draggingBear || draggingBanner) return;
@@ -1212,6 +1296,9 @@ function onMouseDown(e) {
   const mouseCanvasY = e.clientY - rect.top;
   const { x, y } = screenToGrid(mouseCanvasX, mouseCanvasY);
 
+  // Store mouse position for click detection
+  mouseDownPos = { x: e.clientX, y: e.clientY, gridX: x, gridY: y, castleId: null };
+
   // Simple debug log
   console.log(`Mouse: (${mouseCanvasX}, ${mouseCanvasY}), Grid: (${x}, ${y}), Zoom: ${viewZoom}`);
 
@@ -1219,6 +1306,9 @@ function onMouseDown(e) {
   for (let castle of mapData.castles || []) {
     if (castle.x == null || castle.y == null) continue;
     if (isPointInEntity(x, y, castle)) {
+      // Store the castle ID for potential selection
+      mouseDownPos.castleId = castle.id;
+      
       if (castle.locked) return;
       if (window.remoteBusy?.has(castle.id)) return;
 
@@ -1271,7 +1361,22 @@ function onMouseDown(e) {
   canvas.style.cursor = 'grabbing';
 }
 
-function onMouseUp() {
+function onMouseUp(e) {
+  // Check if this was a click (not a drag) on a castle
+  if (mouseDownPos && mouseDownPos.castleId && !draggingCastle) {
+    const dx = Math.abs(e.clientX - mouseDownPos.x);
+    const dy = Math.abs(e.clientY - mouseDownPos.y);
+    
+    if (dx < CLICK_THRESHOLD && dy < CLICK_THRESHOLD) {
+      // This was a click, not a drag - select the castle
+      selectCastle(mouseDownPos.castleId);
+      mouseDownPos = null;
+      return;
+    }
+  }
+  
+  mouseDownPos = null;
+
   if (draggingCastle) {
     const c = draggingCastle;
     draggingCastle = null;
@@ -1322,6 +1427,26 @@ function onMouseUp() {
 
     Sync.unmarkBusy(bear.id);
     return;
+  }
+
+  // End panning if active
+  if (isPanning) {
+    isPanning = false;
+    canvas.style.cursor = 'grab';
+    
+    // Check if this was a click on empty space (no drag)
+    if (mouseDownPos) {
+      const dx = Math.abs(e.clientX - mouseDownPos.x);
+      const dy = Math.abs(e.clientY - mouseDownPos.y);
+      
+      if (dx < CLICK_THRESHOLD && dy < CLICK_THRESHOLD && !mouseDownPos.castleId) {
+        // Clicked on empty space - clear selection
+        if (selectedCastleId) {
+          selectedCastleId = null;
+          drawMap(mapData);
+        }
+      }
+    }
   }
 }
 // function onMouseUp() {
