@@ -30,6 +30,12 @@ async def auto_place_castles() -> Dict[str, int]:
     banners = config.get("banners", [])
     grid_size = config.get("grid_size", 28)
 
+    # Stage unlocked castles to null to prevent collision issues during placement
+    for c in castles:
+        if not c.get("locked"):
+            c["x"] = None
+            c["y"] = None
+
     # Compute priority
     castles = compute_priority(castles)
 
@@ -134,6 +140,12 @@ async def auto_place_castles() -> Dict[str, int]:
                 castle.pop("y", None)
 
         if best_tile:
+            # Validate the tile is still legal
+            from .validation import is_tile_legal
+            is_legal, reason = is_tile_legal(best_tile[0], best_tile[1], grid_size, banners, bear_traps, occupied)
+            if not is_legal:
+                print(f"Warning: Best tile {best_tile} for castle {castle['id']} is illegal: {reason}")
+                continue  # Skip this placement
             castle["x"] = best_tile[0]
             castle["y"] = best_tile[1]
             # Mark occupied
@@ -196,6 +208,30 @@ async def auto_place_castles() -> Dict[str, int]:
     update_all_round_trip_times(castles, bear_traps)
 
     save_config(config)
+
+    # Verify no overlaps (for testing)
+    overlaps_found = False
+    for i, c1 in enumerate(castles):
+        if c1.get("x") is None or c1.get("y") is None:
+            continue
+        for c2 in castles[i+1:]:
+            if c2.get("x") is None or c2.get("y") is None:
+                continue
+            if not (c1["x"] + 2 <= c2["x"] or c2["x"] + 2 <= c1["x"] or c1["y"] + 2 <= c2["y"] or c2["y"] + 2 <= c1["y"]):
+                print(f"Overlap detected between {c1['id']} and {c2['id']}")
+                overlaps_found = True
+    for c in castles:
+        if c.get("x") is None or c.get("y") is None:
+            continue
+        has_overlap, reason = check_castle_overlap_with_entities(c["x"], c["y"], bear_traps, banners)
+        if has_overlap:
+            print(f"Castle {c['id']} overlaps with {reason}")
+            overlaps_found = True
+
+    if overlaps_found:
+        print("Warning: Overlaps found after autoplace")
+    else:
+        print("Autoplace completed without overlaps")
 
     return {"success": True, "placed": placed_count}
 

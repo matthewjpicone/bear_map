@@ -269,3 +269,45 @@ def check_bear_trap_overlap_with_entities(
 
     return False, None
 
+
+def is_tile_legal(x: int, y: int, grid_size: int, banners: List[Dict], bear_traps: List[Dict], occupied: set) -> Tuple[bool, str]:
+    """Check if a 2x2 castle tile at (x,y) is legal.
+
+    Args:
+        x, y: Top-left of 2x2 area.
+        grid_size: Size of the grid.
+        banners: List of banners.
+        bear_traps: List of bear traps.
+        occupied: Set of occupied (x,y) tiles.
+
+    Returns:
+        (is_legal, reason)
+    """
+    # Bounds check for 2x2
+    if not (0 <= x <= grid_size - 2 and 0 <= y <= grid_size - 2):
+        return False, "out of bounds"
+
+    # Check overlap with banners (1x1)
+    for b in banners:
+        bx, by = b.get('x'), b.get('y')
+        if bx is not None and by is not None:
+            if x <= bx < x + 2 and y <= by < y + 2:
+                return False, f"overlaps banner at ({bx},{by})"
+
+    # Check overlap with bear influence (3x3 centered)
+    for bear in bear_traps:
+        bx, by = bear.get('x'), bear.get('y')
+        if bx is not None and by is not None:
+            bear_min_x, bear_max_x = bx - 1, bx + 1
+            bear_min_y, bear_max_y = by - 1, by + 1
+            if not (x + 1 < bear_min_x or x > bear_max_x or y + 1 < bear_min_y or y > bear_max_y):
+                return False, f"in bear influence at ({bx},{by})"
+
+    # Check overlap with occupied tiles
+    for dx in range(2):
+        for dy in range(2):
+            if (x + dx, y + dy) in occupied:
+                return False, "overlaps occupied tile"
+
+    return True, ""
+
