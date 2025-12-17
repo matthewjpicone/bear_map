@@ -7,7 +7,11 @@ import subprocess
 from datetime import datetime
 from typing import Any, Dict
 
+<<<<<<< HEAD
 from fastapi import FastAPI, Body, Request, HTTPException, Header, UploadFile, File
+=======
+from fastapi import FastAPI, Body, Request, HTTPException, Header, File, UploadFile
+>>>>>>> copilot/add-bulk-edit-castles-ui
 from fastapi.responses import HTMLResponse, FileResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from dotenv import load_dotenv
@@ -29,11 +33,18 @@ app.include_router(sync_router)
 # ============================================================
 # 🔔 SSE BROADCAST SYSTEM (authoritative server push)
 # ============================================================
+<<<<<<< HEAD
 subscribers: set[asyncio.Queue] = set()
 busy_set: set[str] = set()
 
+=======
+busy_set: set[str] = set()
+subscribers: set[asyncio.Queue] = set()
+>>>>>>> copilot/add-bulk-edit-castles-ui
+
 
 async def event_generator(queue: asyncio.Queue):
+<<<<<<< HEAD
     """Generate SSE events from the queue.
 
     Args:
@@ -42,6 +53,9 @@ async def event_generator(queue: asyncio.Queue):
     Yields:
         SSE formatted event strings.
     """
+=======
+    """Generate server-sent events from queue."""
+>>>>>>> copilot/add-bulk-edit-castles-ui
     try:
         while True:
             data = await queue.get()
@@ -51,11 +65,15 @@ async def event_generator(queue: asyncio.Queue):
 
 
 async def broadcast_config(config: dict):
+<<<<<<< HEAD
     """Broadcast configuration updates to all SSE subscribers.
 
     Args:
         config: Configuration dictionary (not used currently but kept for API consistency).
     """
+=======
+    """Broadcast configuration update to all SSE subscribers."""
+>>>>>>> copilot/add-bulk-edit-castles-ui
     payload = {
         "type": "config_update",
         "time": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
@@ -67,6 +85,7 @@ async def broadcast_config(config: dict):
 
 @app.get("/api/stream")
 async def stream(request: Request):
+<<<<<<< HEAD
     """Server-Sent Events (SSE) endpoint for real-time updates.
 
     Clients connect to this endpoint to receive real-time configuration updates
@@ -78,6 +97,9 @@ async def stream(request: Request):
     Returns:
         StreamingResponse with text/event-stream content type.
     """
+=======
+    """SSE endpoint for real-time configuration updates."""
+>>>>>>> copilot/add-bulk-edit-castles-ui
     queue = asyncio.Queue()
     subscribers.add(queue)
 
@@ -89,10 +111,12 @@ async def stream(request: Request):
     return StreamingResponse(event_generator(queue), media_type="text/event-stream")
 
 
+
 # ============================================================
 # Helpers
 # ============================================================
 
+<<<<<<< HEAD
 
 def load_config() -> dict:
     """Load configuration from config.json.
@@ -100,26 +124,40 @@ def load_config() -> dict:
     Returns:
         Configuration dictionary.
     """
+=======
+def load_config():
+    """Load configuration from JSON file."""
+>>>>>>> copilot/add-bulk-edit-castles-ui
     with open(CONFIG_PATH, "r", encoding="utf-8") as f:
         return json.load(f)
 
 
+<<<<<<< HEAD
 def save_config(config: dict):
     """Save configuration to config.json.
 
     Args:
         config: Configuration dictionary to save.
     """
+=======
+def save_config(config):
+    """Save configuration to JSON file."""
+>>>>>>> copilot/add-bulk-edit-castles-ui
     with open(CONFIG_PATH, "w", encoding="utf-8") as f:
         json.dump(config, f, indent=2, ensure_ascii=False)
 
 
 async def notify_config_updated():
+<<<<<<< HEAD
     """Load config and broadcast update notification to all SSE subscribers."""
+=======
+    """Notify all clients that configuration has been updated."""
+>>>>>>> copilot/add-bulk-edit-castles-ui
     config = load_config()
     await broadcast_config(config)
 
 
+<<<<<<< HEAD
 def is_within_bounds(
     x: int, y: int, grid_size: int, width: int = 1, height: int = 1
 ) -> bool:
@@ -201,6 +239,8 @@ def check_bear_trap_overlap(
     return False, None
 
 
+=======
+>>>>>>> copilot/add-bulk-edit-castles-ui
 # ============================================================
 # Routes
 # ============================================================
@@ -212,16 +252,21 @@ def check_bear_trap_overlap(
 
 @app.get("/", response_class=HTMLResponse)
 def index():
+<<<<<<< HEAD
     """Serve the main HTML page.
 
     Returns:
         HTML page from static/index.html.
     """
+=======
+    """Serve the main HTML page."""
+>>>>>>> copilot/add-bulk-edit-castles-ui
     return FileResponse(os.path.join(BASE_DIR, "static", "index.html"))
 
 
 @app.get("/api/map")
 def get_map():
+<<<<<<< HEAD
     """Get the current map configuration.
 
     Returns:
@@ -232,6 +277,15 @@ def get_map():
     return {
         "grid_size": config["grid_size"],
         "efficiency_scale": config["efficiency_scale"],
+=======
+    """Get map configuration and entities."""
+    config = load_config()
+    return {
+        "grid_size": config["grid_size"],
+        # visual + logic config
+        "efficiency_scale": config["efficiency_scale"],
+        # entities (authoritative)
+>>>>>>> copilot/add-bulk-edit-castles-ui
         "banners": config.get("banners", []),
         "bear_traps": config.get("bear_traps", []),
         "castles": config.get("castles", []),
@@ -240,11 +294,15 @@ def get_map():
 
 @app.get("/api/version")
 def get_version():
+<<<<<<< HEAD
     """Get the application version.
 
     Returns:
         Dictionary with version string.
     """
+=======
+    """Get application version."""
+>>>>>>> copilot/add-bulk-edit-castles-ui
     try:
         with open(VERSION_PATH, "r", encoding="utf-8") as f:
             version_data = json.load(f)
@@ -254,7 +312,11 @@ def get_version():
 
 
 # ============================================================
+<<<<<<< HEAD
 # Castle validation constants and helpers
+=======
+# Castle Management
+>>>>>>> copilot/add-bulk-edit-castles-ui
 # ============================================================
 
 ALLOWED_CASTLE_FIELDS = {
@@ -317,10 +379,14 @@ def sanitise_int(value: Any, *, allow_none=False) -> int | None:
 
 @app.post("/api/castles/update")
 async def update_castle(payload: Dict[str, Any] = Body(...)):
+<<<<<<< HEAD
     """Update castle properties.
 
     Updates one or more properties of an existing castle. Validates all fields
     and broadcasts the update to connected clients via SSE.
+=======
+    """Update a single castle's fields.
+>>>>>>> copilot/add-bulk-edit-castles-ui
 
     Args:
         payload: Dictionary containing castle id and fields to update.
@@ -329,7 +395,11 @@ async def update_castle(payload: Dict[str, Any] = Body(...)):
         Dictionary with status and castle id.
 
     Raises:
+<<<<<<< HEAD
         HTTPException: If castle not found or invalid fields provided.
+=======
+        HTTPException: If castle not found or validation fails.
+>>>>>>> copilot/add-bulk-edit-castles-ui
     """
     if "id" not in payload:
         raise HTTPException(400, "Missing castle id")
@@ -377,6 +447,7 @@ async def update_castle(payload: Dict[str, Any] = Body(...)):
     }
 
 
+<<<<<<< HEAD
 @app.post("/api/intent/move_castle")
 async def move_castle(data: Dict[str, Any] = Body(...)):
     """Move a castle to a new position.
@@ -440,10 +511,121 @@ async def move_castle(data: Dict[str, Any] = Body(...)):
 
     await notify_config_updated()
 
+=======
+@app.post("/api/castles/bulk_update")
+async def bulk_update_castles(payload: Dict[str, Any] = Body(...)):
+    """Update multiple castles with the same field values.
+
+    Args:
+        payload: Dictionary containing:
+            - ids: List of castle IDs to update
+            - updates: Dictionary of field names and values to apply
+
+    Returns:
+        Dictionary with status, count of updated castles, and list of IDs.
+
+    Raises:
+        HTTPException: If validation fails or no valid updates provided.
+    """
+    if "ids" not in payload or not isinstance(payload["ids"], list):
+        raise HTTPException(400, "Missing or invalid 'ids' field")
+
+    if "updates" not in payload or not isinstance(payload["updates"], dict):
+        raise HTTPException(400, "Missing or invalid 'updates' field")
+
+    castle_ids = payload["ids"]
+    updates = payload["updates"]
+
+    if not castle_ids:
+        raise HTTPException(400, "No castle IDs provided")
+
+    if not updates:
+        raise HTTPException(400, "No updates provided")
+
+    # Validate that only allowed fields are being updated
+    for key in updates.keys():
+        if key not in ALLOWED_CASTLE_FIELDS and key != "locked":
+            raise HTTPException(400, f"Illegal field: {key}")
+
+    # Validate preference if provided
+    if ("preference" in updates and
+            updates["preference"] not in VALID_PREFERENCES):
+        raise HTTPException(400, "Invalid preference")
+
+    config = load_config()
+    castles = config.get("castles", [])
+
+    # Find castles to update
+    updated_ids = []
+    not_found_ids = []
+
+    for castle_id in castle_ids:
+        castle = next((c for c in castles if c.get("id") == castle_id), None)
+        if not castle:
+            not_found_ids.append(castle_id)
+            continue
+
+        # Apply updates to this castle
+        for key, value in updates.items():
+            if key == "player":
+                castle["player"] = sanitise_player_name(str(value))
+            elif key == "preference":
+                castle["preference"] = value
+            elif key == "attendance":
+                castle[key] = sanitise_int(value, allow_none=True)
+            elif key == "locked":
+                # Special handling for locked field (boolean)
+                if not isinstance(value, bool):
+                    raise HTTPException(400, "Invalid locked value")
+                castle[key] = value
+            else:
+                castle[key] = sanitise_int(value)
+
+        updated_ids.append(castle_id)
+
+    if not updated_ids:
+        raise HTTPException(404, "No castles found to update")
+
+    save_config(config)
+    await notify_config_updated()
+
+    result = {
+        "status": "ok",
+        "updated_count": len(updated_ids),
+        "updated_ids": updated_ids,
+    }
+
+    if not_found_ids:
+        result["not_found_ids"] = not_found_ids
+
+    return result
+
+
+# ============================================================
+# Intent Handlers
+# ============================================================
+
+@app.post("/api/intent/move_castle")
+async def move_castle(data: Dict[str, Any]):
+    """Handle castle move intent."""
+    entity_id = data.get("id")
+    x = data.get("x")
+    y = data.get("y")
+    # Placeholder: print the information sent
+    print(f"Received move_castle intent: id={entity_id}, x={x}, y={y}")
+    # TODO: Implement castle move validation and placement, including:
+    # - Check grid bounds (0 <= x < grid_size-1, 0 <= y < grid_size-1)
+    # - Ensure no overlaps with other entities
+    # - Validate permissions and busy state
+    # - Update castle position in config
+    # - Broadcast update via SSE
+    # - Unmark busy
+>>>>>>> copilot/add-bulk-edit-castles-ui
     return {"success": True}
 
 
 @app.post("/api/intent/move_banner")
+<<<<<<< HEAD
 async def move_banner(data: Dict[str, Any] = Body(...)):
     """Move a banner to a new position.
 
@@ -499,10 +681,21 @@ async def move_banner(data: Dict[str, Any] = Body(...)):
 
     await notify_config_updated()
 
+=======
+async def move_banner(data: Dict[str, Any]):
+    """Handle banner move intent."""
+    entity_id = data.get("id")
+    x = data.get("x")
+    y = data.get("y")
+    # Placeholder: print the information sent
+    print(f"Received move_banner intent: id={entity_id}, x={x}, y={y}")
+    # TODO: Implement banner move validation and placement
+>>>>>>> copilot/add-bulk-edit-castles-ui
     return {"success": True}
 
 
 @app.post("/api/intent/move_bear_trap")
+<<<<<<< HEAD
 async def move_bear_trap(data: Dict[str, Any] = Body(...)):
     """Move a bear trap to a new position.
 
@@ -775,9 +968,30 @@ async def move_castle_away(data: Dict[str, Any] = Body(...)):
 
     return {"success": True}
 
+=======
+async def move_bear_trap(data: Dict[str, Any]):
+    """Handle bear trap move intent."""
+    entity_id = data.get("id")
+    x = data.get("x")
+    y = data.get("y")
+    # Placeholder: print the information sent
+    print(f"Received move_bear_trap intent: id={entity_id}, x={x}, y={y}")
+    # TODO: Implement bear trap move validation and placement
+    return {"success": True}
+
+
+@app.post("/api/download_map_image")
+async def download_map_image():
+    """Download map as image (placeholder)."""
+    print("Received download_map_image request")
+    # TODO: Generate map image server-side
+    return {"error": "Not implemented"}
+>>>>>>> copilot/add-bulk-edit-castles-ui
+
 
 @app.post("/api/auto_place_castles")
 async def auto_place_castles():
+<<<<<<< HEAD
     """Auto-place castles on the grid using a simple algorithm.
 
     This is a placeholder implementation that arranges castles in a grid pattern.
@@ -829,9 +1043,17 @@ async def auto_place_castles():
 
     return {"success": True, "placed": placed_count}
 
+=======
+    """Auto-place castles (placeholder)."""
+    print("Received auto_place_castles request")
+    # TODO: Auto-place castles server-side
+    return {"success": True}
+>>>>>>> copilot/add-bulk-edit-castles-ui
+
 
 @app.post("/api/upload_csv")
 async def upload_csv(csv_file: UploadFile = File(...)):
+<<<<<<< HEAD
     """Upload and parse a CSV file to update castle data.
 
     The CSV should contain castle information with columns matching the castle fields.
@@ -895,6 +1117,53 @@ async def mark_busy(data: Dict[str, Any] = Body(...)):
     Raises:
         HTTPException: If id is missing.
     """
+=======
+    """Upload castle data via CSV (placeholder)."""
+    print(f"Received upload_csv: file={csv_file.filename}")
+    # TODO: Read and parse CSV server-side
+    return {"success": True}
+
+
+@app.post("/api/intent/toggle_lock_castle")
+async def toggle_lock_castle(data: Dict[str, Any]):
+    """Toggle castle lock status."""
+    entity_id = data.get("id")
+    print(f"Received toggle_lock_castle intent: id={entity_id}")
+    # TODO: Toggle castle lock, update config, broadcast SSE
+    return {"success": True}
+
+
+@app.post("/api/intent/toggle_lock_banner")
+async def toggle_lock_banner(data: Dict[str, Any]):
+    """Toggle banner lock status."""
+    entity_id = data.get("id")
+    print(f"Received toggle_lock_banner intent: id={entity_id}")
+    # TODO: Toggle banner lock, update config, broadcast SSE
+    return {"success": True}
+
+
+@app.post("/api/intent/toggle_lock_bear_trap")
+async def toggle_lock_bear_trap(data: Dict[str, Any]):
+    """Toggle bear trap lock status."""
+    entity_id = data.get("id")
+    print(f"Received toggle_lock_bear_trap intent: id={entity_id}")
+    # TODO: Toggle bear trap lock, update config, broadcast SSE
+    return {"success": True}
+
+
+@app.post("/api/intent/move_castle_away")
+async def move_castle_away(data: Dict[str, Any]):
+    """Move castle to edge position."""
+    entity_id = data.get("id")
+    print(f"Received move_castle_away intent: id={entity_id}")
+    # TODO: Move castle to edge position, update config, broadcast SSE
+    return {"success": True}
+
+
+@app.post("/api/intent/mark_busy")
+async def mark_busy(data: Dict[str, Any]):
+    """Mark entity as busy."""
+>>>>>>> copilot/add-bulk-edit-castles-ui
     entity_id = data.get("id")
     if not entity_id:
         raise HTTPException(400, "Missing id")
@@ -904,6 +1173,7 @@ async def mark_busy(data: Dict[str, Any] = Body(...)):
 
 
 @app.post("/api/intent/unmark_busy")
+<<<<<<< HEAD
 async def unmark_busy(data: Dict[str, Any] = Body(...)):
     """Unmark an entity as busy.
 
@@ -918,6 +1188,10 @@ async def unmark_busy(data: Dict[str, Any] = Body(...)):
     Raises:
         HTTPException: If id is missing.
     """
+=======
+async def unmark_busy(data: Dict[str, Any]):
+    """Unmark entity as busy."""
+>>>>>>> copilot/add-bulk-edit-castles-ui
     entity_id = data.get("id")
     if not entity_id:
         raise HTTPException(400, "Missing id")
@@ -928,6 +1202,7 @@ async def unmark_busy(data: Dict[str, Any] = Body(...)):
 
 @app.post("/api/castles/add")
 async def add_castle():
+<<<<<<< HEAD
     """Add a new castle to the map.
 
     Creates a new castle with default values and a unique ID. The castle is
@@ -973,6 +1248,29 @@ async def add_castle():
             "y": None,
         }
     )
+=======
+    """Add a new castle."""
+    config = load_config()
+    castles = config.get("castles", [])
+    new_id = max((c.get("id", 0) for c in castles), default=0) + 1
+    config["castles"].append({
+        "id": new_id,
+        "player": "",
+        "power": 0,
+        "player_level": 0,
+        "command_centre_level": 0,
+        "attendance": 0,
+        "rallies_30min": 0,
+        "preference": "Both",
+        "locked": False,
+        "priority": None,
+        "efficiency": None,
+        "round_trip": "NA",
+        "last_updated": None,
+        "x": None,
+        "y": None
+    })
+>>>>>>> copilot/add-bulk-edit-castles-ui
     save_config(config)
     await notify_config_updated()
     return {"success": True, "id": new_id}
@@ -980,6 +1278,7 @@ async def add_castle():
 
 @app.post("/api/bear_traps/add")
 async def add_bear_trap():
+<<<<<<< HEAD
     """Add a new bear trap to the map.
 
     Creates a new bear trap with a unique ID. The trap is initially unplaced
@@ -995,12 +1294,25 @@ async def add_bear_trap():
     new_id = f"Bear {len(bear_traps) + 1}"
 
     config["bear_traps"].append({"id": new_id, "locked": False, "x": None, "y": None})
+=======
+    """Add a new bear trap."""
+    config = load_config()
+    bear_traps = config.get('bear_traps', [])
+    new_id = f"B{max(len(bear_traps), 0) + 1}"
+    config["bear_traps"].append({
+        "id": new_id,
+        "locked": False,
+        "x": None,
+        "y": None
+    })
+>>>>>>> copilot/add-bulk-edit-castles-ui
     save_config(config)
     await notify_config_updated()
     return {"success": True, "id": new_id}
 
 
 @app.post("/api/castles/delete")
+<<<<<<< HEAD
 async def delete_castle(data: Dict[str, Any] = Body(...)):
     """Delete a castle from the map.
 
@@ -1022,6 +1334,15 @@ async def delete_castle(data: Dict[str, Any] = Body(...)):
 
     config = load_config()
     config["castles"] = [c for c in config["castles"] if c.get("id") != castle_id]
+=======
+async def delete_castle(data: Dict[str, Any]):
+    """Delete a castle."""
+    config = load_config()
+    castle_id = data.get("id")
+    config["castles"] = [
+        c for c in config["castles"] if c.get("id") != castle_id
+    ]
+>>>>>>> copilot/add-bulk-edit-castles-ui
     save_config(config)
 
     # Unmark as busy if it was
@@ -1042,6 +1363,7 @@ WEBHOOK_SECRET = os.getenv("GITHUB_WEBHOOK_SECRET")
 UPDATE_SCRIPT_PATH = os.path.join(BASE_DIR, "scripts", "update_and_restart.sh")
 
 
+<<<<<<< HEAD
 def verify_webhook_signature(payload_body: bytes, signature_header: str) -> bool:
     """Verify the GitHub webhook signature using HMAC-SHA256.
 
@@ -1052,6 +1374,11 @@ def verify_webhook_signature(payload_body: bytes, signature_header: str) -> bool
     Returns:
         True if signature is valid, False otherwise.
     """
+=======
+def verify_webhook_signature(payload_body: bytes,
+                             signature_header: str) -> bool:
+    """Verify the GitHub webhook signature using HMAC-SHA256."""
+>>>>>>> copilot/add-bulk-edit-castles-ui
     if not WEBHOOK_SECRET:
         return False
 
@@ -1075,11 +1402,13 @@ async def trigger_update():
     try:
         # Validate the update script exists and is executable
         if not os.path.isfile(UPDATE_SCRIPT_PATH):
-            print(f"Error: Update script not found at {UPDATE_SCRIPT_PATH}")
+            msg = f"Error: Update script not found at {UPDATE_SCRIPT_PATH}"
+            print(msg)
             return
 
         if not os.access(UPDATE_SCRIPT_PATH, os.X_OK):
-            print(f"Error: Update script is not executable: {UPDATE_SCRIPT_PATH}")
+            msg = f"Error: Update script not executable: {UPDATE_SCRIPT_PATH}"
+            print(msg)
             return
 
         # Run the update script in the background
@@ -1100,6 +1429,7 @@ async def github_webhook(
     x_hub_signature_256: str = Header(None),
     x_github_event: str = Header(None),
 ):
+<<<<<<< HEAD
     """Handle GitHub webhook events.
 
     Validates the payload signature using HMAC-SHA256 and triggers deployment
@@ -1116,6 +1446,9 @@ async def github_webhook(
     Raises:
         HTTPException: If signature is invalid or payload cannot be parsed.
     """
+=======
+    """Handle GitHub webhook events and trigger updates on push to main."""
+>>>>>>> copilot/add-bulk-edit-castles-ui
     # Read the raw payload
     payload_body = await request.body()
 
@@ -1136,12 +1469,24 @@ async def github_webhook(
             print("Received push event to main branch")
             # Trigger update in background
             asyncio.create_task(trigger_update())
+<<<<<<< HEAD
             return {"status": "success", "message": "Update triggered for main branch"}
+=======
+            return {
+                "status": "success",
+                "message": "Update triggered for main branch"
+            }
+>>>>>>> copilot/add-bulk-edit-castles-ui
 
     # For other events, just acknowledge receipt
+    msg = f"Event {x_github_event} received but not processed"
     return {
         "status": "ok",
+<<<<<<< HEAD
         "message": f"Event {x_github_event} received but not processed",
+=======
+        "message": msg
+>>>>>>> copilot/add-bulk-edit-castles-ui
     }
 
 
