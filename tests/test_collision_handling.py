@@ -7,11 +7,7 @@ Or with pytest: python -m pytest tests/test_collision_handling.py -v
 
 try:
     import pytest
-
-    HAS_PYTEST = True
 except ImportError:
-    HAS_PYTEST = False
-
     # Mock pytest decorators for standalone running
     class pytest:
         class mark:

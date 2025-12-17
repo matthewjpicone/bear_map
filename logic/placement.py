@@ -177,9 +177,8 @@ async def auto_place_castles() -> Dict[str, int]:
                     occupied.add((c["x"] + dx, c["y"] + dy))
 
     # Sort castles by priority (highest first) for deterministic ordering
-    castles.sort(
-        key=lambda c: (c.get("priority_score", 0), c.get("id", "")), reverse=True
-    )
+    # Use negative priority so we can sort ID ascending for determinism
+    castles.sort(key=lambda c: (-c.get("priority_score", 0), c.get("id", "")))
 
     K = 80  # candidates limit
     placed_count = 0
