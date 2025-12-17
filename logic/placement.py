@@ -15,6 +15,33 @@ from .validation import is_within_bounds, check_castle_overlap, check_castle_ove
 from .scoring import compute_priority, compute_efficiency, get_walkable_tiles, chebyshev_distance, compute_ideal_allocation
 
 
+def resolve_all_collisions(castles: List[Dict], grid_size: int, bear_traps: List[Dict], banners: List[Dict]):
+    """Resolve all collisions on the map by iteratively pushing invalid castles outward from the center.
+
+    Args:
+        castles: List of all castles.
+        grid_size: Size of the grid.
+        bear_traps: List of bear traps.
+        banners: List of banners.
+    """
+    max_iterations = 100
+    iterations = 0
+    center_x, center_y = grid_size // 2, grid_size // 2
+
+    while iterations < max_iterations:
+        invalid_castles = [c for c in castles if is_castle_invalid(c, castles, bear_traps, banners)]
+        if not invalid_castles:
+            break
+
+        for castle in invalid_castles:
+            push_castle_outward(castle, center_x, center_y, castles, grid_size, bear_traps, banners)
+
+        iterations += 1
+
+    if iterations >= max_iterations:
+        print("Warning: Could not resolve all collisions after max iterations")
+
+
 async def auto_place_castles() -> Dict[str, int]:
     """Auto-place castles on the grid to minimize efficiency scores.
 
@@ -153,6 +180,30 @@ async def auto_place_castles() -> Dict[str, int]:
                 for dy in range(2):
                     occupied.add((best_tile[0] + dx, best_tile[1] + dy))
             placed_count += 1
+
+    # Fallback: Place any remaining unlocked castles in first available legal tile
+    for castle in castles:
+        if castle.get("locked") or castle.get("x") is not None:
+            continue
+        # Find first legal tile
+        for x in range(grid_size - 1):
+            for y in range(grid_size - 1):
+                if (x, y) not in occupied:
+                    from .validation import is_tile_legal
+                    is_legal, _ = is_tile_legal(x, y, grid_size, banners, bear_traps, occupied)
+                    if is_legal:
+                        castle["x"] = x
+                        castle["y"] = y
+                        for dx in range(2):
+                            for dy in range(2):
+                                occupied.add((x + dx, y + dy))
+                        placed_count += 1
+                        break
+            if castle.get("x") is not None:
+                break
+
+    # Resolve any remaining collisions
+    resolve_all_collisions(castles, grid_size, bear_traps, banners)
 
     # After placement, recompute full scores
     castles = compute_efficiency(config, castles)
