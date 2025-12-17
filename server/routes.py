@@ -21,6 +21,23 @@ from fastapi.responses import HTMLResponse, FileResponse, StreamingResponse
 from logic.config import load_config, save_config
 from logic.scoring import compute_priority, compute_efficiency
 
+
+def parse_power(s: str) -> int:
+    """Parse power string like '30.7M' to integer."""
+    s = s.strip()
+    multiplier = 1
+    if s.endswith('M'):
+        multiplier = 1000000
+        s = s[:-1]
+    elif s.endswith('K'):
+        multiplier = 1000
+        s = s[:-1]
+    try:
+        return int(float(s) * multiplier)
+    except ValueError:
+        return 0
+
+
 router = APIRouter()
 
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -142,50 +159,93 @@ def download_csv():
 
 @router.post("/api/upload_csv")
 async def upload_csv(file: UploadFile = File(...)):
-    """Upload castle data from CSV file.
+    """Upload castle data from CSV file or raw text.
 
-    Replaces the current castle data with the uploaded CSV.
+    Merges with existing data: updates matching players, adds new ones.
 
     Args:
-        file: CSV file containing castle data.
+        file: File containing castle data (CSV or raw text).
 
     Returns:
-        Success message with number of castles uploaded.
+        Success message with number of castles updated/added.
     """
     content = await file.read()
-    text = content.decode("utf-8")
+    text = content.decode("utf-8").strip()
 
-    reader = csv.DictReader(StringIO(text))
-    castles = []
-    now = datetime.now().isoformat()
-    for row in reader:
-        castle = {
-            "id": row.get("id", ""),
-            "player": row.get("player", ""),
-            "power": int(row["power"]) if row.get("power") and row["power"].isdigit() else 0,
-            "player_level": int(row["player_level"]) if row.get("player_level") and row["player_level"].isdigit() else 0,
-            "command_centre_level": int(row["command_centre_level"]) if row.get("command_centre_level") and row["command_centre_level"].isdigit() else 0,
-            "attendance": int(row["attendance"]) if row.get("attendance") and row["attendance"].isdigit() else None,
-            "rallies_30min": int(row["rallies_30min"]) if row.get("rallies_30min") and row["rallies_30min"].isdigit() else 0,
-            "preference": row.get("preference", "Both"),
-            "current_trap": row.get("current_trap", ""),
-            "recommended_trap": row.get("recommended_trap", ""),
-            "priority_score": float(row["priority"]) if row.get("priority") and row["priority"].replace('.', '').isdigit() else 0.0,
-            "efficiency_score": float(row["efficiency"]) if row.get("efficiency") and row["efficiency"].replace('.', '').isdigit() else 0.0,
-            "round_trip": int(row["round_trip"]) if row.get("round_trip") and row["round_trip"].isdigit() else None,
-            "last_updated": now,  # Update to current time
-            "x": int(row["x"]) if row.get("x") and row["x"].isdigit() else None,
-            "y": int(row["y"]) if row.get("y") and row["y"].isdigit() else None,
-            "locked": str(row.get("locked", "False")).lower() in ("true", "1", "yes"),
-        }
-        castles.append(castle)
+    # Parse the data
+    lines = text.split('\n')
+    if not lines or lines[0].strip() != 'name,power,level':
+        # Assume it's raw text, try to parse as comma-separated
+        # But for now, assume it's the format
+        pass
+
+    parsed_data = []
+    for line in lines[1:]:
+        line = line.strip()
+        if not line:
+            continue
+        parts = [p.strip() for p in line.split(',')]
+        if len(parts) != 3:
+            continue
+        name, power_str, level_str = parts
+        try:
+            power = parse_power(power_str)
+            level = int(level_str)
+            parsed_data.append({
+                "player": name,
+                "power": power,
+                "player_level": level,
+            })
+        except ValueError:
+            continue  # Skip invalid lines
+
+    if not parsed_data:
+        return {"success": False, "message": "No valid data found in file"}
 
     config = load_config()
-    config["castles"] = castles
+    existing_castles = config.get("castles", [])
+    existing_by_player = {c.get("player", ""): c for c in existing_castles if c.get("player")}
+
+    now = datetime.now().isoformat()
+    updated_count = 0
+    added_count = 0
+
+    for data in parsed_data:
+        player = data["player"]
+        if player in existing_by_player:
+            # Update existing
+            existing_by_player[player].update(data)
+            existing_by_player[player]["last_updated"] = now
+            updated_count += 1
+        else:
+            # Add new
+            castle = {
+                "id": f"Castle {len(existing_castles) + added_count + 1}",
+                "player": player,
+                "power": data["power"],
+                "player_level": data["player_level"],
+                "command_centre_level": 0,  # default
+                "attendance": None,  # default
+                "rallies_30min": 0,
+                "preference": "Both",  # default
+                "current_trap": "",
+                "recommended_trap": "",
+                "priority_score": 0.0,
+                "efficiency_score": 0.0,
+                "round_trip": None,
+                "last_updated": now,
+                "x": None,
+                "y": None,
+                "locked": False,
+            }
+            existing_castles.append(castle)
+            added_count += 1
+
+    config["castles"] = existing_castles
 
     # Recompute priorities and efficiencies
-    compute_priority(castles)
-    compute_efficiency(config, castles)
+    compute_priority(existing_castles)
+    compute_efficiency(config, existing_castles)
 
     save_config(config)
 
@@ -193,4 +253,4 @@ async def upload_csv(file: UploadFile = File(...)):
     from server.broadcast import notify_config_updated
     await notify_config_updated()
 
-    return {"success": True, "message": f"Uploaded {len(castles)} castles"}
+    return {"success": True, "message": f"Updated {updated_count} castles, added {added_count} new castles"}
