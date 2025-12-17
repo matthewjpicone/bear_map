@@ -26,12 +26,17 @@ let showGrid = true;
 // Tooltip state
 let hoveredCastleOnCanvas = null;
 
+<<<<<<< HEAD
 // ==========================
 // Animation state
 // ==========================
 const ANIMATION_DURATION = 300; // ms
 const animationState = new Map(); // Map<entityId, {fromX, fromY, toX, toY, startTime}>
 let animationFrameId = null;
+=======
+// Bulk operations state
+let selectedCastleIds = new Set();
+>>>>>>> copilot/add-bulk-edit-castles-ui
 
 const canvas = document.getElementById("map");
 if (!canvas) throw new Error("Canvas #map not found");
@@ -673,7 +678,12 @@ function renderCastleTable() {
         showCastleTooltip(c, e.clientX, e.clientY);
       }
     });
-tr.addEventListener("click", () => {
+tr.addEventListener("click", (e) => {
+  // Don't pan if clicking on checkbox or input elements
+  if (e.target.type === 'checkbox' || e.target.tagName === 'INPUT' || e.target.tagName === 'SELECT' || e.target.tagName === 'BUTTON') {
+    return;
+  }
+  
   // Pan to center of castle in rotated view
   const castleCenterX = c.x * TILE_SIZE + TILE_SIZE;
   const castleCenterY = c.y * TILE_SIZE + TILE_SIZE;
@@ -686,6 +696,20 @@ tr.addEventListener("click", () => {
   viewOffsetY = ry;
   drawMap(mapData);
 });
+
+    /* Checkbox for bulk selection */
+    const checkboxTd = document.createElement("td");
+    checkboxTd.classList.add("checkbox-col");
+    const checkbox = document.createElement("input");
+    checkbox.type = "checkbox";
+    checkbox.dataset.castleId = c.id;
+    checkbox.checked = selectedCastleIds.has(c.id);
+    checkbox.addEventListener('change', (e) => {
+      e.stopPropagation();
+      toggleCastleSelection(c.id, checkbox.checked);
+    });
+    checkboxTd.appendChild(checkbox);
+    tr.appendChild(checkboxTd);
 
     /* ID */
     const idTd = document.createElement("td");
@@ -2268,6 +2292,147 @@ async function fetchAndDisplayVersion() {
     }
   }
 }
+
+// ==========================
+// Bulk Operations
+// ==========================
+function updateBulkSelectionUI() {
+  const toolbar = document.getElementById('bulkOpsToolbar');
+  const count = document.getElementById('bulkSelectionCount');
+  const selectAllCheckbox = document.getElementById('selectAllCheckbox');
+
+  if (selectedCastleIds.size > 0) {
+    toolbar.style.display = 'flex';
+    count.textContent = `${selectedCastleIds.size} selected`;
+  } else {
+    toolbar.style.display = 'none';
+  }
+
+  // Update select all checkbox state
+  if (selectAllCheckbox) {
+    const visibleCheckboxes = document.querySelectorAll('#castleTableBody input[type="checkbox"]');
+    const checkedCount = Array.from(visibleCheckboxes).filter(cb => cb.checked).length;
+    selectAllCheckbox.checked = visibleCheckboxes.length > 0 && checkedCount === visibleCheckboxes.length;
+    selectAllCheckbox.indeterminate = checkedCount > 0 && checkedCount < visibleCheckboxes.length;
+  }
+}
+
+function toggleCastleSelection(castleId, checked) {
+  if (checked) {
+    selectedCastleIds.add(castleId);
+  } else {
+    selectedCastleIds.delete(castleId);
+  }
+  updateBulkSelectionUI();
+}
+
+function toggleSelectAll() {
+  const selectAllCheckbox = document.getElementById('selectAllCheckbox');
+  const checkboxes = document.querySelectorAll('#castleTableBody input[type="checkbox"]');
+  
+  checkboxes.forEach(cb => {
+    cb.checked = selectAllCheckbox.checked;
+    const castleId = cb.dataset.castleId;
+    if (selectAllCheckbox.checked) {
+      selectedCastleIds.add(castleId);
+    } else {
+      selectedCastleIds.delete(castleId);
+    }
+  });
+  
+  updateBulkSelectionUI();
+}
+
+function clearSelection() {
+  selectedCastleIds.clear();
+  document.querySelectorAll('#castleTableBody input[type="checkbox"]').forEach(cb => {
+    cb.checked = false;
+  });
+  updateBulkSelectionUI();
+}
+
+async function applyBulkUpdate() {
+  if (selectedCastleIds.size === 0) {
+    alert('No castles selected');
+    return;
+  }
+
+  const field = document.getElementById('bulkField').value;
+  if (!field) {
+    alert('Please select a field to update');
+    return;
+  }
+
+  let value;
+  if (field === 'player_level' || field === 'command_centre_level') {
+    value = parseInt(document.getElementById('bulkLevelValue').value);
+    if (isNaN(value) || value < 0) {
+      alert('Please enter a valid level');
+      return;
+    }
+  } else if (field === 'preference') {
+    value = document.getElementById('bulkPreferenceValue').value;
+  } else if (field === 'locked') {
+    value = document.getElementById('bulkLockedValue').value === 'true';
+  }
+
+  try {
+    const response = await fetch('/api/castles/bulk_update', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        ids: Array.from(selectedCastleIds),
+        updates: { [field]: value }
+      })
+    });
+
+    const result = await response.json();
+
+    if (!response.ok) {
+      throw new Error(result.detail || 'Failed to update castles');
+    }
+
+    console.log('Bulk update successful:', result);
+    
+    // Clear selection after successful update
+    clearSelection();
+    
+    // Reset field selector
+    document.getElementById('bulkField').value = '';
+    updateBulkFieldVisibility();
+    
+    // Show success message
+    alert(`Successfully updated ${result.updated_count} castle(s)`);
+    
+  } catch (error) {
+    console.error('Bulk update failed:', error);
+    alert(`Failed to update castles: ${error.message}`);
+  }
+}
+
+function updateBulkFieldVisibility() {
+  const field = document.getElementById('bulkField').value;
+  
+  // Hide all value inputs
+  document.getElementById('bulkLevelValue').style.display = 'none';
+  document.getElementById('bulkPreferenceValue').style.display = 'none';
+  document.getElementById('bulkLockedValue').style.display = 'none';
+  
+  // Show relevant input based on field
+  if (field === 'player_level' || field === 'command_centre_level') {
+    document.getElementById('bulkLevelValue').style.display = 'inline-block';
+  } else if (field === 'preference') {
+    document.getElementById('bulkPreferenceValue').style.display = 'inline-block';
+  } else if (field === 'locked') {
+    document.getElementById('bulkLockedValue').style.display = 'inline-block';
+  }
+}
+
+// Set up bulk operations event listeners
+document.getElementById('selectAllCheckbox').addEventListener('change', toggleSelectAll);
+document.getElementById('applyBulkBtn').addEventListener('click', applyBulkUpdate);
+document.getElementById('clearSelectionBtn').addEventListener('click', clearSelection);
+document.getElementById('bulkField').addEventListener('change', updateBulkFieldVisibility);
 
 // Fetch version on page load
 fetchAndDisplayVersion();
