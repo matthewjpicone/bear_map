@@ -1150,17 +1150,28 @@ function drawCastle(castle) {
   // -------- border --------
   ctx.save();
   if (isSelected) {
-    // Highlight selected castle with cyan stroke
+    // Highlight selected castle with very prominent cyan stroke with glow effect
+    // Draw glow effect
+    ctx.shadowColor = "#06b6d4";
+    ctx.shadowBlur = 20;
     ctx.strokeStyle = "#06b6d4";  // cyan-500
-    ctx.lineWidth = 4 / viewZoom;
+    ctx.lineWidth = 10 / viewZoom;  // Very thick border for maximum visibility
+    ctx.strokeRect(px, py, size, size);  // Draw on outer edge
+    
+    // Draw inner highlight for even more visibility
+    ctx.shadowBlur = 0;
+    ctx.strokeStyle = "#22d3ee";  // lighter cyan
+    ctx.lineWidth = 3 / viewZoom;
+    ctx.strokeRect(px + 5, py + 5, size - 10, size - 10);
   } else if (isRemoteBusy) {
     ctx.strokeStyle = "#dc2626";
     ctx.lineWidth = 3 / viewZoom;
+    ctx.strokeRect(px + 2, py + 2, size - 4, size - 4);
   } else {
     ctx.strokeStyle = "#e5e7eb";
     ctx.lineWidth = 1 / viewZoom;
+    ctx.strokeRect(px + 2, py + 2, size - 4, size - 4);
   }
-  ctx.strokeRect(px + 2, py + 2, size - 4, size - 4);
   ctx.restore();
 
   // -------- text --------
@@ -1203,25 +1214,34 @@ function drawCastle(castle) {
   // -------- selected indicator (initials circle) --------
   if (isSelected) {
     const initials = getPlayerInitials(castle.player);
-    const circleRadius = 16 / viewZoom;  // Scale with zoom
-    const circleX = px + size + circleRadius - 4;  // Top right, outside castle
-    const circleY = py + 4 + circleRadius;
+    const circleRadius = 25;  // Larger for better visibility
+    const circleX = px + size + 10;  // Position outside top-right corner
+    const circleY = py - 10;
 
     ctx.save();
+    // Draw shadow for depth
+    ctx.shadowColor = "rgba(0, 0, 0, 0.3)";
+    ctx.shadowBlur = 10;
+    ctx.shadowOffsetX = 2;
+    ctx.shadowOffsetY = 2;
+    
     // Draw circle background
     ctx.fillStyle = "#06b6d4";  // cyan-500
     ctx.beginPath();
     ctx.arc(circleX, circleY, circleRadius, 0, Math.PI * 2);
     ctx.fill();
 
-    // Draw white border
+    // Draw white border (thicker for visibility)
+    ctx.shadowBlur = 0;
+    ctx.shadowOffsetX = 0;
+    ctx.shadowOffsetY = 0;
     ctx.strokeStyle = "#ffffff";
-    ctx.lineWidth = 2 / viewZoom;
+    ctx.lineWidth = 4;
     ctx.stroke();
 
-    // Draw initials text
+    // Draw initials text (larger font)
     ctx.fillStyle = "#ffffff";
-    ctx.font = `bold ${10 / viewZoom}px sans-serif`;
+    ctx.font = `bold 16px sans-serif`;
     ctx.textAlign = "center";
     ctx.textBaseline = "middle";
     ctx.fillText(initials, circleX, circleY);
