@@ -25,6 +25,9 @@ let showGrid = true;
 
 // Tooltip state
 let hoveredCastleOnCanvas = null;
+let tooltipTimer = null;  // Timer for delayed tooltip display
+const TOOLTIP_DELAY_MS = 1500;  // 1.5 seconds delay for canvas tooltips
+let tooltipElement = null;  // Cache tooltip DOM element
 
 // ==========================
 // Animation state
@@ -113,6 +116,9 @@ function initSSE() {
   // Center the rotated grid
   viewOffsetX = 0;
   viewOffsetY = (mapData.grid_size * TILE_SIZE) * (Math.SQRT2 / 2);
+
+  // Cache tooltip element reference for better performance
+  tooltipElement = document.getElementById("castleTooltip");
 
   renderCastleTable();
   drawMap(mapData);
@@ -263,15 +269,15 @@ function highlightText(text, query) {
 // Tooltip Functions
 // ==========================
 function showCastleTooltip(castle, mouseX, mouseY) {
-  const tooltip = document.getElementById("castleTooltip");
-  if (!tooltip || !castle) return;
+  // Use cached tooltip element for performance
+  if (!tooltipElement || !castle) return;
 
   // Format the tooltip content
   const lastUpdated = castle.last_updated 
     ? castle.last_updated.toLocaleString() 
     : "Never";
 
-  tooltip.innerHTML = `
+  tooltipElement.innerHTML = `
     <div class="tooltip-title">${castle.player || "Unknown"}</div>
     <div class="tooltip-row">
       <span class="tooltip-label">Power:</span>
@@ -312,52 +318,52 @@ function showCastleTooltip(castle, mouseX, mouseY) {
   `;
 
   // Position the tooltip over the castle
-  tooltip.style.display = "block";
+  tooltipElement.style.display = "block";
   
   // If castle has grid coordinates, position tooltip over the castle
   if (castle.x != null && castle.y != null) {
     const screenPos = gridToScreen(castle.x, castle.y);
-    tooltip.style.left = `${screenPos.x}px`;
-    tooltip.style.top = `${screenPos.y}px`;
+    tooltipElement.style.left = `${screenPos.x}px`;
+    tooltipElement.style.top = `${screenPos.y}px`;
   } else {
     // Fallback to mouse position for castles not on the map
-    tooltip.style.left = `${mouseX + 15}px`;
-    tooltip.style.top = `${mouseY + 15}px`;
+    tooltipElement.style.left = `${mouseX + 15}px`;
+    tooltipElement.style.top = `${mouseY + 15}px`;
   }
 
   // Adjust position if tooltip goes off-screen
-  const rect = tooltip.getBoundingClientRect();
+  const rect = tooltipElement.getBoundingClientRect();
   const offsetX = 10;
   const offsetY = 10;
   
   // Check if tooltip goes off right edge
   if (rect.right > window.innerWidth) {
-    tooltip.style.left = `${window.innerWidth - rect.width - offsetX}px`;
+    tooltipElement.style.left = `${window.innerWidth - rect.width - offsetX}px`;
   }
   // Check if tooltip goes off bottom edge
   if (rect.bottom > window.innerHeight) {
-    tooltip.style.top = `${window.innerHeight - rect.height - offsetY}px`;
+    tooltipElement.style.top = `${window.innerHeight - rect.height - offsetY}px`;
   }
   // Check if tooltip goes off left edge
   if (rect.left < 0) {
-    tooltip.style.left = `${offsetX}px`;
+    tooltipElement.style.left = `${offsetX}px`;
   }
   // Check if tooltip goes off top edge
   if (rect.top < 0) {
-    tooltip.style.top = `${offsetY}px`;
+    tooltipElement.style.top = `${offsetY}px`;
   }
   
   // Trigger animation after positioning
-  setTimeout(() => tooltip.classList.add("visible"), 10);
+  setTimeout(() => tooltipElement.classList.add("visible"), 10);
 }
 
 function hideCastleTooltip() {
-  const tooltip = document.getElementById("castleTooltip");
-  if (tooltip) {
-    tooltip.classList.remove("visible");
+  // Use cached tooltip element for performance
+  if (tooltipElement) {
+    tooltipElement.classList.remove("visible");
     // Hide after animation completes
     setTimeout(() => {
-      tooltip.style.display = "none";
+      tooltipElement.style.display = "none";
     }, 150);
   }
 }
@@ -670,12 +676,13 @@ function renderCastleTable() {
 
     tr.addEventListener("mouseenter", (e) => {
       hoveredCastleId = c.id;
-      drawMap(mapData);
+      // Show tooltip immediately on table hover for better UX
+      // Table context: User intentionally hovering over specific row to read data
+      // Canvas context: 1500ms delay prevents accidental triggers during map navigation
       showCastleTooltip(c, e.clientX, e.clientY);
     });
     tr.addEventListener("mouseleave", () => {
       hoveredCastleId = null;
-      drawMap(mapData);
       hideCastleTooltip();
     });
     tr.addEventListener("mousemove", (e) => {
@@ -1885,7 +1892,9 @@ function onMouseMovePan(e) {
     lastPanX = e.clientX;
     lastPanY = e.clientY;
     drawMap(mapData);
-    // Hide tooltip while panning
+    // Hide tooltip while panning and clear any pending timer
+    clearTimeout(tooltipTimer);
+    tooltipTimer = null;
     hideCastleTooltip();
   } else if (!draggingCastle && !draggingBear && !draggingBanner) {
     // Detect hover over castles when not dragging or panning
@@ -1894,7 +1903,7 @@ function onMouseMovePan(e) {
     const mouseCanvasY = e.clientY - rect.top;
     const { x, y } = screenToGrid(mouseCanvasX, mouseCanvasY);
 
-    // Check if hovering over a castle
+    // Check if hovering over a castle on the grid
     let hoveredCastle = null;
     for (let castle of mapData?.castles || []) {
       if (castle.x == null || castle.y == null) continue;
@@ -1905,16 +1914,40 @@ function onMouseMovePan(e) {
     }
 
     if (hoveredCastle) {
-      hoveredCastleOnCanvas = hoveredCastle;
-      showCastleTooltip(hoveredCastle, e.clientX, e.clientY);
+      // Check if tooltip is currently visible (use cached element for performance)
+      const isTooltipVisible = tooltipElement && tooltipElement.classList.contains("visible");
+      
+      if (hoveredCastleOnCanvas !== hoveredCastle) {
+        // New castle detected, clear any existing timer and start a new one
+        clearTimeout(tooltipTimer);
+        tooltipTimer = null;
+        hoveredCastleOnCanvas = hoveredCastle;
+        hideCastleTooltip();
+        
+        // Set timer to show tooltip after TOOLTIP_DELAY_MS
+        tooltipTimer = setTimeout(() => {
+          showCastleTooltip(hoveredCastle, e.clientX, e.clientY);
+          // Clear timer reference for state management (indicates no timer is active)
+          tooltipTimer = null;
+        }, TOOLTIP_DELAY_MS);
+      } else if (isTooltipVisible) {
+        // Same castle and tooltip is visible - update position on mouse move
+        showCastleTooltip(hoveredCastle, e.clientX, e.clientY);
+      }
+      // If same castle and timer is pending, do nothing (let timer complete)
     } else {
+      // Not hovering over any castle
       if (hoveredCastleOnCanvas) {
         hoveredCastleOnCanvas = null;
+        clearTimeout(tooltipTimer);
+        tooltipTimer = null;
         hideCastleTooltip();
       }
     }
   } else {
-    // Hide tooltip while dragging
+    // Hide tooltip while dragging and clear any pending timer
+    clearTimeout(tooltipTimer);
+    tooltipTimer = null;
     hideCastleTooltip();
   }
 }
@@ -1991,6 +2024,8 @@ canvas.addEventListener("mousemove", onMouseMovePan);
 canvas.addEventListener("mouseup", onMouseUpPan);
 canvas.addEventListener("mouseleave", () => {
   hoveredCastleOnCanvas = null;
+  clearTimeout(tooltipTimer);
+  tooltipTimer = null;
   hideCastleTooltip();
 });
 window.addEventListener("resize", onResize);
