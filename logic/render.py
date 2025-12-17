@@ -155,7 +155,7 @@ def render_map_to_image(config: Dict[str, Any], show_grid: bool = True) -> bytes
     """
     grid_size = config.get('grid_size', DEFAULT_GRID_SIZE)
     efficiency_scale = config.get('efficiency_scale', [])
-    banners = config.get('banners', [])
+    banners = config.get('banner', [])  # Note: config uses 'banner' not 'banners'
     bear_traps = config.get('bear_traps', [])
     castles = config.get('castles', [])
     
