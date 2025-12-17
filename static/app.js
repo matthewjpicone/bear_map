@@ -1908,18 +1908,27 @@ function onMouseMovePan(e) {
     }
 
     if (hoveredCastle) {
-      // Start or continue hovering over this castle
+      // Check if tooltip is currently visible
+      const tooltip = document.getElementById("castleTooltip");
+      const isTooltipVisible = tooltip && tooltip.classList.contains("visible");
+      
       if (hoveredCastleOnCanvas !== hoveredCastle) {
         // New castle detected, clear any existing timer and start a new one
         clearTimeout(tooltipTimer);
+        tooltipTimer = null;
         hoveredCastleOnCanvas = hoveredCastle;
+        hideCastleTooltip();
         
         // Set timer to show tooltip after TOOLTIP_DELAY_MS
         tooltipTimer = setTimeout(() => {
           showCastleTooltip(hoveredCastle, e.clientX, e.clientY);
+          tooltipTimer = null;  // Clear timer reference after it fires
         }, TOOLTIP_DELAY_MS);
+      } else if (isTooltipVisible) {
+        // Same castle and tooltip is visible - update position on mouse move
+        showCastleTooltip(hoveredCastle, e.clientX, e.clientY);
       }
-      // If same castle, timer is already running or tooltip is already shown
+      // If same castle and timer is pending, do nothing (let timer complete)
     } else {
       // Not hovering over any castle
       if (hoveredCastleOnCanvas) {
