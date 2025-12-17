@@ -1,21 +1,11 @@
 """
-Module Name: module_name.py
+Server modules for Bear Map application.
 
-Description:
-    Brief description of what this module does.
+This package contains FastAPI router modules for handling API endpoints,
+WebSocket connections, broadcasting, and webhooks.
 
-Usage:
-    Example of how to use this module or function.
-
-Author:
-    Matthew Picone (mail@matthewpicone.com)
-
-Date:
-    13/12/2025
-
-License:
-    This project is licensed under the MIT License - see the LICENSE file for details.
-
+Author: Matthew Picone (mail@matthewpicone.com)
+Date: 2025-12-17
 """
 
 # Your code here

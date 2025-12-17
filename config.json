@@ -142,9 +142,9 @@
       "recommended_trap": null,
       "priority": 20,
       "efficiency": 10,
-      "x": 13,
+      "x": 14,
       "y": 1,
-      "locked": true
+      "locked": false
     },
     {
       "id": "Castle 35",
@@ -210,9 +210,9 @@
       "recommended_trap": null,
       "priority": 8,
       "efficiency": 10,
-      "x": 25,
-      "y": 1,
-      "locked": true
+      "x": 26,
+      "y": 0,
+      "locked": false
     },
     {
       "id": "Castle 30",

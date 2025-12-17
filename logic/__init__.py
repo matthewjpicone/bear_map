@@ -1,21 +1,11 @@
 """
-Module Name: module_name.py
+Logic modules for Bear Map application.
 
-Description:
-    Brief description of what this module does.
+This package contains business logic modules for configuration management,
+validation, and placement algorithms.
 
-Usage:
-    Example of how to use this module or function.
-
-Author:
-    Matthew Picone (mail@matthewpicone.com)
-
-Date:
-    15/12/2025
-
-License:
-    This project is licensed under the MIT License - see the LICENSE file for details.
-
+Author: Matthew Picone (mail@matthewpicone.com)
+Date: 2025-12-17
 """
 
 # Your code here
