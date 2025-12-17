@@ -20,8 +20,29 @@ const MIN_ZOOM = 0.1;
 const MAX_ZOOM = 3;
 window.remoteBusy = new Set(); // sync / optimistic UI guard
 
+// Grid visibility state
+let showGrid = true;
+
 // Tooltip state
 let hoveredCastleOnCanvas = null;
+
+// ==========================
+// Animation state
+// ==========================
+const ANIMATION_DURATION = 300; // ms
+const animationState = new Map(); // Map<entityId, {fromX, fromY, toX, toY, startTime}>
+let animationFrameId = null;
+
+// ==========================
+// Bulk operations state
+// ==========================
+let selectedCastleIds = new Set();
+
+// ==========================
+// Table filtering state
+// ==========================
+let visibleCastleIds = new Set();
+let hoveredCastleId = null;
 
 const canvas = document.getElementById("map");
 if (!canvas) throw new Error("Canvas #map not found");
@@ -325,12 +346,19 @@ function showCastleTooltip(castle, mouseX, mouseY) {
   if (rect.top < 0) {
     tooltip.style.top = `${offsetY}px`;
   }
+  
+  // Trigger animation after positioning
+  setTimeout(() => tooltip.classList.add("visible"), 10);
 }
 
 function hideCastleTooltip() {
   const tooltip = document.getElementById("castleTooltip");
   if (tooltip) {
-    tooltip.style.display = "none";
+    tooltip.classList.remove("visible");
+    // Hide after animation completes
+    setTimeout(() => {
+      tooltip.style.display = "none";
+    }, 150);
   }
 }
 
@@ -449,12 +477,15 @@ function tdDelete(c) {
   btn.classList.add("delete-btn");
   btn.innerHTML = "🗑️";
   btn.onclick = () => {
+    const modal = document.getElementById("deleteModal");
     document.getElementById("deleteTitle").textContent = `Delete Player ${c.player}`;
-    document.getElementById("deleteModal").dataset.castleId = c.id;  // Store ID
-    document.getElementById("deleteModal").style.display = "block";
+    modal.dataset.castleId = c.id;  // Store ID
+    modal.style.display = "block";
     document.getElementById("deleteReason").value = "";
     document.getElementById("deleteOther").style.display = "none";
     document.getElementById("deleteOther").value = "";
+    // Trigger animation after display
+    setTimeout(() => modal.classList.add("visible"), 10);
   };
   td.appendChild(btn);
   return td;
@@ -634,6 +665,8 @@ function renderCastleTable() {
 
   castles.forEach(c => {
     const tr = document.createElement("tr");
+    tr.dataset.castleId = c.id; // Track castle ID for animations
+    tr.classList.add("fade-in"); // Add fade-in animation for new rows
 
     tr.addEventListener("mouseenter", (e) => {
       hoveredCastleId = c.id;
@@ -651,7 +684,12 @@ function renderCastleTable() {
         showCastleTooltip(c, e.clientX, e.clientY);
       }
     });
-tr.addEventListener("click", () => {
+tr.addEventListener("click", (e) => {
+  // Don't pan if clicking on checkbox or input elements
+  if (e.target.type === 'checkbox' || e.target.tagName === 'INPUT' || e.target.tagName === 'SELECT' || e.target.tagName === 'BUTTON') {
+    return;
+  }
+  
   // Pan to center of castle in rotated view
   const castleCenterX = c.x * TILE_SIZE + TILE_SIZE;
   const castleCenterY = c.y * TILE_SIZE + TILE_SIZE;
@@ -664,6 +702,20 @@ tr.addEventListener("click", () => {
   viewOffsetY = ry;
   drawMap(mapData);
 });
+
+    /* Checkbox for bulk selection */
+    const checkboxTd = document.createElement("td");
+    checkboxTd.classList.add("checkbox-col");
+    const checkbox = document.createElement("input");
+    checkbox.type = "checkbox";
+    checkbox.dataset.castleId = c.id;
+    checkbox.checked = selectedCastleIds.has(c.id);
+    checkbox.addEventListener('change', (e) => {
+      e.stopPropagation();
+      toggleCastleSelection(c.id, checkbox.checked);
+    });
+    checkboxTd.appendChild(checkbox);
+    tr.appendChild(checkboxTd);
 
     /* ID */
     const idTd = document.createElement("td");
@@ -823,6 +875,71 @@ function gridToScreen(gridX, gridY) {
   };
 }
 
+// ==========================
+// Animation helpers
+// ==========================
+function startAnimation(entityId, fromX, fromY, toX, toY) {
+  if (fromX === toX && fromY === toY) return; // No movement needed
+  
+  animationState.set(entityId, {
+    fromX,
+    fromY,
+    toX,
+    toY,
+    startTime: performance.now()
+  });
+  
+  if (!animationFrameId) {
+    animationFrameId = requestAnimationFrame(animationLoop);
+  }
+}
+
+function animationLoop(currentTime) {
+  let hasActiveAnimations = false;
+  
+  for (const [entityId, anim] of animationState.entries()) {
+    const elapsed = currentTime - anim.startTime;
+    const progress = Math.min(elapsed / ANIMATION_DURATION, 1);
+    
+    if (progress >= 1) {
+      animationState.delete(entityId);
+    } else {
+      hasActiveAnimations = true;
+    }
+  }
+  
+  // Redraw with interpolated positions
+  drawMap(mapData);
+  
+  if (hasActiveAnimations) {
+    animationFrameId = requestAnimationFrame(animationLoop);
+  } else {
+    animationFrameId = null;
+  }
+}
+
+function getAnimatedPosition(entity) {
+  if (!entity || entity.x == null || entity.y == null) {
+    return { x: entity?.x, y: entity?.y };
+  }
+  
+  const anim = animationState.get(entity.id);
+  if (!anim) {
+    return { x: entity.x, y: entity.y };
+  }
+  
+  const elapsed = performance.now() - anim.startTime;
+  const progress = Math.min(elapsed / ANIMATION_DURATION, 1);
+  
+  // Ease-out cubic for smooth deceleration
+  const eased = 1 - Math.pow(1 - progress, 3);
+  
+  return {
+    x: anim.fromX + (anim.toX - anim.fromX) * eased,
+    y: anim.fromY + (anim.toY - anim.fromY) * eased
+  };
+}
+
 function drawMap(data) {
   if (!data || !canvas || !ctx) return;
 
@@ -840,12 +957,14 @@ function drawMap(data) {
   // Apply the shared matrix
   ctx.setTransform(getViewMatrix());
 
-  // Grid
-  ctx.strokeStyle = "#ccc";
-  ctx.lineWidth = 1 / viewZoom;
-  for (let x = 0; x < size; x++) {
-    for (let y = 0; y < size; y++) {
-      ctx.strokeRect(x * TILE_SIZE, y * TILE_SIZE, TILE_SIZE, TILE_SIZE);
+  // Grid (conditionally rendered based on showGrid state)
+  if (showGrid) {
+    ctx.strokeStyle = "#ccc";
+    ctx.lineWidth = 1 / viewZoom;
+    for (let x = 0; x < size; x++) {
+      for (let y = 0; y < size; y++) {
+        ctx.strokeRect(x * TILE_SIZE, y * TILE_SIZE, TILE_SIZE, TILE_SIZE);
+      }
     }
   }
 
@@ -862,10 +981,12 @@ function drawBanner(banner) {
   if (!banner || banner.x == null || banner.y == null || !mapData) return;
 
   const gridSize = mapData.grid_size;
-  const px = banner.x * TILE_SIZE;
-  const py = banner.y * TILE_SIZE;
-  const cx = banner.x;
-  const cy = banner.y;
+  // Use animated position if available
+  const pos = getAnimatedPosition(banner);
+  const px = pos.x * TILE_SIZE;
+  const py = pos.y * TILE_SIZE;
+  const cx = Math.round(pos.x);
+  const cy = Math.round(pos.y);
 
   const isRemoteBusy =
     window.remoteBusy?.has(banner.id) &&
@@ -943,8 +1064,10 @@ function drawBearTrap(bear) {
   if (!bear || bear.x == null || bear.y == null || !mapData) return;
 
   const gridSize = mapData.grid_size;
-  const cx = bear.x;
-  const cy = bear.y;
+  // Use animated position if available
+  const pos = getAnimatedPosition(bear);
+  const cx = Math.round(pos.x);
+  const cy = Math.round(pos.y);
 
   const isRemoteBusy =
     window.remoteBusy?.has(bear.id) &&
@@ -969,8 +1092,8 @@ function drawBearTrap(bear) {
   /* ===============================
      Bear circle
   =============================== */
-  const px = cx * TILE_SIZE + TILE_SIZE / 2;
-  const py = cy * TILE_SIZE + TILE_SIZE / 2;
+  const px = pos.x * TILE_SIZE + TILE_SIZE / 2;
+  const py = pos.y * TILE_SIZE + TILE_SIZE / 2;
 
   // slightly smaller than 3x3 influence
   const radius = TILE_SIZE * 1.35;
@@ -1100,8 +1223,10 @@ function drawBearTrap(bear) {
 function drawCastle(castle) {
   if (!castle || castle.x == null || castle.y == null) return;
 
-  const px = castle.x * TILE_SIZE;
-  const py = castle.y * TILE_SIZE;
+  // Use animated position if available
+  const pos = getAnimatedPosition(castle);
+  const px = pos.x * TILE_SIZE;
+  const py = pos.y * TILE_SIZE;
   const size = TILE_SIZE * 2;
 
   const isRemoteBusy =
@@ -1215,7 +1340,23 @@ function onMouseDown(e) {
   // Simple debug log
   console.log(`Mouse: (${mouseCanvasX}, ${mouseCanvasY}), Grid: (${x}, ${y}), Zoom: ${viewZoom}`);
 
-  // ---- CASTLES FIRST ----
+  // ---- BEARS FIRST ----
+  for (let bear of mapData.bear_traps || []) {
+    if (isPointInEntity(x, y, bear)) {
+      if (bear.locked) return;
+      if (window.remoteBusy?.has(bear.id)) return;
+
+      draggingBear = bear;
+      bear._original = { x: bear.x, y: bear.y };
+
+      Sync.markBusy(bear.id);  // Mark as busy for sync
+
+      drawMap(mapData);
+      return;
+    }
+  }
+
+  // ---- THEN CASTLES ----
   for (let castle of mapData.castles || []) {
     if (castle.x == null || castle.y == null) continue;
     if (isPointInEntity(x, y, castle)) {
@@ -1246,21 +1387,6 @@ function onMouseDown(e) {
 
       drawMap(mapData);
       return;
-    }
-  }
-
-  // ---- THEN BEARS ----
-  for (let bear of mapData.bear_traps || []) {
-    if (isPointInEntity(x, y, bear)) {
-      if (bear.locked) return;
-      if (window.remoteBusy?.has(bear.id)) return;
-
-      draggingBear = bear;
-      bear._original = { x: bear.x, y: bear.y };
-
-      Sync.markBusy(bear.id);  // Mark as busy for sync
-
-      drawMap(mapData);
     }
   }
 
@@ -1588,12 +1714,23 @@ function onCanvasContextMenu(e) {
     let targetEntity = null;
     let entityType = '';
 
-    // ---- CASTLES FIRST ----
-    for (let castle of mapData.castles || []) {
-        if (isPointInEntity(x, y, castle)) {
-            targetEntity = castle;
-            entityType = 'castle';
+    // ---- BEARS FIRST ----
+    for (let bear of mapData.bear_traps || []) {
+        if (isPointInEntity(x, y, bear)) {
+            targetEntity = bear;
+            entityType = 'bear_trap';
             break;
+        }
+    }
+
+    // ---- THEN CASTLES ----
+    if (!targetEntity) {
+        for (let castle of mapData.castles || []) {
+            if (isPointInEntity(x, y, castle)) {
+                targetEntity = castle;
+                entityType = 'castle';
+                break;
+            }
         }
     }
 
@@ -1603,17 +1740,6 @@ function onCanvasContextMenu(e) {
             if (isPointInEntity(x, y, banner)) {
                 targetEntity = banner;
                 entityType = 'banner';
-                break;
-            }
-        }
-    }
-
-    // ---- THEN BEARS ----
-    if (!targetEntity) {
-        for (let bear of mapData.bear_traps || []) {
-            if (isPointInEntity(x, y, bear)) {
-                targetEntity = bear;
-                entityType = 'bear_trap';
                 break;
             }
         }
@@ -1835,7 +1961,11 @@ document.getElementById("confirmDelete").addEventListener("click", async () => {
     return;
   }
 
-  modal.style.display = "none";
+  modal.classList.remove("visible");
+  setTimeout(() => {
+    modal.style.display = "none";
+  }, 200);
+  
   try {
     await fetch("/api/castles/delete", {
       method: "POST",
@@ -1849,7 +1979,11 @@ document.getElementById("confirmDelete").addEventListener("click", async () => {
 });
 
 document.getElementById("cancelDelete").addEventListener("click", () => {
-  document.getElementById("deleteModal").style.display = "none";
+  const modal = document.getElementById("deleteModal");
+  modal.classList.remove("visible");
+  setTimeout(() => {
+    modal.style.display = "none";
+  }, 200);
 });
 canvas.addEventListener("wheel", onWheel, { passive: false });
 canvas.addEventListener("mousedown", onMouseDownPan);
@@ -1923,6 +2057,22 @@ document
     });
 
 // ==========================
+// Table row flash animation
+// ==========================
+function flashTableRow(castleId) {
+  const row = document.querySelector(`tr[data-castle-id="${castleId}"]`);
+  if (!row) return;
+  
+  row.classList.remove("row-updated");
+  // Force reflow to restart animation
+  void row.offsetWidth;
+  row.classList.add("row-updated");
+  
+  // Remove class after animation completes
+  setTimeout(() => row.classList.remove("row-updated"), 600);
+}
+
+// ==========================
 // Sync → App hooks
 // ==========================
 window.applyRemoteUpdate = function (update) {
@@ -1930,19 +2080,40 @@ window.applyRemoteUpdate = function (update) {
 
   // 1️⃣ Try castles first
   let entity = mapData.castles?.find(c => c.id === update.id);
-
+  let isCastle = !!entity;
+  
   // 2️⃣ Then bears
   if (!entity) {
     entity = mapData.bear_traps?.find(b => b.id === update.id);
   }
+  
+  // 3️⃣ Try banners
+  if (!entity) {
+    entity = mapData.banners?.find(b => b.id === update.id);
+  }
 
-  // 3️⃣ Unknown entity → ignore safely
+  // 4️⃣ Unknown entity → ignore safely
   if (!entity) return;
 
-  // 4️⃣ Apply update (efficiency comes from server)
+  // 5️⃣ Check for position changes and start animation
+  const hasPositionChange = 
+    update.x != null && update.y != null &&
+    (entity.x != null && entity.y != null) &&
+    (update.x !== entity.x || update.y !== entity.y);
+  
+  if (hasPositionChange) {
+    startAnimation(entity.id, entity.x, entity.y, update.x, update.y);
+  }
+
+  // 6️⃣ Apply update (efficiency comes from server)
   Object.assign(entity, update);
 
-  // 5️⃣ Redraw (no local recompute)
+  // 7️⃣ Flash table row for castle updates
+  if (isCastle) {
+    flashTableRow(update.id);
+  }
+
+  // 8️⃣ Redraw (no local recompute)
   drawMap(mapData);
   renderCastleTable?.();
 };
@@ -2030,6 +2201,28 @@ TIP
 
 document.getElementById("castleLimit").addEventListener("change", renderCastleTable);
 
+// ==========================
+// Grid Toggle
+// ==========================
+// Load grid preference from localStorage
+const savedGridPreference = localStorage.getItem('showGrid');
+if (savedGridPreference !== null) {
+  showGrid = savedGridPreference === 'true';
+}
+
+// Update checkbox state to match loaded preference
+const gridToggleCheckbox = document.getElementById('gridToggle');
+if (gridToggleCheckbox) {
+  gridToggleCheckbox.checked = showGrid;
+
+  // Add event listener for grid toggle
+  gridToggleCheckbox.addEventListener('change', (e) => {
+    showGrid = e.target.checked;
+    localStorage.setItem('showGrid', showGrid);
+    drawMap(mapData);
+  });
+}
+
 // document
 //   .getElementById("castleTable")
 //   .addEventListener("click", e => {
@@ -2037,6 +2230,54 @@ document.getElementById("castleLimit").addEventListener("change", renderCastleTa
 //     if (!th) return;
 //     sortCastles(th.dataset.sort);
 //   });
+
+// ==========================
+// Lock All / Unlock All
+// ==========================
+document.getElementById("lockAllBtn").addEventListener("click", async () => {
+  try {
+    const response = await fetch('/api/intent/lock_all_placed', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' }
+    });
+    
+    if (!response.ok) {
+      throw new Error(`Failed to lock castles: ${response.statusText}`);
+    }
+    
+    const result = await response.json();
+    console.log(`Locked ${result.locked_count} placed castles`);
+    
+    // UI will update via SSE, but we can show a quick notification
+    alert(`Locked ${result.locked_count} placed castle(s)`);
+  } catch (error) {
+    console.error('Error locking castles:', error);
+    alert('Failed to lock castles. See console for details.');
+  }
+});
+
+document.getElementById("unlockAllBtn").addEventListener("click", async () => {
+  try {
+    const response = await fetch('/api/intent/unlock_all', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' }
+    });
+    
+    if (!response.ok) {
+      throw new Error(`Failed to unlock entities: ${response.statusText}`);
+    }
+    
+    const result = await response.json();
+    const total = result.unlocked_castles + result.unlocked_banners + result.unlocked_bear_traps;
+    console.log(`Unlocked ${result.unlocked_castles} castles, ${result.unlocked_banners} banners, ${result.unlocked_bear_traps} bear traps`);
+    
+    // UI will update via SSE, but we can show a quick notification
+    alert(`Unlocked ${total} entity/entities (${result.unlocked_castles} castles, ${result.unlocked_banners} banners, ${result.unlocked_bear_traps} bear traps)`);
+  } catch (error) {
+    console.error('Error unlocking entities:', error);
+    alert('Failed to unlock entities. See console for details.');
+  }
+});
 
 // ==========================
 // Version Display
@@ -2057,6 +2298,147 @@ async function fetchAndDisplayVersion() {
     }
   }
 }
+
+// ==========================
+// Bulk Operations
+// ==========================
+function updateBulkSelectionUI() {
+  const toolbar = document.getElementById('bulkOpsToolbar');
+  const count = document.getElementById('bulkSelectionCount');
+  const selectAllCheckbox = document.getElementById('selectAllCheckbox');
+
+  if (selectedCastleIds.size > 0) {
+    toolbar.style.display = 'flex';
+    count.textContent = `${selectedCastleIds.size} selected`;
+  } else {
+    toolbar.style.display = 'none';
+  }
+
+  // Update select all checkbox state
+  if (selectAllCheckbox) {
+    const visibleCheckboxes = document.querySelectorAll('#castleTableBody input[type="checkbox"]');
+    const checkedCount = Array.from(visibleCheckboxes).filter(cb => cb.checked).length;
+    selectAllCheckbox.checked = visibleCheckboxes.length > 0 && checkedCount === visibleCheckboxes.length;
+    selectAllCheckbox.indeterminate = checkedCount > 0 && checkedCount < visibleCheckboxes.length;
+  }
+}
+
+function toggleCastleSelection(castleId, checked) {
+  if (checked) {
+    selectedCastleIds.add(castleId);
+  } else {
+    selectedCastleIds.delete(castleId);
+  }
+  updateBulkSelectionUI();
+}
+
+function toggleSelectAll() {
+  const selectAllCheckbox = document.getElementById('selectAllCheckbox');
+  const checkboxes = document.querySelectorAll('#castleTableBody input[type="checkbox"]');
+  
+  checkboxes.forEach(cb => {
+    cb.checked = selectAllCheckbox.checked;
+    const castleId = cb.dataset.castleId;
+    if (selectAllCheckbox.checked) {
+      selectedCastleIds.add(castleId);
+    } else {
+      selectedCastleIds.delete(castleId);
+    }
+  });
+  
+  updateBulkSelectionUI();
+}
+
+function clearSelection() {
+  selectedCastleIds.clear();
+  document.querySelectorAll('#castleTableBody input[type="checkbox"]').forEach(cb => {
+    cb.checked = false;
+  });
+  updateBulkSelectionUI();
+}
+
+async function applyBulkUpdate() {
+  if (selectedCastleIds.size === 0) {
+    alert('No castles selected');
+    return;
+  }
+
+  const field = document.getElementById('bulkField').value;
+  if (!field) {
+    alert('Please select a field to update');
+    return;
+  }
+
+  let value;
+  if (field === 'player_level' || field === 'command_centre_level') {
+    value = parseInt(document.getElementById('bulkLevelValue').value);
+    if (isNaN(value) || value < 0) {
+      alert('Please enter a valid level');
+      return;
+    }
+  } else if (field === 'preference') {
+    value = document.getElementById('bulkPreferenceValue').value;
+  } else if (field === 'locked') {
+    value = document.getElementById('bulkLockedValue').value === 'true';
+  }
+
+  try {
+    const response = await fetch('/api/castles/bulk_update', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        ids: Array.from(selectedCastleIds),
+        updates: { [field]: value }
+      })
+    });
+
+    const result = await response.json();
+
+    if (!response.ok) {
+      throw new Error(result.detail || 'Failed to update castles');
+    }
+
+    console.log('Bulk update successful:', result);
+    
+    // Clear selection after successful update
+    clearSelection();
+    
+    // Reset field selector
+    document.getElementById('bulkField').value = '';
+    updateBulkFieldVisibility();
+    
+    // Show success message
+    alert(`Successfully updated ${result.updated_count} castle(s)`);
+    
+  } catch (error) {
+    console.error('Bulk update failed:', error);
+    alert(`Failed to update castles: ${error.message}`);
+  }
+}
+
+function updateBulkFieldVisibility() {
+  const field = document.getElementById('bulkField').value;
+  
+  // Hide all value inputs
+  document.getElementById('bulkLevelValue').style.display = 'none';
+  document.getElementById('bulkPreferenceValue').style.display = 'none';
+  document.getElementById('bulkLockedValue').style.display = 'none';
+  
+  // Show relevant input based on field
+  if (field === 'player_level' || field === 'command_centre_level') {
+    document.getElementById('bulkLevelValue').style.display = 'inline-block';
+  } else if (field === 'preference') {
+    document.getElementById('bulkPreferenceValue').style.display = 'inline-block';
+  } else if (field === 'locked') {
+    document.getElementById('bulkLockedValue').style.display = 'inline-block';
+  }
+}
+
+// Set up bulk operations event listeners
+document.getElementById('selectAllCheckbox').addEventListener('change', toggleSelectAll);
+document.getElementById('applyBulkBtn').addEventListener('click', applyBulkUpdate);
+document.getElementById('clearSelectionBtn').addEventListener('click', clearSelection);
+document.getElementById('bulkField').addEventListener('change', updateBulkFieldVisibility);
 
 // Fetch version on page load
 fetchAndDisplayVersion();

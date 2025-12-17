@@ -3,11 +3,14 @@
   <component name="PublishConfigData" remoteFilesAllowedToDisappearOnAutoupload="false" confirmBeforeUploading="false">
     <option name="confirmBeforeUploading" value="false" />
     <serverData>
-      <paths name="matthewpicone@100.126.39.97:22 password">
+      <paths name="Home Server">
         <serverdata>
           <mappings>
-            <mapping deploy="/home/matthewpicone/bearMap" local="$PROJECT_DIR$" web="/" />
+            <mapping deploy="/home/matthewpicone/bear_map" local="$PROJECT_DIR$" web="/" />
           </mappings>
+          <excludedPaths>
+            <excludedPath local="true" path="$PROJECT_DIR$/venv" />
+          </excludedPaths>
         </serverdata>
       </paths>
     </serverData>

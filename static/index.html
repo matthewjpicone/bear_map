@@ -33,6 +33,10 @@
       <div class="canvas-actions">
         <button id="autoPlaceBtn">Auto Place Castles</button>
         <button id="downloadBtn">Download Map</button>
+        <label class="grid-toggle">
+          <input type="checkbox" id="gridToggle" checked aria-label="Toggle grid visibility">
+          <span>Show Grid</span>
+        </label>
       </div>
 
       <div class="canvas-wrap">
@@ -68,10 +72,37 @@
       <button id="addBearBtn">Add Bear</button>
     </div>
 
+    <!-- Bulk Operations Toolbar -->
+    <div id="bulkOpsToolbar" class="bulk-ops-toolbar" style="display: none;">
+      <span id="bulkSelectionCount" class="bulk-selection-count">0 selected</span>
+      <select id="bulkField" aria-label="Select field to update">
+        <option value="">Select field...</option>
+        <option value="player_level">Player Level</option>
+        <option value="command_centre_level">Command Centre Level</option>
+        <option value="preference">Preference</option>
+        <option value="locked">Locked Status</option>
+      </select>
+      <input id="bulkLevelValue" type="number" placeholder="New level" style="display: none;" min="0" />
+      <select id="bulkPreferenceValue" style="display: none;">
+        <option value="Bear 1">Bear 1</option>
+        <option value="Bear 2">Bear 2</option>
+        <option value="Both">Both</option>
+      </select>
+      <select id="bulkLockedValue" style="display: none;">
+        <option value="true">Locked</option>
+        <option value="false">Unlocked</option>
+      </select>
+      <button id="applyBulkBtn" class="primary">Apply to Selected</button>
+      <button id="clearSelectionBtn" class="secondary">Clear Selection</button>
+    </div>
+
     <div class="table-wrap">
       <table id="castleTable" role="table" aria-label="Castle data table">
         <thead>
           <tr>
+            <th class="checkbox-col">
+              <input type="checkbox" id="selectAllCheckbox" aria-label="Select all castles" />
+            </th>
             <th data-sort="id">ID</th>
             <th data-sort="player">Player</th>
             <th data-sort="power">Power</th>
@@ -95,8 +126,8 @@
     </div>
 
     <div class="actions">
-      <button onclick="lockAllPlaced()" aria-label="Lock all placed castles">Lock All</button>
-      <button onclick="unlockAll()" aria-label="Unlock all castles">Unlock All</button>
+      <button id="lockAllBtn" aria-label="Lock all placed castles">Lock All</button>
+      <button id="unlockAllBtn" aria-label="Unlock all castles">Unlock All</button>
     </div>
   </section>
 
