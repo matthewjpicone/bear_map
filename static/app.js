@@ -28,6 +28,10 @@ let selectedCastleId = null;
 let mouseDownPos = null;  // Track mouse position to detect clicks vs drags
 const CLICK_THRESHOLD = 5;  // pixels - movement less than this is considered a click
 
+// Visible and hovered castle IDs for filtering/highlighting
+let visibleCastleIds = new Set();
+let hoveredCastleId = null;
+
 const canvas = document.getElementById("map");
 if (!canvas) throw new Error("Canvas #map not found");
 const ctx = canvas.getContext("2d");
@@ -670,16 +674,18 @@ tr.addEventListener("click", (e) => {
   // Select the castle
   selectCastle(c.id);
   
-  // Pan to center of castle in rotated view
-  const castleCenterX = c.x * TILE_SIZE + TILE_SIZE;
-  const castleCenterY = c.y * TILE_SIZE + TILE_SIZE;
-  const rad = (ISO_DEG * Math.PI) / 180;
-  const cos = Math.cos(rad);
-  const sin = Math.sin(rad);
-  const rx = castleCenterX * cos - castleCenterY * sin;
-  const ry = castleCenterX * sin + castleCenterY * cos;
-  viewOffsetX = rx;
-  viewOffsetY = ry;
+  // Pan to center of castle in rotated view (only if castle has coordinates)
+  if (c.x != null && c.y != null) {
+    const castleCenterX = c.x * TILE_SIZE + TILE_SIZE;
+    const castleCenterY = c.y * TILE_SIZE + TILE_SIZE;
+    const rad = (ISO_DEG * Math.PI) / 180;
+    const cos = Math.cos(rad);
+    const sin = Math.sin(rad);
+    const rx = castleCenterX * cos - castleCenterY * sin;
+    const ry = castleCenterX * sin + castleCenterY * cos;
+    viewOffsetX = rx;
+    viewOffsetY = ry;
+  }
   drawMap(mapData);
 });
 
@@ -1386,6 +1392,7 @@ function onMouseDown(e) {
       Sync.markBusy(bear.id);  // Mark as busy for sync
 
       drawMap(mapData);
+      return;  // Exit early after starting bear drag
     }
   }
 
