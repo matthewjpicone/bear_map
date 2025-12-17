@@ -707,26 +707,31 @@ async def add_bear_trap():
     return {"success": True, "id": new_id}
 
 
-@router.post("/api/download_map_image")
+@router.get("/api/download_map_image")
 async def download_map_image():
     """Generate and download a map image.
 
-    This is a placeholder that would generate a server-side image of the current
-    map layout. Full implementation would require image generation libraries.
+    Generates a server-side PNG image of the current map layout that matches
+    the client-side JavaScript canvas rendering.
 
     Returns:
-        Dictionary with error message (not implemented).
+        Response with PNG image bytes.
     """
-    # Placeholder: Full implementation would use PIL/Pillow or similar to:
-    # 1. Create a blank image with grid
-    # 2. Draw castles, bear traps, and banners
-    # 3. Add labels and efficiency indicators
-    # 4. Return as FileResponse with image/png content type
-
-    return {
-        "error": "Not implemented",
-        "message": "Server-side image generation pending",
-    }
+    from fastapi.responses import Response
+    from logic.render import render_map_to_image
+    
+    config = load_config()
+    
+    # Generate image (with grid visible by default)
+    img_bytes = render_map_to_image(config, show_grid=True)
+    
+    return Response(
+        content=img_bytes,
+        media_type="image/png",
+        headers={
+            "Content-Disposition": "attachment; filename=bear_map.png"
+        }
+    )
 
 
 @router.post("/api/move_all_out_of_way")
