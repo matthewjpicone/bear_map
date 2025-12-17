@@ -265,44 +265,11 @@ canvas {
   overflow: hidden;
 }
 
-.castle-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  margin-bottom: 8px;
-  flex-shrink: 0;
-}
-
 .castle-panel h2 {
-  margin: 0;
+  margin: 0 0 8px;
   font-size: 16px;
   font-weight: 600;
-}
-
-.selected-castle-display {
-  display: none;
-  background: var(--panel-soft);
-  border: 1px solid var(--accent);
-  border-radius: 6px;
-  padding: 6px 12px;
-  font-size: 13px;
-  color: var(--text);
-  white-space: nowrap;
-}
-
-.selected-castle-display.active {
-  display: block;
-}
-
-.selected-castle-display .selected-label {
-  color: var(--muted);
-  margin-right: 6px;
-}
-
-.selected-castle-display .selected-player {
-  color: var(--accent);
-  font-weight: 600;
+  flex-shrink: 0;
 }
 
 /* ================= SEARCH + ACTIONS ================= */
@@ -479,16 +446,6 @@ table input::placeholder {
 
 /* Optional: Highlight matched inputs */
 .match-input {
-  border-color: var(--accent);
-}
-
-/* Selected row highlighting */
-tbody tr.selected-row {
-  background: rgba(56, 189, 248, 0.15);
-}
-
-tbody tr.selected-row td {
-  background: rgba(56, 189, 248, 0.15);
   border-color: var(--accent);
 }
 
