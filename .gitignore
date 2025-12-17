@@ -1,12 +1,12 @@
 .DS_Store
 .env
+
+# Python
 __pycache__/
 *.pyc
 *.pyo
-server/__pycache__/__init__.cpython-312.pyc
-/server/__pycache__
-/__pycache__
-*.pyc
+*.pyd
+.Python
 config.json
 
 # Node.js dependencies
