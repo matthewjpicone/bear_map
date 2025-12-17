@@ -1150,19 +1150,25 @@ function drawCastle(castle) {
   // -------- border --------
   ctx.save();
   if (isSelected) {
-    // Highlight selected castle with very prominent cyan stroke with glow effect
-    // Draw glow effect
+    // ULTRA PROMINENT selection highlighting - unmissable cyan glow
+    // Multiple glow layers for maximum visibility
     ctx.shadowColor = "#06b6d4";
-    ctx.shadowBlur = 20;
+    ctx.shadowBlur = 40;  // Massive glow
     ctx.strokeStyle = "#06b6d4";  // cyan-500
-    ctx.lineWidth = 10 / viewZoom;  // Very thick border for maximum visibility
-    ctx.strokeRect(px, py, size, size);  // Draw on outer edge
+    ctx.lineWidth = 20 / viewZoom;  // Ultra thick border - impossible to miss!
+    ctx.strokeRect(px - 10, py - 10, size + 20, size + 20);  // Extended outside castle
     
-    // Draw inner highlight for even more visibility
+    // Additional inner glow layer
+    ctx.shadowBlur = 25;
+    ctx.strokeStyle = "#22d3ee";  // bright cyan
+    ctx.lineWidth = 12 / viewZoom;
+    ctx.strokeRect(px, py, size, size);
+    
+    // Inner highlight border
     ctx.shadowBlur = 0;
-    ctx.strokeStyle = "#22d3ee";  // lighter cyan
-    ctx.lineWidth = 3 / viewZoom;
-    ctx.strokeRect(px + 5, py + 5, size - 10, size - 10);
+    ctx.strokeStyle = "#ffffff";  // white inner
+    ctx.lineWidth = 4 / viewZoom;
+    ctx.strokeRect(px + 4, py + 4, size - 8, size - 8);
   } else if (isRemoteBusy) {
     ctx.strokeStyle = "#dc2626";
     ctx.lineWidth = 3 / viewZoom;
@@ -1211,40 +1217,49 @@ function drawCastle(castle) {
     ctx.restore();
   }
 
-  // -------- selected indicator (initials circle) --------
+  // -------- selected indicator (LARGE initials badge) --------
   if (isSelected) {
     const initials = getPlayerInitials(castle.player);
-    const circleRadius = 25;  // Larger for better visibility
-    const circleX = px + size + 10;  // Position outside top-right corner
-    const circleY = py - 10;
+    const circleRadius = 45;  // HUGE badge - impossible to miss!
+    const circleX = px + size + 35;  // Further outside for better visibility
+    const circleY = py - 20;
 
     ctx.save();
-    // Draw shadow for depth
-    ctx.shadowColor = "rgba(0, 0, 0, 0.3)";
-    ctx.shadowBlur = 10;
-    ctx.shadowOffsetX = 2;
-    ctx.shadowOffsetY = 2;
+    // Massive shadow/glow for prominence
+    ctx.shadowColor = "#06b6d4";
+    ctx.shadowBlur = 30;
+    ctx.shadowOffsetX = 0;
+    ctx.shadowOffsetY = 0;
     
-    // Draw circle background
+    // Draw outer glow circle
     ctx.fillStyle = "#06b6d4";  // cyan-500
+    ctx.beginPath();
+    ctx.arc(circleX, circleY, circleRadius + 8, 0, Math.PI * 2);
+    ctx.fill();
+    
+    // Draw main circle
+    ctx.shadowBlur = 15;
+    ctx.fillStyle = "#0891b2";  // darker cyan for contrast
     ctx.beginPath();
     ctx.arc(circleX, circleY, circleRadius, 0, Math.PI * 2);
     ctx.fill();
 
-    // Draw white border (thicker for visibility)
+    // Draw thick white border
     ctx.shadowBlur = 0;
-    ctx.shadowOffsetX = 0;
-    ctx.shadowOffsetY = 0;
     ctx.strokeStyle = "#ffffff";
-    ctx.lineWidth = 4;
+    ctx.lineWidth = 6;  // Ultra thick border
     ctx.stroke();
 
-    // Draw initials text (larger font)
+    // Draw initials text - LARGE and BOLD
     ctx.fillStyle = "#ffffff";
-    ctx.font = `bold 16px sans-serif`;
+    ctx.font = `bold 26px sans-serif`;  // Much larger font
     ctx.textAlign = "center";
     ctx.textBaseline = "middle";
     ctx.fillText(initials, circleX, circleY);
+    
+    // Add "SELECTED" label below initials
+    ctx.font = `bold 10px sans-serif`;
+    ctx.fillText("SELECTED", circleX, circleY + 16);
     ctx.restore();
   }
 
