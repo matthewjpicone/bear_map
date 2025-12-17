@@ -10,3 +10,4 @@ server/__pycache__/__init__.cpython-312.pyc
 config.json
 *.pyc
 *.pyc
+/__pycache__
