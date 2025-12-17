@@ -2411,5 +2411,42 @@ function updateMapScoreDisplay() {
   }
 }
 
+// ==========================
+// CSV Import/Export
+// ==========================
 
+// CSV Download
+document.getElementById('downloadCsvBtn').addEventListener('click', () => {
+  window.open('/api/download_csv', '_blank');
+});
+
+// CSV Upload
+document.getElementById('uploadCsvBtn').addEventListener('click', () => {
+  document.getElementById('csvUpload').click();
+});
+
+document.getElementById('csvUpload').addEventListener('change', async (event) => {
+  const file = event.target.files[0];
+  if (!file) return;
+
+  const formData = new FormData();
+  formData.append('file', file);
+
+  try {
+    const response = await fetch('/api/upload_csv', {
+      method: 'POST',
+      body: formData
+    });
+    const result = await response.json();
+    if (result.success) {
+      showToast(result.message, 'success');
+      // Reload data
+      await loadMapData();
+    } else {
+      showToast('Upload failed', 'error');
+    }
+  } catch (error) {
+    showToast('Upload error', 'error');
+  }
+});
 
