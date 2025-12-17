@@ -71,6 +71,9 @@ async def auto_place_castles() -> Dict[str, int]:
             if y + 2 > grid_size:
                 break
 
+    # Update round trip times for all castles after placement
+    update_all_round_trip_times(castles, bear_traps)
+
     save_config(config)
 
     return {"success": True, "placed": placed_count}
@@ -121,7 +124,7 @@ def push_castles_outward(
     for castle in overlapping_castles:
         if castle.get("locked", False):
             continue  # Should not happen due to check above, but safety
-        push_castle_outward(castle, placed_castle_x, placed_castle_y, castles, grid_size, bear_traps, banners)
+        push_castle_outward(castle, placed_castle_x, placed_castle_y, castles, grid_size, bear_traps, banners, exclude_id)
 
     return True, ""
 
@@ -133,7 +136,8 @@ def push_castle_outward(
     all_castles: List[Dict],
     grid_size: int,
     bear_traps: List[Dict],
-    banners: List[Dict]
+    banners: List[Dict],
+    exclude_id: str = None
 ):
     """Push a single castle outward to avoid overlap with a position.
 
@@ -378,3 +382,141 @@ def resolve_map_collisions(
     if iterations >= max_iterations:
         # Log or handle if it didn't resolve
         pass
+
+
+# ==========================
+# ROUND TRIP TIME CALCULATIONS
+# ==========================
+
+def calculate_euclidean_distance(x1: float, y1: float, x2: float, y2: float) -> float:
+    """Calculate straight-line (as the crow flies) distance between two points.
+
+    Args:
+        x1, y1: Coordinates of first point
+        x2, y2: Coordinates of second point
+
+    Returns:
+        Euclidean distance in tiles
+    """
+    return ((x2 - x1) ** 2 + (y2 - y1) ** 2) ** 0.5
+
+
+def calculate_travel_time(distance: float) -> float:
+    """Calculate travel time for a given distance.
+
+    Based on: 15 tiles = 36 seconds straight line
+    Rate: 36/15 = 2.4 seconds per tile
+
+    Args:
+        distance: Distance in tiles
+
+    Returns:
+        Travel time in seconds
+    """
+    travel_rate = 36 / 15  # seconds per tile
+    return distance * travel_rate
+
+
+def calculate_round_trip_time(castle: Dict, bear_traps: List[Dict]) -> float:
+    """Calculate round trip time for a castle to its bear trap(s).
+
+    Base time: 5 minutes (300 seconds) + travel to bear + travel from bear
+
+    Args:
+        castle: Castle dictionary
+        bear_traps: List of all bear traps
+
+    Returns:
+        Round trip time in seconds, or None if no valid bear found
+    """
+    preference = castle.get("preference", "Both").lower()
+    base_time = 300  # 5 minutes in seconds
+
+    if preference == "both":
+        # Calculate for both bears and average
+        bear1 = next((b for b in bear_traps if b.get("id") == "Bear 1"), None)
+        bear2 = next((b for b in bear_traps if b.get("id") == "Bear 2"), None)
+
+        if not bear1 or not bear2:
+            return None
+
+        time1 = calculate_single_round_trip(castle, bear1)
+        time2 = calculate_single_round_trip(castle, bear2)
+
+        if time1 is None or time2 is None:
+            return None
+
+        return (time1 + time2) / 2
+
+    else:
+        # Calculate for specific bear
+        bear = next((b for b in bear_traps if b.get("id", "").lower() == preference), None)
+        if not bear:
+            return None
+        return calculate_single_round_trip(castle, bear)
+
+
+def calculate_single_round_trip(castle: Dict, bear: Dict) -> float:
+    """Calculate round trip time for a castle to a specific bear.
+
+    Args:
+        castle: Castle dictionary
+        bear: Bear trap dictionary
+
+    Returns:
+        Round trip time in seconds, or None if positions invalid
+    """
+    castle_x = castle.get("x")
+    castle_y = castle.get("y")
+    bear_x = bear.get("x")
+    bear_y = bear.get("y")
+
+    if castle_x is None or castle_y is None or bear_x is None or bear_y is None:
+        return None
+
+    # Calculate distance (castle center to bear center)
+    distance = calculate_euclidean_distance(castle_x + 1, castle_y + 1, bear_x + 1, bear_y + 1)
+
+    # Travel time one way
+    travel_time = calculate_travel_time(distance)
+
+    # Round trip = base + to bear + from bear
+    base_time = 300  # 5 minutes
+    return base_time + 2 * travel_time
+
+
+def update_all_round_trip_times(castles: List[Dict], bear_traps: List[Dict]):
+    """Update round trip times for all castles.
+
+    Args:
+        castles: List of castle dictionaries
+        bear_traps: List of bear trap dictionaries
+    """
+    for castle in castles:
+        round_trip = calculate_round_trip_time(castle, bear_traps)
+        if round_trip is not None:
+            castle["round_trip"] = round(round_trip)  # Round to nearest second
+            # Calculate rallies in 30 minutes (max 5)
+            rallies_30min = min(5, int(1800 // round_trip)) if round_trip > 0 else 0
+            castle["rallies_30min"] = rallies_30min
+        else:
+            castle["round_trip"] = None
+            castle["rallies_30min"] = 0
+
+
+def update_castle_round_trip_time(castle: Dict, bear_traps: List[Dict]):
+    """Update round trip time for a single castle.
+
+    Args:
+        castle: Castle dictionary
+        bear_traps: List of bear trap dictionaries
+    """
+    round_trip = calculate_round_trip_time(castle, bear_traps)
+    if round_trip is not None:
+        castle["round_trip"] = round(round_trip)  # Round to nearest second
+        # Calculate rallies in 30 minutes (max 5)
+        rallies_30min = min(5, int(1800 // round_trip)) if round_trip > 0 else 0
+        castle["rallies_30min"] = rallies_30min
+    else:
+        castle["round_trip"] = None
+        castle["rallies_30min"] = 0

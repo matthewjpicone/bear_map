@@ -15,7 +15,8 @@ from typing import Dict, Any
 from fastapi import APIRouter
 from fastapi.responses import HTMLResponse, FileResponse
 
-from logic.config import load_config
+from logic.config import load_config, save_config
+from logic.scoring import compute_priority, compute_efficiency
 
 router = APIRouter()
 
@@ -43,6 +44,19 @@ def get_map():
         (banners, bear traps, castles).
     """
     config = load_config()
+
+    # Update round trip times for all castles
+    from logic.placement import update_all_round_trip_times
+    update_all_round_trip_times(config.get("castles", []), config.get("bear_traps", []))
+
+    # Compute priority and efficiency
+    castles = config.get("castles", [])
+    compute_priority(castles)
+    compute_efficiency(config, castles)
+
+    # Save the updated config with calculated round trip times
+    save_config(config)
+
     return {
         "grid_size": config["grid_size"],
         "efficiency_scale": config["efficiency_scale"],

@@ -48,6 +48,7 @@ async def update_castle(payload: Dict[str, Any] = Body(...)):
         raise HTTPException(404, f"Castle '{castle_id}' not found")
 
     updated = False
+    data_fields_changed = False
 
     for key, value in payload.items():
         if key == "id":
@@ -58,12 +59,16 @@ async def update_castle(payload: Dict[str, Any] = Body(...)):
 
         if key == "player":
             castle["player"] = sanitise_player_name(str(value))
+            data_fields_changed = True
         elif key == "preference":
             if value not in VALID_PREFERENCES:
                 raise HTTPException(400, "Invalid preference")
             castle["preference"] = value
         elif key == "attendance":
             castle[key] = sanitise_int(value, allow_none=True)
+        elif key in ["power", "player_level", "command_centre_level"]:
+            castle[key] = sanitise_int(value)
+            data_fields_changed = True
         else:
             castle[key] = sanitise_int(value)
 
@@ -71,6 +76,11 @@ async def update_castle(payload: Dict[str, Any] = Body(...)):
 
     if not updated:
         raise HTTPException(400, "No valid fields supplied")
+
+    # Update last_updated only if player data fields changed
+    if data_fields_changed:
+        from datetime import datetime
+        castle["last_updated"] = datetime.now().isoformat()
 
     save_config(config)
     await notify_config_updated()
@@ -133,10 +143,13 @@ async def bulk_update_castles(payload: Dict[str, Any] = Body(...)):
             not_found_ids.append(castle_id)
             continue
 
+        data_fields_changed = False
+
         # Apply updates to this castle
         for key, value in updates.items():
             if key == "player":
                 castle["player"] = sanitise_player_name(str(value))
+                data_fields_changed = True
             elif key == "preference":
                 castle["preference"] = value
             elif key == "attendance":
@@ -146,8 +159,16 @@ async def bulk_update_castles(payload: Dict[str, Any] = Body(...)):
                 if not isinstance(value, bool):
                     raise HTTPException(400, "Invalid locked value")
                 castle[key] = value
+            elif key in ["power", "player_level", "command_centre_level"]:
+                castle[key] = sanitise_int(value)
+                data_fields_changed = True
             else:
                 castle[key] = sanitise_int(value)
+
+        # Update last_updated only if player data fields changed
+        if data_fields_changed:
+            from datetime import datetime
+            castle["last_updated"] = datetime.now().isoformat()
 
         updated_ids.append(castle_id)
 

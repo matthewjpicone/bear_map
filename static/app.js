@@ -158,9 +158,7 @@ function normaliseCastle(castle, index) {
     current_trap: castle.current_trap ?? null,
     recommended_trap: castle.recommended_trap ?? null,
 
-    priority: castle.priority ?? null,
-    efficiency: castle.efficiency ?? null,
-    round_trip: castle.round_trip ? Number(castle.round_trip) : "NA",
+    round_trip: typeof castle.round_trip === "number" ? castle.round_trip : "NA",
 
     last_updated: castle.last_updated ? new Date(castle.last_updated) : null,  // New field
 
@@ -168,7 +166,30 @@ function normaliseCastle(castle, index) {
     y: typeof castle.y === "number" ? castle.y : null,
 
     locked: !!castle.locked,
-    size: { w: 2, h: 2, ox: 0, oy: 0 }  // 2x2 square from (x,y)
+    size: { w: 2, h: 2, ox: 0, oy: 0 },  // 2x2 square from (x,y)
+
+    // New scoring fields
+    priority_score: castle.priority_score ?? null,
+
+    priority_rank_100: castle.priority_rank_100 ?? null,
+
+    priority_index: castle.priority_index ?? null,
+
+    priority_debug: castle.priority_debug ?? {},
+
+    ideal_x: castle.ideal_x ?? null,
+
+    ideal_y: castle.ideal_y ?? null,
+
+    ideal_travel_time: castle.ideal_travel_time ?? null,
+
+    actual_travel_time: castle.actual_travel_time ?? null,
+
+    regret: castle.regret ?? null,
+
+    block_penalty_raw: castle.block_penalty_raw ?? null,
+
+    efficiency_score: castle.efficiency_score ?? null,
   };
 }
 
@@ -300,20 +321,32 @@ function showCastleTooltip(castle, mouseX, mouseY) {
       <span class="tooltip-value">${castle.preference || "—"}</span>
     </div>
     <div class="tooltip-row">
-      <span class="tooltip-label">Priority:</span>
-      <span class="tooltip-value">${castle.priority ?? "—"}</span>
-    </div>
-    <div class="tooltip-row">
-      <span class="tooltip-label">Efficiency:</span>
-      <span class="tooltip-value">${castle.efficiency ?? "—"}</span>
-    </div>
-    <div class="tooltip-row">
       <span class="tooltip-label">Last Updated:</span>
       <span class="tooltip-value">${lastUpdated}</span>
     </div>
     <div class="tooltip-row">
       <span class="tooltip-label">Locked:</span>
       <span class="tooltip-value">${castle.locked ? "Yes 🔒" : "No"}</span>
+    </div>
+    <div class="tooltip-row">
+      <span class="tooltip-label">Priority Rank:</span>
+      <span class="tooltip-value">${castle.priority_rank_100 ?? "—"}</span>
+    </div>
+    <div class="tooltip-row">
+      <span class="tooltip-label">Efficiency Score:</span>
+      <span class="tooltip-value">${castle.efficiency_score ?? "—"}</span>
+    </div>
+    <div class="tooltip-row">
+      <span class="tooltip-label">Actual Travel Time:</span>
+      <span class="tooltip-value">${castle.actual_travel_time ?? "—"}</span>
+    </div>
+    <div class="tooltip-row">
+      <span class="tooltip-label">Ideal Travel Time:</span>
+      <span class="tooltip-value">${castle.ideal_travel_time ?? "—"}</span>
+    </div>
+    <div class="tooltip-row">
+      <span class="tooltip-label">Regret:</span>
+      <span class="tooltip-value">${castle.regret ?? "—"}</span>
     </div>
   `;
 
@@ -421,7 +454,14 @@ function tdText(value) {
 
 function tdReadonly(value) {
   const td = document.createElement("td");
-  td.textContent = value ?? "—";
+  if (typeof value === "number" && value >= 60) {
+    // Format round trip time
+    const minutes = Math.floor(value / 60);
+    const seconds = value % 60;
+    td.textContent = `${minutes}m ${seconds}s`;
+  } else {
+    td.textContent = value ?? "—";
+  }
   td.style.opacity = 0.6;
   return td;
 }
@@ -739,13 +779,13 @@ tr.addEventListener("click", (e) => {
     tr.appendChild(tdNumber("power", c));
     tr.appendChild(tdNumber("player_level", c));
     tr.appendChild(tdNumber("command_centre_level", c));
-    tr.appendChild(tdNumber("attendance", c));
     tr.appendChild(tdSelect("preference", c, ["Bear 1", "Bear 2", "Both"]));
     tr.appendChild(tdCheckbox("locked", c));
+    tr.appendChild(tdReadonly(c.attendance));  // Moved after locked and made read-only
     tr.appendChild(tdReadonly(c.rallies_30min));  // Read-only Rallies/Session
     tr.appendChild(tdReadonly(c.round_trip || "NA"));  // New read-only Round Trip Time (s)
-    tr.appendChild(tdReadonly(c.priority));
-    tr.appendChild(tdReadonly(c.efficiency));
+    tr.appendChild(tdReadonly(c.priority_rank_100));
+    tr.appendChild(tdReadonly(c.efficiency_score));
     tr.appendChild(tdReadonly(c.last_updated ? c.last_updated.toLocaleString() : "Never"));  // Last Updated
     tr.appendChild(tdDelete(c));  // Delete
 
@@ -1157,7 +1197,7 @@ function drawBearTrap(bear) {
     ctx.translate(px, py);
     ctx.rotate(-Math.PI / 4);
 
-    ctx.font = `${14 * scale}px sans-serif`;
+    ctx.font = `${12 * scale}px sans-serif`;
     ctx.textAlign = "center";
     ctx.textBaseline = "middle";
     ctx.fillStyle = "#ffffff";
@@ -1347,23 +1387,7 @@ function onMouseDown(e) {
   // Simple debug log
   console.log(`Mouse: (${mouseCanvasX}, ${mouseCanvasY}), Grid: (${x}, ${y}), Zoom: ${viewZoom}`);
 
-  // ---- BEARS FIRST ----
-  for (let bear of mapData.bear_traps || []) {
-    if (isPointInEntity(x, y, bear)) {
-      if (bear.locked) return;
-      if (window.remoteBusy?.has(bear.id)) return;
-
-      draggingBear = bear;
-      bear._original = { x: bear.x, y: bear.y };
-
-      Sync.markBusy(bear.id);  // Mark as busy for sync
-
-      drawMap(mapData);
-      return;
-    }
-  }
-
-  // ---- THEN CASTLES ----
+  // ---- CASTLES FIRST ----
   for (let castle of mapData.castles || []) {
     if (castle.x == null || castle.y == null) continue;
     if (isPointInEntity(x, y, castle)) {
@@ -1373,8 +1397,6 @@ function onMouseDown(e) {
       draggingCastle = castle;
       castle._original = { x: castle.x, y: castle.y };
       castle._grab = { dx: x - castle.x, dy: y - castle.y };
-
-      Sync.markBusy(castle.id);  // Mark as busy for sync
 
       drawMap(mapData);
       return;
@@ -1390,7 +1412,19 @@ function onMouseDown(e) {
       draggingBanner = banner;
       banner._original = { x: banner.x, y: banner.y };
 
-      Sync.markBusy(banner.id);  // Mark as busy for sync
+      drawMap(mapData);
+      return;
+    }
+  }
+
+  // ---- THEN BEARS ----
+  for (let bear of mapData.bear_traps || []) {
+    if (isPointInEntity(x, y, bear)) {
+      if (bear.locked) return;
+      if (window.remoteBusy?.has(bear.id)) return;
+
+      draggingBear = bear;
+      bear._original = { x: bear.x, y: bear.y };
 
       drawMap(mapData);
       return;
@@ -1475,7 +1509,7 @@ function onMouseUp() {
     fetch("/api/intent/move_bear_trap", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ id: bear.id, x, y })
+      body: JSON.stringify({ id: bear.id, x: x, y: y })
     })
     .then(response => response.json())
     .then(data => {
@@ -1493,139 +1527,6 @@ function onMouseUp() {
     Sync.unmarkBusy(bear.id);
     return;
   }
-}
-// function onMouseUp() {
-//   if (draggingCastle) {
-//     const c = draggingCastle;
-//     draggingCastle = null;
-
-//     // snap to integers ONLY for visuals
-//     const x = Math.round(c.x);
-//     const y = Math.round(c.y);
-
-//     fetch("/api/intent/move_castle", {
-//       method: "POST",
-//       headers: { "Content-Type": "application/json" },
-//       body: JSON.stringify({ id: c.id, x, y })
-//     });
-//
-//     // Notify server: unmark as busy
-//     fetch("/api/intent/unmark_busy", {
-//       method: "POST",
-//       headers: { "Content-Type": "application/json" },
-//       body: JSON.stringify({ id: c.id })
-//     }).catch(err => console.error("Failed to unmark busy:", err));
-
-//     return;
-//   }
-
-//   if (draggingBanner) {
-//     const b = draggingBanner;
-//     draggingBanner = null;
-
-//     const x = Math.round(b.x);
-//     const y = Math.round(b.y);
-
-//     fetch("/api/intent/move_banner", {
-//       method: "POST",
-//       headers: { "Content-Type": "application/json" },
-//       body: JSON.stringify({ id: b.id, x, y })
-//     });
-//
-//     // Notify server: unmark as busy
-//     fetch("/api/intent/unmark_busy", {
-//       method: "POST",
-//       headers: { "Content-Type": "application/json" },
-//       body: JSON.stringify({ id: b.id })
-//     }).catch(err => console.error("Failed to unmark busy:", err));
-
-//     return;
-//   }
-
-//   if (draggingBear) {
-//     const bear = draggingBear;
-//     draggingBear = null;
-
-//     const x = Math.round(bear.x);
-//     const y = Math.round(bear.y);
-
-//     fetch("/api/intent/move_bear_trap", {
-//       method: "POST",
-//       headers: { "Content-Type": "application/json" },
-//       body: JSON.stringify({ id: bear.id, x, y })
-//     });
-//
-//     // Notify server: unmark as busy
-//     fetch("/api/intent/unmark_busy", {
-//       method: "POST",
-//       headers: { "Content-Type": "application/json" },
-//       body: JSON.stringify({ id: bear.id })
-//     }).catch(err => console.error("Failed to unmark busy", err));
-
-//     return;
-//   }
-// }
-function onMouseDown(e) {
-  if (!mapData) return;
-  if (draggingCastle || draggingBear || draggingBanner) return;
-
-  const rect = canvas.getBoundingClientRect();
-  const mouseCanvasX = e.clientX - rect.left;
-  const mouseCanvasY = e.clientY - rect.top;
-  const { x, y } = screenToGrid(mouseCanvasX, mouseCanvasY);
-
-  // Simple debug log
-  console.log(`Mouse: (${mouseCanvasX}, ${mouseCanvasY}), Grid: (${x}, ${y}), Zoom: ${viewZoom}`);
-
-  // ---- CASTLES FIRST ----
-  for (let castle of mapData.castles || []) {
-    if (castle.x == null || castle.y == null) continue;
-    if (isPointInEntity(x, y, castle)) {
-      if (castle.locked) return;
-      if (window.remoteBusy?.has(castle.id)) return;
-
-      draggingCastle = castle;
-      castle._original = { x: castle.x, y: castle.y };
-      castle._grab = { dx: x - castle.x, dy: y - castle.y };
-
-      drawMap(mapData);
-      return;
-    }
-  }
-
-  // ---- THEN BANNERS ----
-  for (let banner of mapData.banners || []) {
-    if (isPointInEntity(x, y, banner)) {
-      if (banner.locked) return;
-      if (window.remoteBusy?.has(banner.id)) return;
-
-      draggingBanner = banner;
-      banner._original = { x: banner.x, y: banner.y };
-
-      drawMap(mapData);
-      return;
-    }
-  }
-
-  // ---- THEN BEARS ----
-  for (let bear of mapData.bear_traps || []) {
-    if (isPointInEntity(x, y, bear)) {
-      if (bear.locked) return;
-      if (window.remoteBusy?.has(bear.id)) return;
-
-      draggingBear = bear;
-      bear._original = { x: bear.x, y: bear.y };
-
-      drawMap(mapData);
-      return;
-    }
-  }
-
-  // If no entity hit, start panning
-  isPanning = true;
-  lastPanX = e.clientX;
-  lastPanY = e.clientY;
-  canvas.style.cursor = 'grabbing';
 }
 
 function onMouseMove(e) {
@@ -2044,6 +1945,18 @@ document.getElementById("autoPlaceBtn")
         }
     });
 
+document.getElementById("moveAllOutOfWayBtn")
+    ?.addEventListener("click", async () => {
+        try {
+            const response = await fetch('/api/move_all_out_of_way', { method: 'POST' });
+            if (!response.ok) throw new Error('Move all out of way failed');
+            // Server will handle moving castles and broadcast updates
+        } catch (error) {
+            console.error('Error moving all out of way:', error);
+            alert('Failed to move all out of way');
+        }
+    });
+
 document
     .getElementById("uploadCsvBtn")
     .addEventListener("click", () => {
@@ -2076,22 +1989,6 @@ document
     });
 
 // ==========================
-// Table row flash animation
-// ==========================
-function flashTableRow(castleId) {
-  const row = document.querySelector(`tr[data-castle-id="${castleId}"]`);
-  if (!row) return;
-  
-  row.classList.remove("row-updated");
-  // Force reflow to restart animation
-  void row.offsetWidth;
-  row.classList.add("row-updated");
-  
-  // Remove class after animation completes
-  setTimeout(() => row.classList.remove("row-updated"), 600);
-}
-
-// ==========================
 // Sync → App hooks
 // ==========================
 window.applyRemoteUpdate = function (update) {
@@ -2106,7 +2003,7 @@ window.applyRemoteUpdate = function (update) {
     entity = mapData.bear_traps?.find(b => b.id === update.id);
   }
   
-  // 3️⃣ Try banners
+  //  // 3️⃣ Try banners
   if (!entity) {
     entity = mapData.banners?.find(b => b.id === update.id);
   }
@@ -2127,12 +2024,7 @@ window.applyRemoteUpdate = function (update) {
   // 6️⃣ Apply update (efficiency comes from server)
   Object.assign(entity, update);
 
-  // 7️⃣ Flash table row for castle updates
-  if (isCastle) {
-    flashTableRow(update.id);
-  }
-
-  // 8️⃣ Redraw (no local recompute)
+  // 7️⃣ Redraw (no local recompute)
   drawMap(mapData);
   renderCastleTable?.();
 };

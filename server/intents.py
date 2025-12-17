@@ -91,6 +91,10 @@ async def move_castle(data: Dict[str, Any] = Body(...)):
     castle["x"] = x
     castle["y"] = y
 
+    # Update round trip time for this castle
+    from logic.placement import update_castle_round_trip_time
+    update_castle_round_trip_time(castle, bear_traps)
+
     save_config(config)
 
     # Unmark as busy
@@ -229,6 +233,10 @@ async def move_bear_trap(data: Dict[str, Any] = Body(...)):
     # Update position
     bear_trap["x"] = x
     bear_trap["y"] = y
+
+    # Update round trip times for all castles (bear movement affects all)
+    from logic.placement import update_all_round_trip_times
+    update_all_round_trip_times(castles, bear_traps)
 
     save_config(config)
 
@@ -440,6 +448,10 @@ async def move_castle_away(data: Dict[str, Any] = Body(...)):
     if not success:
         raise HTTPException(409, "Cannot move castle: no available edge position")
 
+    # Update round trip time for this castle
+    from logic.placement import update_castle_round_trip_time
+    update_castle_round_trip_time(castle, bear_traps)
+
     save_config(config)
 
     # Unmark as busy
@@ -556,3 +568,40 @@ async def download_map_image():
         "error": "Not implemented",
         "message": "Server-side image generation pending",
     }
+
+
+@router.post("/api/move_all_out_of_way")
+async def move_all_out_of_way():
+    """Move all unlocked castles to the edges of the map.
+
+    Iterates through all unlocked castles and moves each one to the nearest
+    available edge position, ensuring no overlaps.
+
+    Returns:
+        Dictionary with success status and count of moved castles.
+    """
+    config = load_config()
+    castles = config.get("castles", [])
+    bear_traps = config.get("bear_traps", [])
+    banners = config.get("banners", [])
+    grid_size = config.get("grid_size", 28)
+
+    moved_count = 0
+
+    for castle in castles:
+        if not castle.get("locked", False) and castle.get("x") is not None and castle.get("y") is not None:
+            # Move this castle to the edge
+            from logic.placement import move_castle_to_edge
+            success = move_castle_to_edge(castle, castles, grid_size, bear_traps, banners)
+            if success:
+                moved_count += 1
+
+    if moved_count > 0:
+        # Update round trip times for all castles (positions changed)
+        from logic.placement import update_all_round_trip_times
+        update_all_round_trip_times(castles, bear_traps)
+
+        save_config(config)
+        await notify_config_updated()
+
+    return {"success": True, "moved_count": moved_count}

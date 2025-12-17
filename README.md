@@ -74,3 +74,58 @@ Logs are written to `/home/matthewpicone/bearMap/update.log` on the production s
 - Static assets live in `static/`.
 - The FastAPI application is defined in `main.py`.
 - `requirements.txt` pins the versions needed for local development and GitHub Codespaces installs.
+
+## Priority and Efficiency Scoring
+
+The application computes priority ranks and efficiency scores for castle placements to help optimize rally assignments.
+
+### Priority Score (1-100 Rank)
+
+Priority determines the order in which castles should be assigned to optimal positions. It's calculated from player stats:
+
+- **Power**: 50% weight (log-transformed to handle large ranges)
+- **Player Level**: 20% weight
+- **Command Centre Level**: 20% weight
+- **Attendance**: 10% weight
+
+Each metric is normalized using 5th-95th percentiles to reduce outlier impact. Missing attendance uses the median value. Command centre level of 0 is treated as 0 priority contribution.
+
+Castles are ranked 1-100 (1 being highest priority) based on descending priority score, with ties broken by power, then player level, then ID.
+
+### Efficiency Score (0-100, Lower is Better)
+
+Efficiency measures how well the current placement matches an ideal allocation that minimizes travel time for high-priority players.
+
+#### Travel Time Calculation
+Uses Chebyshev distance (max(dx, dy)) between castle center and bear center.
+
+#### Ideal Allocation
+- Processes castles in priority order (highest first)
+- Assigns to best available tile based on preference:
+  - "Bear 1": Closest to Bear 1
+  - "Bear 2": Closest to Bear 2
+  - "Both": Closest to either bear (min distance)
+- Respects locked castle positions
+- Excludes occupied tiles (banners, bear influence areas)
+
+#### Actual vs Ideal
+- Regret = max(0, actual_travel_time - ideal_travel_time)
+- Tscale = 90th percentile of nonzero regrets
+- Base component = clamp01(regret / Tscale)
+
+#### Blocking Penalty
+Within each preference group ("Bear 1", "Bear 2", "Both"):
+- For each pair (higher priority i, lower priority j)
+- If actual_travel_time(i) < actual_travel_time(j), i is "blocking" j
+- Penalty = (travel_time(j) - travel_time(i)) * sigmoid(rank_diff)
+- Where sigmoid(d) = 1 / (1 + exp(-(d-10)/5))
+- Normalized by 90th percentile across all castles
+
+#### Final Score
+efficiency_score = round(100 * clamp01(0.75 * base + 0.25 * block_norm))
+
+### UI Features
+- Table columns for Priority Rank and Efficiency Score
+- Sortable by both metrics
+- Tooltip shows detailed breakdown on hover
+- Scores update automatically when placements change
