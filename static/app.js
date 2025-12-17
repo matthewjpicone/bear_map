@@ -27,6 +27,7 @@ let showGrid = true;
 let hoveredCastleOnCanvas = null;
 let tooltipTimer = null;  // Timer for delayed tooltip display
 const TOOLTIP_DELAY_MS = 1500;  // 1.5 seconds delay for canvas tooltips
+let tooltipElement = null;  // Cache tooltip DOM element
 
 // ==========================
 // Animation state
@@ -115,6 +116,9 @@ function initSSE() {
   // Center the rotated grid
   viewOffsetX = 0;
   viewOffsetY = (mapData.grid_size * TILE_SIZE) * (Math.SQRT2 / 2);
+
+  // Cache tooltip element reference for better performance
+  tooltipElement = document.getElementById("castleTooltip");
 
   renderCastleTable();
   drawMap(mapData);
@@ -672,7 +676,8 @@ function renderCastleTable() {
 
     tr.addEventListener("mouseenter", (e) => {
       hoveredCastleId = c.id;
-      // Show tooltip immediately on table hover (no delay needed)
+      // Show tooltip immediately on table hover (no delay for better UX in table context)
+      // Canvas tooltips have 1500ms delay to avoid accidental triggers
       showCastleTooltip(c, e.clientX, e.clientY);
     });
     tr.addEventListener("mouseleave", () => {
@@ -1908,9 +1913,8 @@ function onMouseMovePan(e) {
     }
 
     if (hoveredCastle) {
-      // Check if tooltip is currently visible
-      const tooltip = document.getElementById("castleTooltip");
-      const isTooltipVisible = tooltip && tooltip.classList.contains("visible");
+      // Check if tooltip is currently visible (use cached element for performance)
+      const isTooltipVisible = tooltipElement && tooltipElement.classList.contains("visible");
       
       if (hoveredCastleOnCanvas !== hoveredCastle) {
         // New castle detected, clear any existing timer and start a new one
@@ -1922,7 +1926,8 @@ function onMouseMovePan(e) {
         // Set timer to show tooltip after TOOLTIP_DELAY_MS
         tooltipTimer = setTimeout(() => {
           showCastleTooltip(hoveredCastle, e.clientX, e.clientY);
-          tooltipTimer = null;  // Clear timer reference after it fires
+          // Clear timer reference to prevent memory leaks and ensure proper state management
+          tooltipTimer = null;
         }, TOOLTIP_DELAY_MS);
       } else if (isTooltipVisible) {
         // Same castle and tooltip is visible - update position on mouse move
