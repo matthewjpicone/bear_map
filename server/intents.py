@@ -69,22 +69,49 @@ async def move_castle(data: Dict[str, Any] = Body(...)):
     if not is_within_bounds(x, y, grid_size, width=2, height=2):
         raise HTTPException(400, "Position out of bounds")
 
-    # Check if new position overlaps with bears or banners (castles can't overlap these)
-    from logic.validation import check_castle_overlap_with_entities
-    has_overlap, overlapping_id = check_castle_overlap_with_entities(x, y, bear_traps, banners)
-    if has_overlap:
-        # Revert to original position and show error
+    # Build occupied set for validation (exclude the castle being moved)
+    occupied = set()
+    for b in bear_traps:
+        if b.get("x") is not None and b.get("y") is not None:
+            for dx in range(-1, 2):
+                for dy in range(-1, 2):
+                    occupied.add((b["x"] + dx, b["y"] + dy))
+    for ban in banners:
+        if ban.get("x") is not None and ban.get("y") is not None:
+            occupied.add((ban["x"], ban["y"]))
+    for c in castles:
+        if (
+            c.get("id") != entity_id
+            and c.get("x") is not None
+            and c.get("y") is not None
+        ):
+            for dx in range(2):
+                for dy in range(2):
+                    occupied.add((c["x"] + dx, c["y"] + dy))
+
+    # Validate using is_tile_legal (comprehensive validation)
+    from logic.placement import is_tile_legal
+
+    if not is_tile_legal(x, y, grid_size, occupied, bear_traps, banners):
         await notify_config_updated()  # Ensure frontend is in sync
-        return {"success": False, "error": "Move failed: overlaps with bear trap or banner", "message": "Move failed: position overlaps with an existing bear trap or banner"}
+        return {
+            "success": False,
+            "error": "Move failed: illegal position",
+            "message": "Move failed: position overlaps with existing entities or is out of bounds",
+        }
 
     # Check for overlaps with other castles and push them if needed
     from logic.placement import push_castles_outward
-    push_success, push_error = push_castles_outward(x, y, castles, grid_size, bear_traps, banners, exclude_id=entity_id)
+
+    push_success, push_error = push_castles_outward(
+        x, y, castles, grid_size, bear_traps, banners, exclude_id=entity_id
+    )
     if not push_success:
         return {"success": False, "error": push_error}
 
     # Resolve any cascading collisions
     from logic.placement import resolve_map_collisions
+
     resolve_map_collisions(x, y, castles, grid_size, bear_traps, banners)
 
     # Update position
@@ -93,14 +120,17 @@ async def move_castle(data: Dict[str, Any] = Body(...)):
 
     # Update round trip time for this castle
     from logic.placement import update_castle_round_trip_time
+
     update_castle_round_trip_time(castle, bear_traps)
 
     # Recompute efficiency scores for all castles
     from logic.scoring import compute_efficiency
+
     castles = compute_efficiency(config, castles)
 
     # Compute map score
     from logic.placement import get_walkable_tiles, chebyshev_distance
+
     walkable = get_walkable_tiles(grid_size, banners, bear_traps)
     occupied_after = set()
     for b in bear_traps:
@@ -122,18 +152,33 @@ async def move_castle(data: Dict[str, Any] = Body(...)):
     if empty_tiles:
         bear1 = next((b for b in bear_traps if b.get("id") == "Bear 1"), None)
         bear2 = next((b for b in bear_traps if b.get("id") == "Bear 2"), None)
-        if bear1 and bear2 and bear1.get("x") is not None and bear1.get("y") is not None and bear2.get("x") is not None and bear2.get("y") is not None:
+        if (
+            bear1
+            and bear2
+            and bear1.get("x") is not None
+            and bear1.get("y") is not None
+            and bear2.get("x") is not None
+            and bear2.get("y") is not None
+        ):
             distances = [
-                min(chebyshev_distance(t[0], t[1], bear1["x"], bear1["y"]),
-                    chebyshev_distance(t[0], t[1], bear2["x"], bear2["y"]))
+                min(
+                    chebyshev_distance(t[0], t[1], bear1["x"], bear1["y"]),
+                    chebyshev_distance(t[0], t[1], bear2["x"], bear2["y"]),
+                )
                 for t in empty_tiles
             ]
             T_max = grid_size * 2
             q_values = [1 - min(1, d / T_max) for d in distances]
             empty_score_100 = round(100 * (sum(q_values) / len(q_values)))
 
-    placed_castles = [c for c in castles if c.get("x") is not None and c.get("y") is not None]
-    avg_eff = sum(c.get("efficiency_score", 0) for c in placed_castles) / len(placed_castles) if placed_castles else 0
+    placed_castles = [
+        c for c in castles if c.get("x") is not None and c.get("y") is not None
+    ]
+    avg_eff = (
+        sum(c.get("efficiency_score", 0) for c in placed_castles) / len(placed_castles)
+        if placed_castles
+        else 0
+    )
 
     scaled_eff_900 = 9 * avg_eff
     scaled_eff_900 *= 0.9
@@ -273,13 +318,21 @@ async def move_bear_trap(data: Dict[str, Any] = Body(...)):
 
     # Check for castle overlaps and push them if needed
     from logic.placement import push_castles_away_from_bear
-    push_success, push_error = push_castles_away_from_bear(x, y, castles, grid_size, bear_traps, banners)
+
+    push_success, push_error = push_castles_away_from_bear(
+        x, y, castles, grid_size, bear_traps, banners
+    )
     if not push_success:
         await notify_config_updated()  # Ensure frontend is in sync
-        return {"success": False, "error": push_error, "message": "Can't place bear trap - it would overlap with a locked castle"}
+        return {
+            "success": False,
+            "error": push_error,
+            "message": "Can't place bear trap - it would overlap with a locked castle",
+        }
 
     # Resolve any cascading collisions
     from logic.placement import resolve_map_collisions
+
     temp_bear_traps = bear_traps + [{"x": x, "y": y}]
     resolve_map_collisions(x, y, castles, grid_size, temp_bear_traps, banners)
 
@@ -289,14 +342,17 @@ async def move_bear_trap(data: Dict[str, Any] = Body(...)):
 
     # Update round trip times for all castles (bear movement affects all)
     from logic.placement import update_all_round_trip_times
+
     update_all_round_trip_times(castles, bear_traps)
 
     # Recompute efficiency scores for all castles
     from logic.scoring import compute_efficiency
+
     castles = compute_efficiency(config, castles)
 
     # Compute map score
     from logic.placement import get_walkable_tiles, chebyshev_distance
+
     walkable = get_walkable_tiles(grid_size, banners, bear_traps)
     occupied_after = set()
     for b in bear_traps:
@@ -318,18 +374,33 @@ async def move_bear_trap(data: Dict[str, Any] = Body(...)):
     if empty_tiles:
         bear1 = next((b for b in bear_traps if b.get("id") == "Bear 1"), None)
         bear2 = next((b for b in bear_traps if b.get("id") == "Bear 2"), None)
-        if bear1 and bear2 and bear1.get("x") is not None and bear1.get("y") is not None and bear2.get("x") is not None and bear2.get("y") is not None:
+        if (
+            bear1
+            and bear2
+            and bear1.get("x") is not None
+            and bear1.get("y") is not None
+            and bear2.get("x") is not None
+            and bear2.get("y") is not None
+        ):
             distances = [
-                min(chebyshev_distance(t[0], t[1], bear1["x"], bear1["y"]),
-                    chebyshev_distance(t[0], t[1], bear2["x"], bear2["y"]))
+                min(
+                    chebyshev_distance(t[0], t[1], bear1["x"], bear1["y"]),
+                    chebyshev_distance(t[0], t[1], bear2["x"], bear2["y"]),
+                )
                 for t in empty_tiles
             ]
             T_max = grid_size * 2
             q_values = [1 - min(1, d / T_max) for d in distances]
             empty_score_100 = round(100 * (sum(q_values) / len(q_values)))
 
-    placed_castles = [c for c in castles if c.get("x") is not None and c.get("y") is not None]
-    avg_eff = sum(c.get("efficiency_score", 0) for c in placed_castles) / len(placed_castles) if placed_castles else 0
+    placed_castles = [
+        c for c in castles if c.get("x") is not None and c.get("y") is not None
+    ]
+    avg_eff = (
+        sum(c.get("efficiency_score", 0) for c in placed_castles) / len(placed_castles)
+        if placed_castles
+        else 0
+    )
 
     scaled_eff_900 = 9 * avg_eff
     scaled_eff_900 *= 0.9
@@ -550,20 +621,24 @@ async def move_castle_away(data: Dict[str, Any] = Body(...)):
 
     # Move to nearest edge, pushing other castles
     from logic.placement import move_castle_to_edge
+
     success = move_castle_to_edge(castle, castles, grid_size, bear_traps, banners)
     if not success:
         raise HTTPException(409, "Cannot move castle: no available edge position")
 
     # Update round trip time for this castle
     from logic.placement import update_castle_round_trip_time
+
     update_castle_round_trip_time(castle, bear_traps)
 
     # Recompute efficiency scores for all castles
     from logic.scoring import compute_efficiency
+
     castles = compute_efficiency(config, castles)
 
     # Compute map score
     from logic.placement import get_walkable_tiles, chebyshev_distance
+
     walkable = get_walkable_tiles(grid_size, banners, bear_traps)
     occupied_after = set()
     for b in bear_traps:
@@ -585,18 +660,33 @@ async def move_castle_away(data: Dict[str, Any] = Body(...)):
     if empty_tiles:
         bear1 = next((b for b in bear_traps if b.get("id") == "Bear 1"), None)
         bear2 = next((b for b in bear_traps if b.get("id") == "Bear 2"), None)
-        if bear1 and bear2 and bear1.get("x") is not None and bear1.get("y") is not None and bear2.get("x") is not None and bear2.get("y") is not None:
+        if (
+            bear1
+            and bear2
+            and bear1.get("x") is not None
+            and bear1.get("y") is not None
+            and bear2.get("x") is not None
+            and bear2.get("y") is not None
+        ):
             distances = [
-                min(chebyshev_distance(t[0], t[1], bear1["x"], bear1["y"]),
-                    chebyshev_distance(t[0], t[1], bear2["x"], bear2["y"]))
+                min(
+                    chebyshev_distance(t[0], t[1], bear1["x"], bear1["y"]),
+                    chebyshev_distance(t[0], t[1], bear2["x"], bear2["y"]),
+                )
                 for t in empty_tiles
             ]
             T_max = grid_size * 2
             q_values = [1 - min(1, d / T_max) for d in distances]
             empty_score_100 = round(100 * (sum(q_values) / len(q_values)))
 
-    placed_castles = [c for c in castles if c.get("x") is not None and c.get("y") is not None]
-    avg_eff = sum(c.get("efficiency_score", 0) for c in placed_castles) / len(placed_castles) if placed_castles else 0
+    placed_castles = [
+        c for c in castles if c.get("x") is not None and c.get("y") is not None
+    ]
+    avg_eff = (
+        sum(c.get("efficiency_score", 0) for c in placed_castles) / len(placed_castles)
+        if placed_castles
+        else 0
+    )
 
     scaled_eff_900 = 9 * avg_eff
     scaled_eff_900 *= 0.9
@@ -748,16 +838,24 @@ async def move_all_out_of_way():
     moved_count = 0
 
     for castle in castles:
-        if not castle.get("locked", False) and castle.get("x") is not None and castle.get("y") is not None:
+        if (
+            not castle.get("locked", False)
+            and castle.get("x") is not None
+            and castle.get("y") is not None
+        ):
             # Move this castle to the edge
             from logic.placement import move_castle_to_edge
-            success = move_castle_to_edge(castle, castles, grid_size, bear_traps, banners)
+
+            success = move_castle_to_edge(
+                castle, castles, grid_size, bear_traps, banners
+            )
             if success:
                 moved_count += 1
 
     if moved_count > 0:
         # Update round trip times for all castles (positions changed)
         from logic.placement import update_all_round_trip_times
+
         update_all_round_trip_times(castles, bear_traps)
 
         save_config(config)

@@ -1,10 +1,15 @@
 """
 Tests for scoring module.
 
-Run with: python -m pytest tests/test_scoring.py
+Run with: python tests/test_scoring.py
+Or with pytest: python -m pytest tests/test_scoring.py
 """
 
-import pytest
+try:
+    import pytest
+except ImportError:
+    pytest = None
+
 from logic.scoring import compute_priority, compute_efficiency, chebyshev_distance
 
 
