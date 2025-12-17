@@ -26,17 +26,23 @@ let showGrid = true;
 // Tooltip state
 let hoveredCastleOnCanvas = null;
 
-<<<<<<< HEAD
 // ==========================
 // Animation state
 // ==========================
 const ANIMATION_DURATION = 300; // ms
 const animationState = new Map(); // Map<entityId, {fromX, fromY, toX, toY, startTime}>
 let animationFrameId = null;
-=======
+
+// ==========================
 // Bulk operations state
+// ==========================
 let selectedCastleIds = new Set();
->>>>>>> copilot/add-bulk-edit-castles-ui
+
+// ==========================
+// Table filtering state
+// ==========================
+let visibleCastleIds = new Set();
+let hoveredCastleId = null;
 
 const canvas = document.getElementById("map");
 if (!canvas) throw new Error("Canvas #map not found");
