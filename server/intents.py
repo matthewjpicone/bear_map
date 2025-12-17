@@ -24,14 +24,16 @@ router = APIRouter()
 async def move_castle(data: Dict[str, Any] = Body(...)):
     """Move a castle to a new position.
 
-    Validates the move (bounds checking, overlap detection), updates the castle
-    position, broadcasts the change via SSE, and unmarks the castle as busy.
+    Validates the move according to placement priorities:
+    - Reverts if overlaps with bears or banners
+    - Pushes unlocked castles outward if they would overlap
+    - Fails if locked castles would be affected
 
     Args:
         data: Dictionary with 'id' (castle ID), 'x', and 'y' coordinates.
 
     Returns:
-        Dictionary with success status.
+        Dictionary with success status or error message.
 
     Raises:
         HTTPException: If validation fails or castle not found.
@@ -51,6 +53,8 @@ async def move_castle(data: Dict[str, Any] = Body(...)):
 
     config = load_config()
     castles = config.get("castles", [])
+    bear_traps = config.get("bear_traps", [])
+    banners = config.get("banners", [])
     grid_size = config.get("grid_size", 28)
 
     castle = next((c for c in castles if c.get("id") == entity_id), None)
@@ -65,12 +69,23 @@ async def move_castle(data: Dict[str, Any] = Body(...)):
     if not is_within_bounds(x, y, grid_size, width=2, height=2):
         raise HTTPException(400, "Position out of bounds")
 
-    # Check for overlaps with other castles
-    has_overlap, overlapping_id = check_castle_overlap(
-        x, y, castles, exclude_id=entity_id
-    )
+    # Check if new position overlaps with bears or banners (castles can't overlap these)
+    from logic.validation import check_castle_overlap_with_entities
+    has_overlap, overlapping_id = check_castle_overlap_with_entities(x, y, bear_traps, banners)
     if has_overlap:
-        raise HTTPException(409, f"Position overlaps with castle '{overlapping_id}'")
+        # Revert to original position and show error
+        await notify_config_updated()  # Ensure frontend is in sync
+        return {"success": False, "error": "Move failed: overlaps with bear trap or banner", "message": "move failed"}
+
+    # Check for overlaps with other castles and push them if needed
+    from logic.placement import push_castles_outward
+    push_success, push_error = push_castles_outward(x, y, castles, grid_size, bear_traps, banners, exclude_id=entity_id)
+    if not push_success:
+        return {"success": False, "error": push_error}
+
+    # Resolve any cascading collisions
+    from logic.placement import resolve_map_collisions
+    resolve_map_collisions(x, y, castles, grid_size, bear_traps, banners)
 
     # Update position
     castle["x"] = x
@@ -149,8 +164,8 @@ async def move_banner(data: Dict[str, Any] = Body(...)):
 async def move_bear_trap(data: Dict[str, Any] = Body(...)):
     """Move a bear trap to a new position.
 
-    Validates the move (bounds checking, overlap detection with castles and other traps),
-    updates the bear trap position, broadcasts the change via SSE, and unmarks as busy.
+    Bears can overlap castles but not banners or other bears.
+    When placing, pushes unlocked castles out of the way.
 
     Args:
         data: Dictionary with 'id' (bear trap ID), 'x', and 'y' coordinates.
@@ -176,6 +191,7 @@ async def move_bear_trap(data: Dict[str, Any] = Body(...)):
 
     config = load_config()
     bear_traps = config.get("bear_traps", [])
+    banners = config.get("banners", [])
     castles = config.get("castles", [])
     grid_size = config.get("grid_size", 28)
 
@@ -191,12 +207,24 @@ async def move_bear_trap(data: Dict[str, Any] = Body(...)):
     if not is_within_bounds(x, y, grid_size, width=1, height=1):
         raise HTTPException(400, "Position out of bounds")
 
-    # Check for overlaps
+    # Check for overlaps (bears can overlap castles but not banners or other bears)
     has_overlap, overlapping_id = check_bear_trap_overlap(
-        x, y, bear_traps, castles, exclude_id=entity_id
+        x, y, bear_traps, banners, exclude_id=entity_id
     )
     if has_overlap:
         raise HTTPException(409, f"Position overlaps with entity '{overlapping_id}'")
+
+    # Check for castle overlaps and push them if needed
+    from logic.placement import push_castles_away_from_bear
+    push_success, push_error = push_castles_away_from_bear(x, y, castles, grid_size, bear_traps, banners)
+    if not push_success:
+        await notify_config_updated()  # Ensure frontend is in sync
+        return {"success": False, "error": push_error, "message": "placement failed"}
+
+    # Resolve any cascading collisions
+    from logic.placement import resolve_map_collisions
+    temp_bear_traps = bear_traps + [{"x": x, "y": y}]
+    resolve_map_collisions(x, y, castles, grid_size, temp_bear_traps, banners)
 
     # Update position
     bear_trap["x"] = x
@@ -378,9 +406,7 @@ async def unlock_all():
 
 @router.post("/api/intent/move_castle_away")
 async def move_castle_away(data: Dict[str, Any] = Body(...)):
-    """Move a castle to an edge position (off the main grid).
-
-    Moves the castle to position (0, 0) as a staging area.
+    """Move a castle to the nearest edge of the map, pushing other castles out of the way.
 
     Args:
         data: Dictionary with 'id' (castle ID).
@@ -389,7 +415,7 @@ async def move_castle_away(data: Dict[str, Any] = Body(...)):
         Dictionary with success status.
 
     Raises:
-        HTTPException: If castle not found.
+        HTTPException: If castle not found or cannot be moved.
     """
     entity_id = data.get("id")
     if not entity_id:
@@ -397,6 +423,9 @@ async def move_castle_away(data: Dict[str, Any] = Body(...)):
 
     config = load_config()
     castles = config.get("castles", [])
+    bear_traps = config.get("bear_traps", [])
+    banners = config.get("banners", [])
+    grid_size = config.get("grid_size", 28)
 
     castle = next((c for c in castles if c.get("id") == entity_id), None)
     if not castle:
@@ -405,9 +434,11 @@ async def move_castle_away(data: Dict[str, Any] = Body(...)):
     if castle.get("locked", False):
         raise HTTPException(403, "Castle is locked")
 
-    # Move to edge/staging area
-    castle["x"] = 0
-    castle["y"] = 0
+    # Move to nearest edge, pushing other castles
+    from logic.placement import move_castle_to_edge
+    success = move_castle_to_edge(castle, castles, grid_size, bear_traps, banners)
+    if not success:
+        raise HTTPException(409, "Cannot move castle: no available edge position")
 
     save_config(config)
 

@@ -8,3 +8,5 @@ server/__pycache__/__init__.cpython-312.pyc
 /__pycache__
 *.pyc
 config.json
+*.pyc
+*.pyc

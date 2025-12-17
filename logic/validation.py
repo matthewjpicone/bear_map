@@ -114,16 +114,46 @@ def check_castle_overlap(
     return False, None
 
 
-def check_bear_trap_overlap(
-    x: int, y: int, bear_traps: List[Dict], castles: List[Dict], exclude_id: Optional[str] = None
+def check_banner_overlap(
+    x: int, y: int, banners: List[Dict], exclude_id: Optional[str] = None
 ) -> Tuple[bool, Optional[str]]:
-    """Check if a bear trap at (x, y) overlaps with another bear trap or castle.
+    """Check if a banner at (x, y) overlaps with another banner.
+
+    Note: Banners can be placed anywhere, but this function checks for banner-banner overlaps
+    if needed for other logic.
+
+    Args:
+        x: X coordinate.
+        y: Y coordinate.
+        banners: List of banner dictionaries.
+        exclude_id: Banner ID to exclude from overlap check.
+
+    Returns:
+        Tuple of (has_overlap, overlapping_banner_id).
+    """
+    for banner in banners:
+        if exclude_id and banner.get("id") == exclude_id:
+            continue
+        bx, by = banner.get("x"), banner.get("y")
+        if bx is None or by is None:
+            continue
+        if x == bx and y == by:
+            return True, banner.get("id")
+    return False, None
+
+
+def check_bear_trap_overlap(
+    x: int, y: int, bear_traps: List[Dict], banners: List[Dict], exclude_id: Optional[str] = None
+) -> Tuple[bool, Optional[str]]:
+    """Check if a bear trap at (x, y) overlaps with another bear trap or banner.
+
+    Bears can overlap castles but not banners.
 
     Args:
         x: X coordinate.
         y: Y coordinate.
         bear_traps: List of bear trap dictionaries.
-        castles: List of castle dictionaries.
+        banners: List of banner dictionaries.
         exclude_id: Bear trap ID to exclude from overlap check.
 
     Returns:
@@ -139,13 +169,47 @@ def check_bear_trap_overlap(
         if x == tx and y == ty:
             return True, trap.get("id")
 
-    # Check against castles (2x2)
-    for castle in castles:
-        cx, cy = castle.get("x"), castle.get("y")
-        if cx is None or cy is None:
+    # Check against banners (1x1)
+    for banner in banners:
+        bx, by = banner.get("x"), banner.get("y")
+        if bx is None or by is None:
             continue
-        # Check if point (x, y) is within the 2x2 castle area
-        if cx <= x < cx + 2 and cy <= y < cy + 2:
-            return True, castle.get("id")
+        if x == bx and y == by:
+            return True, banner.get("id")
+
+    return False, None
+
+
+def check_castle_overlap_with_entities(
+    x: int, y: int, bear_traps: List[Dict], banners: List[Dict]
+) -> Tuple[bool, Optional[str]]:
+    """Check if a 2x2 castle at (x, y) overlaps with any bear traps or banners.
+
+    Castles cannot overlap with bears or banners.
+
+    Args:
+        x: X coordinate of castle.
+        y: Y coordinate of castle.
+        bear_traps: List of bear trap dictionaries.
+        banners: List of banner dictionaries.
+
+    Returns:
+        Tuple of (has_overlap, overlapping_entity_id).
+    """
+    # Check against bear traps (1x1 within 2x2 area)
+    for trap in bear_traps:
+        tx, ty = trap.get("x"), trap.get("y")
+        if tx is None or ty is None:
+            continue
+        if x <= tx < x + 2 and y <= ty < y + 2:
+            return True, trap.get("id")
+
+    # Check against banners (1x1 within 2x2 area)
+    for banner in banners:
+        bx, by = banner.get("x"), banner.get("y")
+        if bx is None or by is None:
+            continue
+        if x <= bx < x + 2 and y <= by < y + 2:
+            return True, banner.get("id")
 
     return False, None
