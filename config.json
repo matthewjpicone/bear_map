@@ -245,7 +245,7 @@
       "command_centre_level": 0,
       "attendance": null,
       "rallies_30min": 5,
-      "preference": "both",
+      "preference": "Both",
       "current_trap": null,
       "recommended_trap": null,
       "x": 13,
@@ -421,7 +421,7 @@
       "command_centre_level": 0,
       "attendance": null,
       "rallies_30min": 5,
-      "preference": "both",
+      "preference": "Both",
       "current_trap": null,
       "recommended_trap": null,
       "x": 14,
@@ -509,7 +509,7 @@
       "command_centre_level": 0,
       "attendance": null,
       "rallies_30min": 5,
-      "preference": "both",
+      "preference": "Both",
       "current_trap": null,
       "recommended_trap": null,
       "x": 13,
@@ -1905,7 +1905,7 @@
       "actual_travel_time": 2,
       "regret": 0,
       "block_penalty_raw": 36.6579802648224,
-      "efficiency_score": 15,
+      "efficiency_score": 16,
       "priority": 0.0,
       "efficiency": 0.0
     },
@@ -2272,10 +2272,10 @@
       "preference": "both",
       "current_trap": null,
       "recommended_trap": null,
-      "x": 20,
-      "y": 3,
+      "x": 23,
+      "y": 4,
       "locked": false,
-      "round_trip": 370,
+      "round_trip": 375,
       "last_updated": "2025-12-17T15:23:49.955747",
       "priority_score": 0.31604480048449546,
       "priority_debug": {
@@ -2298,10 +2298,10 @@
       "ideal_x": 14,
       "ideal_y": 19,
       "ideal_travel_time": 5,
-      "actual_travel_time": 11,
-      "regret": 6,
-      "block_penalty_raw": 0.5,
-      "efficiency_score": 75,
+      "actual_travel_time": 10,
+      "regret": 5,
+      "block_penalty_raw": 1.1679816148660755,
+      "efficiency_score": 63,
       "priority": 0.0,
       "efficiency": 0.0
     },
@@ -2432,7 +2432,7 @@
       "ideal_travel_time": 6,
       "actual_travel_time": 5,
       "regret": 0,
-      "block_penalty_raw": 32.00438388682101,
+      "block_penalty_raw": 31.806567775379595,
       "efficiency_score": 14,
       "priority": 0.0,
       "efficiency": 0.0
@@ -2520,8 +2520,8 @@
       "ideal_travel_time": 6,
       "actual_travel_time": 4,
       "regret": 0,
-      "block_penalty_raw": 45.62356955450539,
-      "efficiency_score": 19,
+      "block_penalty_raw": 45.35462813313539,
+      "efficiency_score": 20,
       "priority": 0.0,
       "efficiency": 0.0
     },
@@ -2564,7 +2564,7 @@
       "ideal_travel_time": 6,
       "actual_travel_time": 4,
       "regret": 0,
-      "block_penalty_raw": 47.78134189335052,
+      "block_penalty_raw": 47.47131637447814,
       "efficiency_score": 20,
       "priority": 0.0,
       "efficiency": 0.0
@@ -2652,7 +2652,7 @@
       "ideal_travel_time": 6,
       "actual_travel_time": 4,
       "regret": 0,
-      "block_penalty_raw": 52.134763241198236,
+      "block_penalty_raw": 51.73345090131069,
       "efficiency_score": 22,
       "priority": 0.0,
       "efficiency": 0.0
@@ -2696,7 +2696,7 @@
       "ideal_travel_time": 7,
       "actual_travel_time": 4,
       "regret": 0,
-      "block_penalty_raw": 54.28807791831974,
+      "block_penalty_raw": 53.83791191563222,
       "efficiency_score": 23,
       "priority": 0.0,
       "efficiency": 0.0
@@ -2740,7 +2740,7 @@
       "ideal_travel_time": 7,
       "actual_travel_time": 4,
       "regret": 0,
-      "block_penalty_raw": 56.39282966535873,
+      "block_penalty_raw": 55.89282966535873,
       "efficiency_score": 24,
       "priority": 0.0,
       "efficiency": 0.0
@@ -2784,7 +2784,7 @@
       "ideal_travel_time": 7,
       "actual_travel_time": 4,
       "regret": 0,
-      "block_penalty_raw": 58.42321732931751,
+      "block_penalty_raw": 57.873383332005034,
       "efficiency_score": 25,
       "priority": 0.0,
       "efficiency": 0.0
@@ -2828,7 +2828,7 @@
       "ideal_travel_time": 7,
       "actual_travel_time": 4,
       "regret": 0,
-      "block_penalty_raw": 60.35488614672675,
+      "block_penalty_raw": 59.756198486614295,
       "efficiency_score": 25,
       "priority": 0.0,
       "efficiency": 0.0
@@ -2872,7 +2872,7 @@
       "ideal_travel_time": 8,
       "actual_travel_time": 4,
       "regret": 0,
-      "block_penalty_raw": 62.16673837744694,
+      "block_penalty_raw": 61.521082071221144,
       "efficiency_score": 25,
       "priority": 0.0,
       "efficiency": 0.0
@@ -2916,7 +2916,7 @@
       "ideal_travel_time": 8,
       "actual_travel_time": 4,
       "regret": 0,
-      "block_penalty_raw": 63.84234140412898,
+      "block_penalty_raw": 63.15236692300137,
       "efficiency_score": 25,
       "priority": 0.0,
       "efficiency": 0.0
@@ -3004,7 +3004,7 @@
       "ideal_travel_time": 8,
       "actual_travel_time": 6,
       "regret": 0,
-      "block_penalty_raw": 41.247980839377135,
+      "block_penalty_raw": 40.47945605587812,
       "efficiency_score": 17,
       "priority": 0.0,
       "efficiency": 0.0
@@ -3048,7 +3048,7 @@
       "ideal_travel_time": 8,
       "actual_travel_time": 5,
       "regret": 0,
-      "block_penalty_raw": 54.33369672542388,
+      "block_penalty_raw": 53.531512836865296,
       "efficiency_score": 23,
       "priority": 0.0,
       "efficiency": 0.0
@@ -3092,7 +3092,7 @@
       "ideal_travel_time": 9,
       "actual_travel_time": 7,
       "regret": 0,
-      "block_penalty_raw": 30.6239407402908,
+      "block_penalty_raw": 29.791922355156874,
       "efficiency_score": 13,
       "priority": 0.0,
       "efficiency": 0.0
@@ -3136,7 +3136,7 @@
       "ideal_travel_time": 9,
       "actual_travel_time": 7,
       "regret": 0,
-      "block_penalty_raw": 31.154972045738187,
+      "block_penalty_raw": 30.296823110638673,
       "efficiency_score": 13,
       "priority": 0.0,
       "efficiency": 0.0
@@ -3180,7 +3180,7 @@
       "ideal_travel_time": 9,
       "actual_travel_time": 5,
       "regret": 0,
-      "block_penalty_raw": 57.381625118523374,
+      "block_penalty_raw": 56.50082804054549,
       "efficiency_score": 24,
       "priority": 0.0,
       "efficiency": 0.0
@@ -3224,7 +3224,7 @@
       "ideal_travel_time": 9,
       "actual_travel_time": 5,
       "regret": 0,
-      "block_penalty_raw": 58.102791928010504,
+      "block_penalty_raw": 57.20254241713019,
       "efficiency_score": 25,
       "priority": 0.0,
       "efficiency": 0.0
@@ -3312,7 +3312,7 @@
       "ideal_travel_time": 10,
       "actual_travel_time": 5,
       "regret": 0,
-      "block_penalty_raw": 59.352438978266626,
+      "block_penalty_raw": 58.421577398609976,
       "efficiency_score": 25,
       "priority": 0.0,
       "efficiency": 0.0
@@ -3356,7 +3356,7 @@
       "ideal_travel_time": 10,
       "actual_travel_time": 5,
       "regret": 0,
-      "block_penalty_raw": 59.90046928463277,
+      "block_penalty_raw": 58.95779346053164,
       "efficiency_score": 25,
       "priority": 0.0,
       "efficiency": 0.0
@@ -3444,7 +3444,7 @@
       "ideal_travel_time": 10,
       "actual_travel_time": 5,
       "regret": 0,
-      "block_penalty_raw": 60.879737343481935,
+      "block_penalty_raw": 59.9189030662787,
       "efficiency_score": 25,
       "priority": 0.0,
       "efficiency": 0.0
@@ -3488,7 +3488,7 @@
       "ideal_travel_time": 10,
       "actual_travel_time": 5,
       "regret": 0,
-      "block_penalty_raw": 61.320241188374816,
+      "block_penalty_raw": 60.352536653073265,
       "efficiency_score": 25,
       "priority": 0.0,
       "efficiency": 0.0
@@ -3576,7 +3576,7 @@
       "ideal_travel_time": 11,
       "actual_travel_time": 7,
       "regret": 0,
-      "block_penalty_raw": 33.564444415380784,
+      "block_penalty_raw": 32.58632568631692,
       "efficiency_score": 14,
       "priority": 0.0,
       "efficiency": 0.0
@@ -3620,8 +3620,8 @@
       "ideal_travel_time": 11,
       "actual_travel_time": 8,
       "regret": 0,
-      "block_penalty_raw": 22.721329760854452,
-      "efficiency_score": 10,
+      "block_penalty_raw": 21.739315970816545,
+      "efficiency_score": 9,
       "priority": 0.0,
       "efficiency": 0.0
     },
@@ -3664,8 +3664,8 @@
       "ideal_travel_time": 11,
       "actual_travel_time": 8,
       "regret": 0,
-      "block_penalty_raw": 22.771117435073396,
-      "efficiency_score": 10,
+      "block_penalty_raw": 21.78589146676667,
+      "efficiency_score": 9,
       "priority": 0.0,
       "efficiency": 0.0
     },
@@ -3752,7 +3752,7 @@
       "ideal_travel_time": 11,
       "actual_travel_time": 10,
       "regret": 0,
-      "block_penalty_raw": 7.932124567370856,
+      "block_penalty_raw": 6.9420763692377605,
       "efficiency_score": 3,
       "priority": 0.0,
       "efficiency": 0.0
@@ -3796,7 +3796,7 @@
       "ideal_travel_time": 12,
       "actual_travel_time": 8,
       "regret": 0,
-      "block_penalty_raw": 23.15726735454638,
+      "block_penalty_raw": 22.165429925699545,
       "efficiency_score": 10,
       "priority": 0.0,
       "efficiency": 0.0
@@ -3840,7 +3840,7 @@
       "ideal_travel_time": 12,
       "actual_travel_time": 8,
       "regret": 0,
-      "block_penalty_raw": 23.310657455030995,
+      "block_penalty_raw": 22.31614375393045,
       "efficiency_score": 10,
       "priority": 0.0,
       "efficiency": 0.0
@@ -3884,7 +3884,7 @@
       "ideal_travel_time": 12,
       "actual_travel_time": 6,
       "regret": 0,
-      "block_penalty_raw": 50.674200310508255,
+      "block_penalty_raw": 49.680893161432536,
       "efficiency_score": 21,
       "priority": 0.0,
       "efficiency": 0.0
@@ -3928,7 +3928,7 @@
       "ideal_travel_time": 12,
       "actual_travel_time": 6,
       "regret": 0,
-      "block_penalty_raw": 51.915967958995694,
+      "block_penalty_raw": 50.92046423215663,
       "efficiency_score": 22,
       "priority": 0.0,
       "efficiency": 0.0
@@ -4016,7 +4016,7 @@
       "ideal_travel_time": 13,
       "actual_travel_time": 6,
       "regret": 0,
-      "block_penalty_raw": 53.08412824232832,
+      "block_penalty_raw": 52.087146658653026,
       "efficiency_score": 22,
       "priority": 0.0,
       "efficiency": 0.0
@@ -4104,7 +4104,7 @@
       "ideal_travel_time": 13,
       "actual_travel_time": 6,
       "regret": 0,
-      "block_penalty_raw": 54.34855492350505,
+      "block_penalty_raw": 53.3505802438941,
       "efficiency_score": 23,
       "priority": 0.0,
       "efficiency": 0.0
@@ -4148,7 +4148,7 @@
       "ideal_travel_time": 14,
       "actual_travel_time": 6,
       "regret": 0,
-      "block_penalty_raw": 54.999191912687465,
+      "block_penalty_raw": 54.00085071376764,
       "efficiency_score": 23,
       "priority": 0.0,
       "efficiency": 0.0
@@ -4192,7 +4192,7 @@
       "ideal_travel_time": 14,
       "actual_travel_time": 6,
       "regret": 0,
-      "block_penalty_raw": 55.64985813735821,
+      "block_penalty_raw": 54.65121665730864,
       "efficiency_score": 24,
       "priority": 0.0,
       "efficiency": 0.0
@@ -4236,7 +4236,7 @@
       "ideal_travel_time": 3,
       "actual_travel_time": 10,
       "regret": 7,
-      "block_penalty_raw": 7.9924059346154674,
+      "block_penalty_raw": 6.993518470648328,
       "efficiency_score": 78,
       "priority": 0.0,
       "efficiency": 0.0
@@ -4280,7 +4280,7 @@
       "ideal_travel_time": 3,
       "actual_travel_time": 6,
       "regret": 3,
-      "block_penalty_raw": 57.4791054054954,
+      "block_penalty_raw": 56.4800164566898,
       "efficiency_score": 62,
       "priority": 0.0,
       "efficiency": 0.0
@@ -4324,7 +4324,7 @@
       "ideal_travel_time": 3,
       "actual_travel_time": 8,
       "regret": 5,
-      "block_penalty_raw": 24.615722275905092,
+      "block_penalty_raw": 23.61646830473893,
       "efficiency_score": 73,
       "priority": 0.0,
       "efficiency": 0.0
@@ -4368,7 +4368,7 @@
       "ideal_travel_time": 3,
       "actual_travel_time": 6,
       "regret": 3,
-      "block_penalty_raw": 59.135931221035804,
+      "block_penalty_raw": 58.13654210039523,
       "efficiency_score": 62,
       "priority": 0.0,
       "efficiency": 0.0
@@ -4412,7 +4412,7 @@
       "ideal_travel_time": 3,
       "actual_travel_time": 6,
       "regret": 3,
-      "block_penalty_raw": 59.837931799639335,
+      "block_penalty_raw": 58.838432000746415,
       "efficiency_score": 62,
       "priority": 0.0,
       "efficiency": 0.0
@@ -4456,7 +4456,7 @@
       "ideal_travel_time": 3,
       "actual_travel_time": 6,
       "regret": 3,
-      "block_penalty_raw": 60.51732784431732,
+      "block_penalty_raw": 59.51773741148231,
       "efficiency_score": 62,
       "priority": 0.0,
       "efficiency": 0.0
@@ -4560,8 +4560,8 @@
       "locked": false
     }
   ],
-  "map_score_900": 656,
-  "map_score_percent": 72.9,
+  "map_score_900": 657,
+  "map_score_percent": 73.0,
   "empty_score_100": 82,
-  "efficiency_avg": 31.9
+  "efficiency_avg": 31.8
 }

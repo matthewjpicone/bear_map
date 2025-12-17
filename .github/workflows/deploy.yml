@@ -64,6 +64,12 @@ jobs:
       run: |
         grep -r "TODO" . --exclude-dir=.git || echo "No TODOs found"
 
+    - name: Run Semantic Release
+      if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+      run: |
+        npm install -g semantic-release @semantic-release/exec @semantic-release/git
+        npx semantic-release
+
     - name: Deploy to Server (Only on Push to Main)
       if: github.ref == 'refs/heads/main' && github.event_name == 'push'
       uses: appleboy/ssh-action@v1.0.0
