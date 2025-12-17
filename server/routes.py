@@ -63,6 +63,10 @@ def get_map():
         "banners": config.get("banners", []),
         "bear_traps": config.get("bear_traps", []),
         "castles": config.get("castles", []),
+        "map_score_900": config.get("map_score_900"),
+        "map_score_percent": config.get("map_score_percent"),
+        "empty_score_100": config.get("empty_score_100"),
+        "efficiency_avg": config.get("efficiency_avg"),
     }
 
 

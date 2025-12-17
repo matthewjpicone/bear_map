@@ -56,6 +56,28 @@ header h1 {
   min-width: 110px;
 }
 
+.map-score {
+  margin-left: auto;
+  font-size: 14px;
+  font-weight: 600;
+  padding: 8px 12px;
+  border-radius: 6px;
+  background: var(--panel-soft);
+  border: 1px solid var(--border);
+}
+
+.score-good {
+  color: #16a34a;
+}
+
+.score-warn {
+  color: #d97706;
+}
+
+.score-bad {
+  color: #dc2626;
+}
+
 /* ================= BUTTONS ================= */
 button {
   background: var(--panel-soft);

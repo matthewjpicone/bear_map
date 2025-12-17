@@ -95,6 +95,59 @@ async def move_castle(data: Dict[str, Any] = Body(...)):
     from logic.placement import update_castle_round_trip_time
     update_castle_round_trip_time(castle, bear_traps)
 
+    # Recompute efficiency scores for all castles
+    from logic.scoring import compute_efficiency
+    castles = compute_efficiency(config, castles)
+
+    # Compute map score
+    from logic.placement import get_walkable_tiles, chebyshev_distance
+    walkable = get_walkable_tiles(grid_size, banners, bear_traps)
+    occupied_after = set()
+    for b in bear_traps:
+        if b.get("x") is not None and b.get("y") is not None:
+            for dx in range(-1, 2):
+                for dy in range(-1, 2):
+                    occupied_after.add((b["x"] + dx, b["y"] + dy))
+    for ban in banners:
+        if ban.get("x") is not None and ban.get("y") is not None:
+            occupied_after.add((ban["x"], ban["y"]))
+    for c in castles:
+        if c.get("x") is not None and c.get("y") is not None:
+            for dx in range(2):
+                for dy in range(2):
+                    occupied_after.add((c["x"] + dx, c["y"] + dy))
+
+    empty_tiles = [t for t in walkable if t not in occupied_after]
+    empty_score_100 = 0
+    if empty_tiles:
+        bear1 = next((b for b in bear_traps if b.get("id") == "Bear 1"), None)
+        bear2 = next((b for b in bear_traps if b.get("id") == "Bear 2"), None)
+        if bear1 and bear2 and bear1.get("x") is not None and bear1.get("y") is not None and bear2.get("x") is not None and bear2.get("y") is not None:
+            distances = [
+                min(chebyshev_distance(t[0], t[1], bear1["x"], bear1["y"]),
+                    chebyshev_distance(t[0], t[1], bear2["x"], bear2["y"]))
+                for t in empty_tiles
+            ]
+            T_max = grid_size * 2
+            q_values = [1 - min(1, d / T_max) for d in distances]
+            empty_score_100 = round(100 * (sum(q_values) / len(q_values)))
+
+    placed_castles = [c for c in castles if c.get("x") is not None and c.get("y") is not None]
+    avg_eff = sum(c.get("efficiency_score", 0) for c in placed_castles) / len(placed_castles) if placed_castles else 0
+
+    scaled_eff_900 = 9 * avg_eff
+    scaled_eff_900 *= 0.9
+    map_eff_component = 900 - scaled_eff_900
+    empty_component_900 = 9 * empty_score_100
+    map_score_900 = round(0.85 * map_eff_component + 0.15 * empty_component_900)
+    map_score_percent = round(100 * map_score_900 / 900, 1)
+
+    # Update config
+    config["map_score_900"] = map_score_900
+    config["map_score_percent"] = map_score_percent
+    config["empty_score_100"] = empty_score_100
+    config["efficiency_avg"] = round(avg_eff, 1)
+
     save_config(config)
 
     # Unmark as busy
@@ -237,6 +290,59 @@ async def move_bear_trap(data: Dict[str, Any] = Body(...)):
     # Update round trip times for all castles (bear movement affects all)
     from logic.placement import update_all_round_trip_times
     update_all_round_trip_times(castles, bear_traps)
+
+    # Recompute efficiency scores for all castles
+    from logic.scoring import compute_efficiency
+    castles = compute_efficiency(config, castles)
+
+    # Compute map score
+    from logic.placement import get_walkable_tiles, chebyshev_distance
+    walkable = get_walkable_tiles(grid_size, banners, bear_traps)
+    occupied_after = set()
+    for b in bear_traps:
+        if b.get("x") is not None and b.get("y") is not None:
+            for dx in range(-1, 2):
+                for dy in range(-1, 2):
+                    occupied_after.add((b["x"] + dx, b["y"] + dy))
+    for ban in banners:
+        if ban.get("x") is not None and ban.get("y") is not None:
+            occupied_after.add((ban["x"], ban["y"]))
+    for c in castles:
+        if c.get("x") is not None and c.get("y") is not None:
+            for dx in range(2):
+                for dy in range(2):
+                    occupied_after.add((c["x"] + dx, c["y"] + dy))
+
+    empty_tiles = [t for t in walkable if t not in occupied_after]
+    empty_score_100 = 0
+    if empty_tiles:
+        bear1 = next((b for b in bear_traps if b.get("id") == "Bear 1"), None)
+        bear2 = next((b for b in bear_traps if b.get("id") == "Bear 2"), None)
+        if bear1 and bear2 and bear1.get("x") is not None and bear1.get("y") is not None and bear2.get("x") is not None and bear2.get("y") is not None:
+            distances = [
+                min(chebyshev_distance(t[0], t[1], bear1["x"], bear1["y"]),
+                    chebyshev_distance(t[0], t[1], bear2["x"], bear2["y"]))
+                for t in empty_tiles
+            ]
+            T_max = grid_size * 2
+            q_values = [1 - min(1, d / T_max) for d in distances]
+            empty_score_100 = round(100 * (sum(q_values) / len(q_values)))
+
+    placed_castles = [c for c in castles if c.get("x") is not None and c.get("y") is not None]
+    avg_eff = sum(c.get("efficiency_score", 0) for c in placed_castles) / len(placed_castles) if placed_castles else 0
+
+    scaled_eff_900 = 9 * avg_eff
+    scaled_eff_900 *= 0.9
+    map_eff_component = 900 - scaled_eff_900
+    empty_component_900 = 9 * empty_score_100
+    map_score_900 = round(0.85 * map_eff_component + 0.15 * empty_component_900)
+    map_score_percent = round(100 * map_score_900 / 900, 1)
+
+    # Update config
+    config["map_score_900"] = map_score_900
+    config["map_score_percent"] = map_score_percent
+    config["empty_score_100"] = empty_score_100
+    config["efficiency_avg"] = round(avg_eff, 1)
 
     save_config(config)
 
@@ -451,6 +557,59 @@ async def move_castle_away(data: Dict[str, Any] = Body(...)):
     # Update round trip time for this castle
     from logic.placement import update_castle_round_trip_time
     update_castle_round_trip_time(castle, bear_traps)
+
+    # Recompute efficiency scores for all castles
+    from logic.scoring import compute_efficiency
+    castles = compute_efficiency(config, castles)
+
+    # Compute map score
+    from logic.placement import get_walkable_tiles, chebyshev_distance
+    walkable = get_walkable_tiles(grid_size, banners, bear_traps)
+    occupied_after = set()
+    for b in bear_traps:
+        if b.get("x") is not None and b.get("y") is not None:
+            for dx in range(-1, 2):
+                for dy in range(-1, 2):
+                    occupied_after.add((b["x"] + dx, b["y"] + dy))
+    for ban in banners:
+        if ban.get("x") is not None and ban.get("y") is not None:
+            occupied_after.add((ban["x"], ban["y"]))
+    for c in castles:
+        if c.get("x") is not None and c.get("y") is not None:
+            for dx in range(2):
+                for dy in range(2):
+                    occupied_after.add((c["x"] + dx, c["y"] + dy))
+
+    empty_tiles = [t for t in walkable if t not in occupied_after]
+    empty_score_100 = 0
+    if empty_tiles:
+        bear1 = next((b for b in bear_traps if b.get("id") == "Bear 1"), None)
+        bear2 = next((b for b in bear_traps if b.get("id") == "Bear 2"), None)
+        if bear1 and bear2 and bear1.get("x") is not None and bear1.get("y") is not None and bear2.get("x") is not None and bear2.get("y") is not None:
+            distances = [
+                min(chebyshev_distance(t[0], t[1], bear1["x"], bear1["y"]),
+                    chebyshev_distance(t[0], t[1], bear2["x"], bear2["y"]))
+                for t in empty_tiles
+            ]
+            T_max = grid_size * 2
+            q_values = [1 - min(1, d / T_max) for d in distances]
+            empty_score_100 = round(100 * (sum(q_values) / len(q_values)))
+
+    placed_castles = [c for c in castles if c.get("x") is not None and c.get("y") is not None]
+    avg_eff = sum(c.get("efficiency_score", 0) for c in placed_castles) / len(placed_castles) if placed_castles else 0
+
+    scaled_eff_900 = 9 * avg_eff
+    scaled_eff_900 *= 0.9
+    map_eff_component = 900 - scaled_eff_900
+    empty_component_900 = 9 * empty_score_100
+    map_score_900 = round(0.85 * map_eff_component + 0.15 * empty_component_900)
+    map_score_percent = round(100 * map_score_900 / 900, 1)
+
+    # Update config
+    config["map_score_900"] = map_score_900
+    config["map_score_percent"] = map_score_percent
+    config["empty_score_100"] = empty_score_100
+    config["efficiency_avg"] = round(avg_eff, 1)
 
     save_config(config)
 

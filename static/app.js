@@ -190,6 +190,15 @@ function normaliseCastle(castle, index) {
     block_penalty_raw: castle.block_penalty_raw ?? null,
 
     efficiency_score: castle.efficiency_score ?? null,
+
+    // Map score fields
+    map_score_900: castle.map_score_900 ?? null,
+
+    map_score_percent: castle.map_score_percent ?? null,
+
+    empty_score_100: castle.empty_score_100 ?? null,
+
+    efficiency_avg: castle.efficiency_avg ?? null,
   };
 }
 
@@ -241,11 +250,19 @@ async function loadMapData() {
 
       banners: Array.isArray(raw.banners)
         ? raw.banners.map(normaliseBanner)
-        : []
+        : [],
+
+      // Map score fields
+      map_score_900: raw.map_score_900 ?? null,
+      map_score_percent: raw.map_score_percent ?? null,
+      empty_score_100: raw.empty_score_100 ?? null,
+      efficiency_avg: raw.efficiency_avg ?? null,
     };
 
     mapData = config;
     window.mapData = mapData;
+
+    updateMapScoreDisplay();
 
     return true;
   } catch (err) {
@@ -462,6 +479,13 @@ function tdReadonly(value) {
   } else {
     td.textContent = value ?? "—";
   }
+  td.style.opacity = 0.6;
+  return td;
+}
+
+function tdReadonlyNumber(value) {
+  const td = document.createElement("td");
+  td.textContent = value ?? "—";
   td.style.opacity = 0.6;
   return td;
 }
@@ -784,8 +808,8 @@ tr.addEventListener("click", (e) => {
     tr.appendChild(tdReadonly(c.attendance));  // Moved after locked and made read-only
     tr.appendChild(tdReadonly(c.rallies_30min));  // Read-only Rallies/Session
     tr.appendChild(tdReadonly(c.round_trip || "NA"));  // New read-only Round Trip Time (s)
-    tr.appendChild(tdReadonly(c.priority_rank_100));
-    tr.appendChild(tdReadonly(c.efficiency_score));
+    tr.appendChild(tdReadonlyNumber(c.priority_rank_100));
+    tr.appendChild(tdReadonlyNumber(c.efficiency_score));
     tr.appendChild(tdReadonly(c.last_updated ? c.last_updated.toLocaleString() : "Never"));  // Last Updated
     tr.appendChild(tdDelete(c));  // Delete
 
@@ -1286,7 +1310,7 @@ function drawCastle(castle) {
   }
 
   // -------- body --------
-  ctx.fillStyle = efficiencyColor(castle.efficiency ?? 99);
+  ctx.fillStyle = efficiencyColor(castle.efficiency_score ?? 99);
   ctx.fillRect(px + 2, py + 2, size - 4, size - 4);
 
   // -------- border --------
@@ -2355,4 +2379,37 @@ document.getElementById('bulkField').addEventListener('change', updateBulkFieldV
 fetchAndDisplayVersion();
 
 window.Sync = Sync;
+
+// ==========================
+// Map Score Display
+// ==========================
+function updateMapScoreDisplay() {
+  const display = document.getElementById('mapScoreDisplay');
+  if (!display || !mapData) return;
+
+  const score = mapData.map_score_900;
+  const percent = mapData.map_score_percent;
+  const empty = mapData.empty_score_100 ?? "—";
+  const avg = mapData.efficiency_avg ?? "—";
+
+  console.log(`Map Score: ${score} / 900 (${percent}%)<br>Empty Tiles: ${empty} / 100<br>Avg Efficiency: ${avg}`);
+
+  if (score != null && percent != null) {
+    display.innerHTML = `Map Score: ${score} / 900 (${percent}%)<br>Empty Tiles: ${empty} / 100<br>Avg Efficiency: ${avg}`;
+    // Color
+    display.classList.remove('score-good', 'score-warn', 'score-bad');
+    if (percent >= 80) {
+      display.classList.add('score-good');
+    } else if (percent >= 60) {
+      display.classList.add('score-warn');
+    } else {
+      display.classList.add('score-bad');
+    }
+  } else {
+    display.innerHTML = 'Map Score: —';
+    display.classList.remove('score-good', 'score-warn', 'score-bad');
+  }
+}
+
+
 
