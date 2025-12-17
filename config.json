@@ -54,11 +54,11 @@
       "ideal_y": 1,
       "ideal_travel_time": 2,
       "actual_travel_time": 2,
-      "x": 4,
-      "y": 8,
       "regret": 0,
       "block_penalty_raw": 0,
-      "efficiency_score": 0
+      "efficiency_score": 0,
+      "x": 4,
+      "y": 8
     },
     {
       "id": "C18",
@@ -98,11 +98,11 @@
       "ideal_y": 5,
       "ideal_travel_time": 2,
       "actual_travel_time": 2,
-      "x": 5,
-      "y": 1,
       "regret": 0,
       "block_penalty_raw": 0,
-      "efficiency_score": 0
+      "efficiency_score": 0,
+      "x": 5,
+      "y": 1
     },
     {
       "id": "C17",
@@ -142,11 +142,11 @@
       "ideal_y": 6,
       "ideal_travel_time": 2,
       "actual_travel_time": 2,
-      "x": 5,
-      "y": 3,
       "regret": 0,
       "block_penalty_raw": 0,
-      "efficiency_score": 0
+      "efficiency_score": 0,
+      "x": 5,
+      "y": 3
     },
     {
       "id": "C16",
@@ -186,11 +186,11 @@
       "ideal_y": 7,
       "ideal_travel_time": 2,
       "actual_travel_time": 2,
-      "x": 1,
-      "y": 5,
       "regret": 0,
       "block_penalty_raw": 0,
-      "efficiency_score": 0
+      "efficiency_score": 0,
+      "x": 1,
+      "y": 5
     },
     {
       "id": "C15",
@@ -230,11 +230,11 @@
       "ideal_y": 8,
       "ideal_travel_time": 2,
       "actual_travel_time": 2,
-      "x": 3,
-      "y": 5,
       "regret": 0,
       "block_penalty_raw": 0,
-      "efficiency_score": 0
+      "efficiency_score": 0,
+      "x": 3,
+      "y": 5
     },
     {
       "id": "C14",
@@ -274,11 +274,11 @@
       "ideal_y": 1,
       "ideal_travel_time": 2,
       "actual_travel_time": 2,
-      "x": 6,
-      "y": 8,
       "regret": 0,
       "block_penalty_raw": 0,
-      "efficiency_score": 0
+      "efficiency_score": 0,
+      "x": 6,
+      "y": 8
     },
     {
       "id": "C13",
@@ -318,11 +318,11 @@
       "ideal_y": 2,
       "ideal_travel_time": 2,
       "actual_travel_time": 2,
-      "x": 8,
-      "y": 4,
       "regret": 0,
       "block_penalty_raw": 0,
-      "efficiency_score": 0
+      "efficiency_score": 0,
+      "x": 8,
+      "y": 4
     },
     {
       "id": "C12",
@@ -362,11 +362,11 @@
       "ideal_y": 3,
       "ideal_travel_time": 2,
       "actual_travel_time": 2,
-      "x": 8,
-      "y": 6,
       "regret": 0,
       "block_penalty_raw": 0,
-      "efficiency_score": 0
+      "efficiency_score": 0,
+      "x": 8,
+      "y": 6
     },
     {
       "id": "C11",
@@ -406,11 +406,11 @@
       "ideal_y": 4,
       "ideal_travel_time": 2,
       "actual_travel_time": 2,
-      "x": 8,
-      "y": 8,
       "regret": 0,
       "block_penalty_raw": 0,
-      "efficiency_score": 0
+      "efficiency_score": 0,
+      "x": 8,
+      "y": 8
     },
     {
       "id": "C10",
@@ -450,11 +450,11 @@
       "ideal_y": 8,
       "ideal_travel_time": 2,
       "actual_travel_time": 3,
-      "x": 0,
-      "y": 0,
       "regret": 1,
       "block_penalty_raw": 0,
-      "efficiency_score": 1
+      "efficiency_score": 1,
+      "x": 0,
+      "y": 0
     },
     {
       "id": "C9",
@@ -494,11 +494,11 @@
       "ideal_y": 0,
       "ideal_travel_time": 3,
       "actual_travel_time": 3,
-      "x": 0,
-      "y": 2,
       "regret": 0,
       "block_penalty_raw": 0,
-      "efficiency_score": 0
+      "efficiency_score": 0,
+      "x": 0,
+      "y": 2
     },
     {
       "id": "C8",
@@ -538,11 +538,11 @@
       "ideal_y": 9,
       "ideal_travel_time": 3,
       "actual_travel_time": 3,
-      "x": 2,
-      "y": 0,
       "regret": 0,
       "block_penalty_raw": 0,
-      "efficiency_score": 0
+      "efficiency_score": 0,
+      "x": 2,
+      "y": 0
     },
     {
       "id": "C7",
@@ -582,11 +582,11 @@
       "ideal_y": 0,
       "ideal_travel_time": 3,
       "actual_travel_time": 4,
-      "x": 0,
-      "y": 7,
       "regret": 1,
       "block_penalty_raw": 0,
-      "efficiency_score": 1
+      "efficiency_score": 1,
+      "x": 0,
+      "y": 7
     },
     {
       "id": "C6",
@@ -626,11 +626,11 @@
       "ideal_y": 9,
       "ideal_travel_time": 3,
       "actual_travel_time": 4,
-      "x": 2,
-      "y": 7,
       "regret": 1,
       "block_penalty_raw": 0,
-      "efficiency_score": 1
+      "efficiency_score": 1,
+      "x": 2,
+      "y": 7
     },
     {
       "id": "C5",
@@ -670,11 +670,11 @@
       "ideal_y": 1,
       "ideal_travel_time": 2,
       "actual_travel_time": 4,
-      "x": 7,
-      "y": 0,
       "regret": 2,
       "block_penalty_raw": 0,
-      "efficiency_score": 2
+      "efficiency_score": 2,
+      "x": 7,
+      "y": 0
     },
     {
       "id": "C4",
@@ -714,11 +714,11 @@
       "ideal_y": 2,
       "ideal_travel_time": 2,
       "actual_travel_time": 4,
-      "x": 7,
-      "y": 2,
       "regret": 2,
       "block_penalty_raw": 0,
-      "efficiency_score": 2
+      "efficiency_score": 2,
+      "x": 7,
+      "y": 2
     },
     {
       "id": "C3",
