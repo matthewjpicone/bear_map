@@ -676,8 +676,9 @@ function renderCastleTable() {
 
     tr.addEventListener("mouseenter", (e) => {
       hoveredCastleId = c.id;
-      // Show tooltip immediately on table hover (no delay for better UX in table context)
-      // Canvas tooltips have 1500ms delay to avoid accidental triggers
+      // Show tooltip immediately on table hover for better UX
+      // Table context: User intentionally hovering over specific row to read data
+      // Canvas context: 1500ms delay prevents accidental triggers during map navigation
       showCastleTooltip(c, e.clientX, e.clientY);
     });
     tr.addEventListener("mouseleave", () => {
@@ -1926,7 +1927,7 @@ function onMouseMovePan(e) {
         // Set timer to show tooltip after TOOLTIP_DELAY_MS
         tooltipTimer = setTimeout(() => {
           showCastleTooltip(hoveredCastle, e.clientX, e.clientY);
-          // Clear timer reference to prevent memory leaks and ensure proper state management
+          // Clear timer reference for state management (indicates no timer is active)
           tooltipTimer = null;
         }, TOOLTIP_DELAY_MS);
       } else if (isTooltipVisible) {
