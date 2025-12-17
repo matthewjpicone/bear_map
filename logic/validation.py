@@ -88,6 +88,21 @@ def is_within_bounds(
     return 0 <= x <= grid_size - width and 0 <= y <= grid_size - height
 
 
+def rectangles_overlap(x1, y1, w1, h1, x2, y2, w2, h2):
+    """Check if two rectangles overlap.
+
+    Args:
+        x1, y1: Top-left of first rectangle
+        w1, h1: Width and height of first rectangle
+        x2, y2: Top-left of second rectangle
+        w2, h2: Width and height of second rectangle
+
+    Returns:
+        True if they overlap, False otherwise
+    """
+    return not (x1 + w1 <= x2 or x2 + w2 <= x1 or y1 + h1 <= y2 or y2 + h2 <= y1)
+
+
 def check_castle_overlap(
     x: int, y: int, castles: List[Dict], exclude_id: Optional[str] = None
 ) -> Tuple[bool, Optional[str]]:
@@ -145,13 +160,13 @@ def check_banner_overlap(
 def check_bear_trap_overlap(
     x: int, y: int, bear_traps: List[Dict], banners: List[Dict], exclude_id: Optional[str] = None
 ) -> Tuple[bool, Optional[str]]:
-    """Check if a bear trap at (x, y) overlaps with another bear trap or banner.
+    """Check if a 3x3 bear trap at (x, y) overlaps with other bear traps or banners.
 
-    Bears can overlap castles but not banners.
+    Bears can overlap castles but not banners or other bears.
 
     Args:
-        x: X coordinate.
-        y: Y coordinate.
+        x: X coordinate of bear trap (center).
+        y: Y coordinate of bear trap (center).
         bear_traps: List of bear trap dictionaries.
         banners: List of banner dictionaries.
         exclude_id: Bear trap ID to exclude from overlap check.
@@ -159,23 +174,24 @@ def check_bear_trap_overlap(
     Returns:
         Tuple of (has_overlap, overlapping_entity_id).
     """
-    # Check against other bear traps
-    for trap in bear_traps:
-        if exclude_id and trap.get("id") == exclude_id:
-            continue
-        tx, ty = trap.get("x"), trap.get("y")
-        if tx is None or ty is None:
-            continue
-        if x == tx and y == ty:
-            return True, trap.get("id")
+    # Bear occupies 3x3 from (x-1, y-1) to (x+1, y+1)
+    bear_x1, bear_y1 = x - 1, y - 1
 
-    # Check against banners (1x1)
+    for bear in bear_traps:
+        if exclude_id and bear.get("id") == exclude_id:
+            continue
+        bx, by = bear.get("x"), bear.get("y")
+        if bx is not None and by is not None:
+            # Other bear occupies 3x3 from (bx-1, by-1) to (bx+1, by+1)
+            if rectangles_overlap(bear_x1, bear_y1, 3, 3, bx - 1, by - 1, 3, 3):
+                return True, bear["id"]
+
     for banner in banners:
         bx, by = banner.get("x"), banner.get("y")
-        if bx is None or by is None:
-            continue
-        if x == bx and y == by:
-            return True, banner.get("id")
+        if bx is not None and by is not None:
+            # Banner is 1x1 at (bx, by)
+            if rectangles_overlap(bear_x1, bear_y1, 3, 3, bx, by, 1, 1):
+                return True, banner["id"]
 
     return False, None
 
@@ -188,28 +204,68 @@ def check_castle_overlap_with_entities(
     Castles cannot overlap with bears or banners.
 
     Args:
-        x: X coordinate of castle.
-        y: Y coordinate of castle.
+        x: X coordinate of castle (top-left).
+        y: Y coordinate of castle (top-left).
         bear_traps: List of bear trap dictionaries.
         banners: List of banner dictionaries.
 
     Returns:
         Tuple of (has_overlap, overlapping_entity_id).
     """
-    # Check against bear traps (1x1 within 2x2 area)
+    for bear in bear_traps:
+        bx, by = bear.get("x"), bear.get("y")
+        if bx is not None and by is not None:
+            # Bear occupies 3x3 from (bx-1, by-1) to (bx+1, by+1)
+            if rectangles_overlap(x, y, 2, 2, bx - 1, by - 1, 3, 3):
+                return True, bear["id"]
+
+    for banner in banners:
+        bx, by = banner.get("x"), banner.get("y")
+        if bx is not None and by is not None:
+            # Banner is 1x1 at (bx, by)
+            if rectangles_overlap(x, y, 2, 2, bx, by, 1, 1):
+                return True, banner["id"]
+
+    return False, None
+
+
+def check_bear_trap_overlap_with_entities(
+    x: int, y: int, bear_traps: List[Dict], banners: List[Dict], exclude_id: Optional[str] = None
+) -> Tuple[bool, Optional[str]]:
+    """Check if a 3x3 bear trap at (x, y) overlaps with any other bear traps or banners.
+
+    Args:
+        x: X coordinate of bear trap.
+        y: Y coordinate of bear trap.
+        bear_traps: List of bear trap dictionaries.
+        banners: List of banner dictionaries.
+        exclude_id: Bear trap ID to exclude from overlap check.
+
+    Returns:
+        Tuple of (has_overlap, overlapping_entity_id).
+    """
+    # Bear trap occupies 3x3 from (x-1, y-1) to (x+1, y+1)
+    bear_trap_x1, bear_trap_y1 = x - 1, y - 1
+
+    # Check against other bear traps
     for trap in bear_traps:
+        if exclude_id and trap.get("id") == exclude_id:
+            continue
         tx, ty = trap.get("x"), trap.get("y")
         if tx is None or ty is None:
             continue
-        if x <= tx < x + 2 and y <= ty < y + 2:
+        # Other bear trap occupies 3x3 from (tx-1, ty-1) to (tx+1, ty+1)
+        if rectangles_overlap(bear_trap_x1, bear_trap_y1, 3, 3, tx - 1, ty - 1, 3, 3):
             return True, trap.get("id")
 
-    # Check against banners (1x1 within 2x2 area)
+    # Check against banners (1x1)
     for banner in banners:
         bx, by = banner.get("x"), banner.get("y")
         if bx is None or by is None:
             continue
-        if x <= bx < x + 2 and y <= by < y + 2:
+        # Banner is 1x1 at (bx, by)
+        if rectangles_overlap(bear_trap_x1, bear_trap_y1, 3, 3, bx, by, 1, 1):
             return True, banner.get("id")
 
     return False, None
+

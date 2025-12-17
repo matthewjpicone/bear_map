@@ -563,7 +563,7 @@ function isPointInEntity(gx, gy, entity) {
 //
 //       if (va instanceof Date && vb instanceof Date) return (va.getTime() - vb.getTime()) * (castleSort.asc ? 1 : -1);  // Handle dates
 //       if (typeof va === "boolean") return (va === vb ? 0 : va ? 1 : -1) * (castleSort.asc ? 1 : -1);
-//       if (typeof va === "number") return (va - vb) * (castleSort.asc ? 1 : -1);
+//       if (typeof va === "number" ) return (va - vb) * (castleSort.asc ? 1 : -1);
 //       return va.toString().localeCompare(vb.toString()) * (castleSort.asc ? 1 : -1);
 //     });
 //   }
@@ -1417,6 +1417,19 @@ function onMouseUp() {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ id: c.id, x, y })
+    })
+    .then(response => response.json())
+    .then(data => {
+      console.log("Castle move response:", data);
+      if (!data.success) {
+        ToastManager.show(data.message || data.error || "Move failed", null, "error", "error");
+      } else {
+        ToastManager.show("Castle moved successfully", null, "success", "success");
+      }
+    })
+    .catch(err => {
+      console.error("Move castle failed:", err);
+      ToastManager.show("Move failed due to network error", null, "error", "error");
     });
 
     Sync.unmarkBusy(c.id);
@@ -1434,6 +1447,18 @@ function onMouseUp() {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ id: b.id, x, y })
+    })
+    .then(response => response.json())
+    .then(data => {
+      if (!data.success) {
+        ToastManager.show(data.message || data.error || "Move failed", null, "error", "error");
+      } else {
+        ToastManager.show("Banner moved successfully", null, "success", "success");
+      }
+    })
+    .catch(err => {
+      console.error("Move banner failed:", err);
+      ToastManager.show("Move failed due to network error", null, "error", "error");
     });
 
     Sync.unmarkBusy(b.id);
@@ -1451,6 +1476,18 @@ function onMouseUp() {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ id: bear.id, x, y })
+    })
+    .then(response => response.json())
+    .then(data => {
+      if (!data.success) {
+        ToastManager.show(data.message || data.error || "Placement failed", null, "error");
+      } else {
+        ToastManager.show("Bear trap placed successfully", null, "success", "success");
+      }
+    })
+    .catch(err => {
+      console.error("Move bear trap failed:", err);
+      ToastManager.show("Placement failed due to network error", null, "error");
     });
 
     Sync.unmarkBusy(bear.id);
@@ -1461,11 +1498,11 @@ function onMouseUp() {
 //   if (draggingCastle) {
 //     const c = draggingCastle;
 //     draggingCastle = null;
-//
+
 //     // snap to integers ONLY for visuals
 //     const x = Math.round(c.x);
 //     const y = Math.round(c.y);
-//
+
 //     fetch("/api/intent/move_castle", {
 //       method: "POST",
 //       headers: { "Content-Type": "application/json" },
@@ -1478,17 +1515,17 @@ function onMouseUp() {
 //       headers: { "Content-Type": "application/json" },
 //       body: JSON.stringify({ id: c.id })
 //     }).catch(err => console.error("Failed to unmark busy:", err));
-//
+
 //     return;
 //   }
-//
+
 //   if (draggingBanner) {
 //     const b = draggingBanner;
 //     draggingBanner = null;
-//
+
 //     const x = Math.round(b.x);
 //     const y = Math.round(b.y);
-//
+
 //     fetch("/api/intent/move_banner", {
 //       method: "POST",
 //       headers: { "Content-Type": "application/json" },
@@ -1501,17 +1538,17 @@ function onMouseUp() {
 //       headers: { "Content-Type": "application/json" },
 //       body: JSON.stringify({ id: b.id })
 //     }).catch(err => console.error("Failed to unmark busy:", err));
-//
+
 //     return;
 //   }
-//
+
 //   if (draggingBear) {
 //     const bear = draggingBear;
 //     draggingBear = null;
-//
+
 //     const x = Math.round(bear.x);
 //     const y = Math.round(bear.y);
-//
+
 //     fetch("/api/intent/move_bear_trap", {
 //       method: "POST",
 //       headers: { "Content-Type": "application/json" },
@@ -1523,73 +1560,73 @@ function onMouseUp() {
 //       method: "POST",
 //       headers: { "Content-Type": "application/json" },
 //       body: JSON.stringify({ id: bear.id })
-//     }).catch(err => console.error("Failed to unmark busy:", err));
-//
+//     }).catch(err => console.error("Failed to unmark busy", err));
+
 //     return;
 //   }
 // }
-// function onMouseDown(e) {
-//   if (!mapData) return;
-//   if (draggingCastle || draggingBear || draggingBanner) return;
-//
-//   const rect = canvas.getBoundingClientRect();
-//   const mouseCanvasX = e.clientX - rect.left;
-//   const mouseCanvasY = e.clientY - rect.top;
-//   const { x, y } = screenToGrid(mouseCanvasX, mouseCanvasY);
-//
-//   // Simple debug log
-//   console.log(`Mouse: (${mouseCanvasX}, ${mouseCanvasY}), Grid: (${x}, ${y}), Zoom: ${viewZoom}`);
-//
-//   // ---- CASTLES FIRST ----
-//   for (let castle of mapData.castles || []) {
-//     if (castle.x == null || castle.y == null) continue;
-//     if (isPointInEntity(x, y, castle)) {
-//       if (castle.locked) return;
-//       if (window.remoteBusy?.has(castle.id)) return;
-//
-//       draggingCastle = castle;
-//       castle._original = { x: castle.x, y: castle.y };
-//       castle._grab = { dx: x - castle.x, dy: y - castle.y };
-//
-//       drawMap(mapData);
-//       return;
-//     }
-//   }
-//
-//   // ---- THEN BANNERS ----
-//   for (let banner of mapData.banners || []) {
-//     if (isPointInEntity(x, y, banner)) {
-//       if (banner.locked) return;
-//       if (window.remoteBusy?.has(banner.id)) return;
-//
-//       draggingBanner = banner;
-//       banner._original = { x: banner.x, y: banner.y };
-//
-//       drawMap(mapData);
-//       return;
-//     }
-//   }
-//
-//   // ---- THEN BEARS ----
-//   for (let bear of mapData.bear_traps || []) {
-//     if (isPointInEntity(x, y, bear)) {
-//       if (bear.locked) return;
-//       if (window.remoteBusy?.has(bear.id)) return;
-//
-//       draggingBear = bear;
-//       bear._original = { x: bear.x, y: bear.y };
-//
-//       drawMap(mapData);
-//       return;
-//     }
-//   }
-//
-//   // If no entity hit, start panning
-//   isPanning = true;
-//   lastPanX = e.clientX;
-//   lastPanY = e.clientY;
-//   canvas.style.cursor = 'grabbing';
-// }
+function onMouseDown(e) {
+  if (!mapData) return;
+  if (draggingCastle || draggingBear || draggingBanner) return;
+
+  const rect = canvas.getBoundingClientRect();
+  const mouseCanvasX = e.clientX - rect.left;
+  const mouseCanvasY = e.clientY - rect.top;
+  const { x, y } = screenToGrid(mouseCanvasX, mouseCanvasY);
+
+  // Simple debug log
+  console.log(`Mouse: (${mouseCanvasX}, ${mouseCanvasY}), Grid: (${x}, ${y}), Zoom: ${viewZoom}`);
+
+  // ---- CASTLES FIRST ----
+  for (let castle of mapData.castles || []) {
+    if (castle.x == null || castle.y == null) continue;
+    if (isPointInEntity(x, y, castle)) {
+      if (castle.locked) return;
+      if (window.remoteBusy?.has(castle.id)) return;
+
+      draggingCastle = castle;
+      castle._original = { x: castle.x, y: castle.y };
+      castle._grab = { dx: x - castle.x, dy: y - castle.y };
+
+      drawMap(mapData);
+      return;
+    }
+  }
+
+  // ---- THEN BANNERS ----
+  for (let banner of mapData.banners || []) {
+    if (isPointInEntity(x, y, banner)) {
+      if (banner.locked) return;
+      if (window.remoteBusy?.has(banner.id)) return;
+
+      draggingBanner = banner;
+      banner._original = { x: banner.x, y: banner.y };
+
+      drawMap(mapData);
+      return;
+    }
+  }
+
+  // ---- THEN BEARS ----
+  for (let bear of mapData.bear_traps || []) {
+    if (isPointInEntity(x, y, bear)) {
+      if (bear.locked) return;
+      if (window.remoteBusy?.has(bear.id)) return;
+
+      draggingBear = bear;
+      bear._original = { x: bear.x, y: bear.y };
+
+      drawMap(mapData);
+      return;
+    }
+  }
+
+  // If no entity hit, start panning
+  isPanning = true;
+  lastPanX = e.clientX;
+  lastPanY = e.clientY;
+  canvas.style.cursor = 'grabbing';
+}
 
 function onMouseMove(e) {
     if (!mapData) return;
@@ -1652,59 +1689,6 @@ function onMouseMove(e) {
     }
 }
 
-// function onMouseUp() {
-//     if (draggingCastle) {
-//         const c = draggingCastle;
-//         draggingCastle = null;
-//
-//         // snap to integers ONLY for visuals
-//         const x = Math.round(c.x);
-//         const y = Math.round(c.y);
-//
-//         fetch("/api/intent/move_castle", {
-//             method: "POST",
-//             headers: { "Content-Type": "application/json" },
-//             body: JSON.stringify({ id: c.id, x, y })
-//         });
-//
-//         Sync.unmarkBusy(c.id);
-//         return;
-//     }
-//
-//     if (draggingBanner) {
-//         const b = draggingBanner;
-//         draggingBanner = null;
-//
-//         const x = Math.round(b.x);
-//         const y = Math.round(b.y);
-//
-//         fetch("/api/intent/move_banner", {
-//             method: "POST",
-//             headers: { "Content-Type": "application/json" },
-//             body: JSON.stringify({ id: b.id, x, y })
-//         });
-//
-//         Sync.unmarkBusy(b.id);
-//         return;
-//     }
-//
-//     if (draggingBear) {
-//         const bear = draggingBear;
-//         draggingBear = null;
-//
-//         const x = Math.round(bear.x);
-//         const y = Math.round(bear.y);
-//
-//         fetch("/api/intent/move_bear_trap", {
-//             method: "POST",
-//             headers: { "Content-Type": "application/json" },
-//             body: JSON.stringify({ id: bear.id, x, y })
-//         });
-//
-//         Sync.unmarkBusy(bear.id);
-//         return;
-//     }
-// }
 
 function onCanvasContextMenu(e) {
     e.preventDefault();
@@ -2479,3 +2463,4 @@ document.getElementById('bulkField').addEventListener('change', updateBulkFieldV
 fetchAndDisplayVersion();
 
 window.Sync = Sync;
+

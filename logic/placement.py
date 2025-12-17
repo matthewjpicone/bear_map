@@ -11,7 +11,7 @@ Date: 2025-12-17
 from typing import List, Dict, Tuple
 
 from .config import load_config, save_config
-from .validation import is_within_bounds, check_castle_overlap, check_castle_overlap_with_entities
+from .validation import is_within_bounds, check_castle_overlap, check_castle_overlap_with_entities, rectangles_overlap
 
 
 async def auto_place_castles() -> Dict[str, int]:
@@ -281,14 +281,14 @@ def push_castles_away_from_bear(
     Returns:
         Tuple of (success, error_message). If success is False, error_message explains why.
     """
-    # Find castles that would overlap with the bear position (1x1)
+    # Find castles that would overlap with the bear position (3x3)
     overlapping_castles = []
     for castle in castles:
         cx, cy = castle.get("x"), castle.get("y")
         if cx is None or cy is None:
             continue
-        # Check if bear position is within the castle's 2x2 area
-        if cx <= bear_x < cx + 2 and cy <= bear_y < cy + 2:
+        # Check if 2x2 castle overlaps with 3x3 bear
+        if rectangles_overlap(cx, cy, 2, 2, bear_x - 1, bear_y - 1, 3, 3):
             overlapping_castles.append(castle)
 
     # Check if any overlapping castles are locked

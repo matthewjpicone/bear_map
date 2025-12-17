@@ -13,7 +13,7 @@ from typing import Any, Dict
 from fastapi import APIRouter, Body, HTTPException
 
 from logic.config import load_config, save_config
-from logic.validation import is_within_bounds, check_castle_overlap, check_bear_trap_overlap
+from logic.validation import is_within_bounds, check_bear_trap_overlap
 from logic.placement import auto_place_castles
 from server.broadcast import notify_config_updated, busy_set
 
@@ -75,7 +75,7 @@ async def move_castle(data: Dict[str, Any] = Body(...)):
     if has_overlap:
         # Revert to original position and show error
         await notify_config_updated()  # Ensure frontend is in sync
-        return {"success": False, "error": "Move failed: overlaps with bear trap or banner", "message": "move failed"}
+        return {"success": False, "error": "Move failed: overlaps with bear trap or banner", "message": "Move failed: position overlaps with an existing bear trap or banner"}
 
     # Check for overlaps with other castles and push them if needed
     from logic.placement import push_castles_outward
@@ -203,8 +203,8 @@ async def move_bear_trap(data: Dict[str, Any] = Body(...)):
     if bear_trap.get("locked", False):
         raise HTTPException(403, "Bear trap is locked")
 
-    # Validate bounds (1x1 bear trap)
-    if not is_within_bounds(x, y, grid_size, width=1, height=1):
+    # Validate bounds (3x3 bear trap)
+    if not is_within_bounds(x, y, grid_size, width=3, height=3):
         raise HTTPException(400, "Position out of bounds")
 
     # Check for overlaps (bears can overlap castles but not banners or other bears)
@@ -219,7 +219,7 @@ async def move_bear_trap(data: Dict[str, Any] = Body(...)):
     push_success, push_error = push_castles_away_from_bear(x, y, castles, grid_size, bear_traps, banners)
     if not push_success:
         await notify_config_updated()  # Ensure frontend is in sync
-        return {"success": False, "error": push_error, "message": "placement failed"}
+        return {"success": False, "error": push_error, "message": "Can't place bear trap - it would overlap with a locked castle"}
 
     # Resolve any cascading collisions
     from logic.placement import resolve_map_collisions

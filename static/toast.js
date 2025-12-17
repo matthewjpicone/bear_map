@@ -54,8 +54,10 @@ const ToastManager = (() => {
    * @param {string} message - The main message to display
    * @param {string} userId - The ID of the user who triggered the action
    * @param {string} actionType - The type of action (e.g., 'moved', 'locked', 'edited')
+   * @param {string} type - The type of toast ('info', 'success', 'error', 'warning')
    */
-  function show(message, userId = null, actionType = null) {
+  function show(message, userId = null, actionType = null, type = 'info') {
+    console.log("ToastManager.show called with:", message, userId, actionType, type);
     const container = document.getElementById("toastContainer");
     if (!container) {
       console.warn("Toast container not found");
@@ -63,7 +65,7 @@ const ToastManager = (() => {
     }
 
     const toast = document.createElement("div");
-    toast.className = "toast";
+    toast.className = `toast toast-${type}`;
 
     // Build toast content
     let content = "";
