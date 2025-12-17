@@ -2395,7 +2395,7 @@ function updateMapScoreDisplay() {
   console.log(`Map Score: ${score} / 900 (${percent}%)<br>Empty Tiles: ${empty} / 100<br>Avg Efficiency: ${avg}`);
 
   if (score != null && percent != null) {
-    display.innerHTML = `Map Score: ${score} / 900 (${percent}%)<br>Empty Tiles: ${empty} / 100<br>Avg Efficiency: ${avg}`;
+    display.innerHTML = `Map Score: ${score} / 900 (${percent}%)<br>Tile Waste Efficiency: ${empty} / 100<br>Avg Efficiency Score: ${avg}`;
     // Color
     display.classList.remove('score-good', 'score-warn', 'score-bad');
     if (percent >= 80) {
