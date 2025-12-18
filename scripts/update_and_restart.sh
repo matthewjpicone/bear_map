@@ -36,6 +36,14 @@ else
     exit 1
 fi
 
+# Update version file from git tags and package.json
+log_message "Syncing version information..."
+if python3 scripts/update_version.py; then
+    log_message "Successfully synced version"
+else
+    log_message "WARNING: Failed to sync version, continuing anyway"
+fi
+
 # Update Python dependencies
 if [ ! -f "$VENV_PIP" ]; then
     log_message "ERROR: Virtual environment pip not found: $VENV_PIP"
