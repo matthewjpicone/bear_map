@@ -11,3 +11,5 @@ config.json
 *.pyc
 *.pyc
 /__pycache__
+venv/
+.venv/

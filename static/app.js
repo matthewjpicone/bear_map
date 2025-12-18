@@ -1,6 +1,10 @@
 // ==========================
 // State variables
 // ==========================
+// Detect render mode from query parameter
+const urlParams = new URLSearchParams(window.location.search);
+const isRenderMode = urlParams.get('render') === '1';
+
 let draggingBear = null;        // mouse interaction only
 let draggingCastle = null;     // mouse interaction only
 let draggingBanner = null;
@@ -123,12 +127,67 @@ function initSSE() {
   renderCastleTable();
   drawMap(mapData);
 
+  // In render mode, skip SSE and WebSocket, just render and signal done
+  if (isRenderMode) {
+    window.__MAP_RENDER_DONE__ = true;
+    return;
+  }
+
   initSSE();
 
   if (window.Sync?.init) {
     Sync.init();
   }
 })();
+
+// ==========================
+// Export function for server-side rendering
+// ==========================
+window.renderMapForExport = function(data) {
+  if (!data) {
+    console.error("No map data provided to renderMapForExport");
+    return;
+  }
+  
+  // Normalize the data
+  const config = {
+    grid_size: Number(data.grid_size) || 0,
+    
+    efficiency_scale: Array.isArray(data.efficiency_scale) 
+      ? data.efficiency_scale 
+      : FALLBACK_EFFICIENCY_SCALE,
+    
+    bear_traps: Array.isArray(data.bear_traps)
+      ? data.bear_traps.map(normaliseBear)
+      : [],
+    
+    castles: Array.isArray(data.castles)
+      ? data.castles.map(normaliseCastle)
+      : [],
+    
+    banners: Array.isArray(data.banners)
+      ? data.banners.map(normaliseBanner)
+      : [],
+    
+    map_score_900: data.map_score_900 ?? null,
+    map_score_percent: data.map_score_percent ?? null,
+    empty_score_100: data.empty_score_100 ?? null,
+    efficiency_avg: data.efficiency_avg ?? null,
+  };
+  
+  mapData = config;
+  window.mapData = mapData;
+  
+  // Center the rotated grid
+  viewOffsetX = 0;
+  viewOffsetY = (mapData.grid_size * TILE_SIZE) * (Math.SQRT2 / 2);
+  
+  // Draw the map
+  drawMap(mapData);
+  
+  // Signal that rendering is complete
+  window.__MAP_RENDER_DONE__ = true;
+};
 
 // ==========================
 // Normalisation functions
@@ -994,6 +1053,11 @@ function getAnimatedPosition(entity) {
     return { x: entity?.x, y: entity?.y };
   }
   
+  // In render mode, disable animations
+  if (isRenderMode) {
+    return { x: entity.x, y: entity.y };
+  }
+  
   const anim = animationState.get(entity.id);
   if (!anim) {
     return { x: entity.x, y: entity.y };
@@ -1017,9 +1081,15 @@ function drawMap(data) {
   const size = data.grid_size ?? 0;
   if (size <= 0) return;
 
-  const container = canvas.parentElement;
-  canvas.width = container.clientWidth;
-  canvas.height = container.clientHeight;
+  // In render mode, use fixed canvas size
+  if (isRenderMode) {
+    canvas.width = 1600;
+    canvas.height = 1600;
+  } else {
+    const container = canvas.parentElement;
+    canvas.width = container.clientWidth;
+    canvas.height = container.clientHeight;
+  }
 
   ctx.clearRect(0, 0, canvas.width, canvas.height);
 

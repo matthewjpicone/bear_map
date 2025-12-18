@@ -20,6 +20,7 @@ from server.routes import router as routes_router
 from server.castles import router as castles_router
 from server.intents import router as intents_router
 from server.webhook import router as webhook_router
+from server.export import router as export_router
 from server.broadcast import subscribers
 
 # Load environment variables
@@ -33,6 +34,7 @@ app.include_router(routes_router)
 app.include_router(castles_router)
 app.include_router(intents_router)
 app.include_router(webhook_router)
+app.include_router(export_router)
 
 # ============================================================
 # SSE Endpoint
@@ -67,3 +69,13 @@ async def stream(request: Request):
 # ============================================================
 
 app.mount("/static", StaticFiles(directory="static"), name="static")
+
+# ============================================================
+# Shutdown cleanup
+# ============================================================
+
+@app.on_event("shutdown")
+async def shutdown_event():
+    """Cleanup resources on shutdown."""
+    from server.export import cleanup_browser
+    await cleanup_browser()
