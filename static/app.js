@@ -49,6 +49,23 @@ let hoveredCastleId = null;
 
 const canvas = document.getElementById("map");
 if (!canvas) throw new Error("Canvas #map not found");
+
+// ==========================
+// Toast Notification Helper
+// ==========================
+/**
+ * Simple wrapper for showing toast notifications
+ * @param {string} message - The message to display
+ * @param {string} type - Type: 'success', 'error', 'warning', 'info' (default: 'info')
+ */
+function showToast(message, type = 'info') {
+  if (window.ToastManager) {
+    ToastManager.show(message, null, null, type);
+  } else {
+    console.warn('ToastManager not available, falling back to alert:', message);
+    alert(message);
+  }
+}
 const ctx = canvas.getContext("2d");
 
 const TILE_SIZE = 40;
@@ -1380,6 +1397,11 @@ function renderEfficiencyLegend() {
 
     container.innerHTML = "";
 
+    // Add heading
+    const heading = document.createElement("h3");
+    heading.textContent = "Placement Suitability";
+    container.appendChild(heading);
+
     mapData.efficiency_scale.forEach(tier => {
         const row = document.createElement("div");
         row.className = "legend-row";
@@ -1957,28 +1979,101 @@ document
         }
     });
 
+document
+    .getElementById("sendToR4Btn")
+    .addEventListener("click", async () => {
+        try {
+            const response = await fetch('/api/send_map_to_discord', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ channel: 'r4', message: 'Please review updated map' })
+            });
+            if (!response.ok) throw new Error('Send failed');
+            showToast('Map sent to R4 on Discord! ✅', 'success');
+        } catch (error) {
+            console.error('Error sending map to Discord:', error);
+            showToast('Failed to send map to Discord', 'error');
+        }
+    });
+
+document
+    .getElementById("sendToAnnouncementsBtn")
+    .addEventListener("click", async () => {
+        try {
+            const response = await fetch('/api/send_map_to_discord', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ channel: 'announcements', message: 'New map available! Please carefully review the updated positions and make your way to your designated location when able.' })
+            });
+            if (!response.ok) throw new Error('Send failed');
+            showToast('Map published to Announcements! ✅', 'success');
+        } catch (error) {
+            console.error('Error publishing map to Discord:', error);
+            showToast('Failed to publish map to Discord', 'error');
+        }
+    });
+
+// ==========================
+// Bulk Operation Modal State
+// ==========================
+let pendingBulkOperation = null;
+
+/**
+ * Show bulk operation confirmation modal
+ * @param {string} operationType - 'autoplace' or 'moveaway'
+ * @param {string} title - Modal title
+ * @param {string} message - Modal message
+ */
+function showBulkOperationModal(operationType, title, message) {
+  pendingBulkOperation = operationType;
+  document.getElementById('bulkOperationTitle').textContent = title;
+  document.getElementById('bulkOperationMessage').textContent = message;
+  document.getElementById('bulkOperationModal').style.display = 'block';
+}
+
+function closeBulkOperationModal() {
+  document.getElementById('bulkOperationModal').style.display = 'none';
+  pendingBulkOperation = null;
+}
+
+// Modal button event listeners
+document.getElementById('cancelBulkOperation')?.addEventListener('click', closeBulkOperationModal);
+
+document.getElementById('confirmBulkOperation')?.addEventListener('click', async () => {
+  closeBulkOperationModal();
+
+  try {
+    if (pendingBulkOperation === 'autoplace') {
+      const response = await fetch('/api/auto_place_castles', { method: 'POST' });
+      if (!response.ok) throw new Error('Auto-place failed');
+      showToast('Auto-placing castles... 🚀', 'success');
+    } else if (pendingBulkOperation === 'moveaway') {
+      const response = await fetch('/api/move_all_out_of_way', { method: 'POST' });
+      if (!response.ok) throw new Error('Move all out of way failed');
+      showToast('Moving castles out of the way... 🚀', 'success');
+    }
+  } catch (error) {
+    console.error('Error performing bulk operation:', error);
+    showToast('Operation failed: ' + error.message, 'error');
+  }
+});
+
 document.getElementById("autoPlaceBtn")
     ?.addEventListener("click", async () => {
-        try {
-            const response = await fetch('/api/auto_place_castles', { method: 'POST' });
-            if (!response.ok) throw new Error('Auto-place failed');
-            // Server will handle placement, recompute, and broadcast updates/redraws
-        } catch (error) {
-            console.error('Error auto-placing castles:', error);
-            alert('Failed to auto-place castles');
-        }
+        showBulkOperationModal(
+          'autoplace',
+          'Auto-Place Castles',
+          'This will automatically place all unlocked castles in optimal positions based on priority and efficiency.'
+        );
     });
 
 document.getElementById("moveAllOutOfWayBtn")
     ?.addEventListener("click", async () => {
-        try {
-            const response = await fetch('/api/move_all_out_of_way', { method: 'POST' });
-            if (!response.ok) throw new Error('Move all out of way failed');
-            // Server will handle moving castles and broadcast updates
-        } catch (error) {
-            console.error('Error moving all out of way:', error);
-            alert('Failed to move all out of way');
-        }
+        showBulkOperationModal(
+          'moveaway',
+          'Move All Out of Way',
+          'This will move all unlocked castles to the edge of the map to clear space for other placements.'
+        );
     });
 
 document

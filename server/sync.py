@@ -248,6 +248,7 @@ async def websocket_endpoint(ws: WebSocket):
                 existing = soft_locks.get(obj_id)
 
                 # Someone else owns a valid lock
+
                 if existing and existing["owner"] is not ws:
                     continue
 

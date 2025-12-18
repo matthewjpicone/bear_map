@@ -35,6 +35,8 @@
         <button id="autoPlaceBtn">Auto Place Castles</button>
         <button id="moveAllOutOfWayBtn">Move All Out of Way</button>
         <button id="downloadBtn">Download Map</button>
+        <button id="sendToR4Btn">Send to R4 on Discord</button>
+        <button id="sendToAnnouncementsBtn">Publish to Announcements</button>
         <label class="grid-toggle">
           <input type="checkbox" id="gridToggle" checked aria-label="Toggle grid visibility">
           <span>Show Grid</span>
@@ -43,7 +45,9 @@
       </div>
 
       <div class="canvas-wrap">
-        <div id="efficiencyLegend" class="efficiency-legend"></div>
+        <div id="efficiencyLegend" class="efficiency-legend">
+
+        </div>
         <canvas id="map" width="1600" height="1600" aria-label="Interactive map for castle placement"></canvas>
       </div>
     </div>
@@ -147,6 +151,19 @@
 <footer>
   © 2025 Matthew Picone — All rights reserved | <span id="appVersion">Loading version...</span>
 </footer>
+
+<!-- Bulk Operation Confirmation Modal -->
+<div id="bulkOperationModal" style="display: none; position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); background: var(--panel); border: 1px solid var(--border); padding: 20px; z-index: 10; border-radius: 8px; max-width: 400px;">
+  <h3 id="bulkOperationTitle">Confirm Operation</h3>
+  <p id="bulkOperationMessage">Are you sure you want to perform this bulk operation?</p>
+  <div style="background: var(--surface); border-left: 4px solid var(--accent); padding: 12px; margin: 15px 0; border-radius: 4px;">
+    <strong>⚠️ Important:</strong> Any castles you want to keep in their current positions should be <strong>locked</strong> before proceeding. Only unlocked castles will be moved.
+  </div>
+  <div style="margin-top: 20px; text-align: right;">
+    <button id="cancelBulkOperation" style="margin-right: 10px;">Cancel</button>
+    <button id="confirmBulkOperation" style="background: var(--accent); color: white;">Proceed</button>
+  </div>
+</div>
 
 <!-- Delete Modal -->
 <div id="deleteModal" style="display: none; position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); background: var(--panel); border: 1px solid var(--border); padding: 20px; z-index: 10; border-radius: 8px;">

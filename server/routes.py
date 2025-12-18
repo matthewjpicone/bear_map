@@ -18,10 +18,17 @@ import math
 
 from fastapi import APIRouter, UploadFile, File
 from fastapi.responses import HTMLResponse, FileResponse, StreamingResponse
+from pydantic import BaseModel
 from PIL import Image, ImageDraw
 
 from logic.config import load_config, save_config
 from logic.scoring import compute_priority, compute_efficiency
+
+
+class DiscordMapRequest(BaseModel):
+    """Request model for sending map to Discord."""
+    channel: str
+    message: str
 
 
 TILE_SIZE = 40
@@ -57,44 +64,6 @@ def efficiency_color(value):
         if value <= tier["max"]:
             return tier["color"]
     return efficiency_scale[-1]["color"]
-
-
-def grid_to_screen_img(gx, gy, zoom, offsetX, offsetY, canvas_w, canvas_h):
-    """Convert grid coordinates to screen coordinates matching app.js.
-
-    Applies transformations in exact order:
-    1. translate(centerX, centerY)
-    2. scale(zoom, zoom)
-    3. translate(-offsetX, -offsetY)
-    4. rotate(45deg)
-    """
-    centerX = canvas_w / 2
-    centerY = canvas_h / 2
-
-    # Grid space to world space (in tiles)
-    px = gx * TILE_SIZE
-    py = gy * TILE_SIZE
-
-    # Apply offset (in grid space, before zoom)
-    px -= offsetX * TILE_SIZE
-    py -= offsetY * TILE_SIZE
-
-    # Apply zoom
-    px *= zoom
-    py *= zoom
-
-    # Apply 45 degree rotation
-    rad = math.radians(45)
-    cos = math.cos(rad)
-    sin = math.sin(rad)
-    rx = px * cos - py * sin
-    ry = px * sin + py * cos
-
-    # Apply center translation
-    rx += centerX
-    ry += centerY
-
-    return rx, ry
 
 
 router = APIRouter()
@@ -319,139 +288,18 @@ async def upload_csv(file: UploadFile = File(...)):
 def download_map_image():
     """Download the current map as a PNG image.
 
-    Renders the map server-side matching app.js exactly.
+    Renders the map using a headless browser to ensure exact client-side
+    rendering is captured server-side.
 
     Returns:
         PNG image file.
     """
     try:
-        from PIL import ImageFont
-        config = load_config()
-        castles = config.get("castles", [])
-        bear_traps = config.get("bear_traps", [])
-        banners = config.get("banners", [])
-        grid_size = config.get("grid_size", 28)
+        from server.screenshot import get_map_screenshot_sync
 
-        canvas_w, canvas_h = 1600, 1600
+        # Render using headless browser (app runs on port 3000)
+        buf = get_map_screenshot_sync(base_url="http://localhost:3000")
 
-        # Compute zoom and offset to fit all castles
-        placed_castles = [c for c in castles if c.get("x") is not None and c.get("y") is not None]
-        if not placed_castles:
-            # Empty image
-            img = Image.new('RGB', (canvas_w, canvas_h), (255, 255, 255))
-            draw = ImageDraw.Draw(img)
-            draw.text((800, 800), "No castles placed", fill=(0, 0, 0))
-            buf = BytesIO()
-            img.save(buf, format="PNG")
-            buf.seek(0)
-            return StreamingResponse(buf, media_type="image/png", headers={"Content-Disposition": "attachment; filename=map.png"})
-
-        # Calculate bounds in grid coordinates
-        min_gx = min(c["x"] for c in placed_castles)
-        max_gx = max(c["x"] for c in placed_castles)
-        min_gy = min(c["y"] for c in placed_castles)
-        max_gy = max(c["y"] for c in placed_castles)
-
-        # Add padding in grid space
-        min_gx = max(0, min_gx - 2)
-        max_gx = min(grid_size - 1, max_gx + 3)
-        min_gy = max(0, min_gy - 2)
-        max_gy = min(grid_size - 1, max_gy + 3)
-
-        # Center point in grid coordinates
-        center_gx = (min_gx + max_gx) / 2
-        center_gy = (min_gy + max_gy) / 2
-
-        # Calculate zoom to fit bounds
-        # After rotation, width in screen space is approximately (width_tiles + height_tiles) * tile_size * 0.707
-        width_tiles = max_gx - min_gx + 1
-        height_tiles = max_gy - min_gy + 1
-
-        approx_screen_size = (width_tiles + height_tiles) * TILE_SIZE * 0.707
-        zoom = (canvas_w * 0.85) / approx_screen_size if approx_screen_size > 0 else 1.0
-        zoom = min(zoom, 2.0)  # Cap zoom
-
-        # offsetX and offsetY are in GRID coordinates, not screen
-        offsetX = center_gx
-        offsetY = center_gy
-
-        # Create image
-        img = Image.new('RGB', (canvas_w, canvas_h), (255, 255, 255))
-        draw = ImageDraw.Draw(img)
-
-        # Draw grid lightly
-        for x in range(max(0, min_gx - 1), min(grid_size, max_gx + 2)):
-            for y in range(max(0, min_gy - 1), min(grid_size, max_gy + 2)):
-                sx, sy = grid_to_screen_img(x, y, zoom, offsetX, offsetY, canvas_w, canvas_h)
-                tile_sz = TILE_SIZE * zoom
-                draw.rectangle([sx, sy, sx + tile_sz, sy + tile_sz], outline=(200, 200, 200), width=1)
-
-        # Draw banners
-        for banner in banners:
-            if banner.get("x") is not None and banner.get("y") is not None:
-                sx, sy = grid_to_screen_img(banner["x"], banner["y"], zoom, offsetX, offsetY, canvas_w, canvas_h)
-                tile_sz = TILE_SIZE * zoom
-                draw.rectangle([sx, sy, sx + tile_sz, sy + tile_sz], fill=(30, 58, 138))
-
-        # Draw bear traps
-        for bear in bear_traps:
-            if bear.get("x") is not None and bear.get("y") is not None:
-                cx, cy = grid_to_screen_img(bear["x"], bear["y"], zoom, offsetX, offsetY, canvas_w, canvas_h)
-                radius = TILE_SIZE * 1.35 * zoom
-                draw.ellipse([cx - radius, cy - radius, cx + radius, cy + radius],
-                           fill=(10, 31, 68))
-
-        # Draw castles with text
-        for castle in castles:
-            if castle.get("x") is not None and castle.get("y") is not None:
-                sx, sy = grid_to_screen_img(castle["x"], castle["y"], zoom, offsetX, offsetY, canvas_w, canvas_h)
-                size = TILE_SIZE * 2 * zoom
-
-                # Draw castle rectangle
-                color = efficiency_color(castle.get("efficiency_score"))
-                color = tuple(int(color[i:i+2], 16) for i in (1, 3, 5))
-                draw.rectangle([sx + 2, sy + 2, sx + size - 2, sy + size - 2], fill=color)
-
-                # Draw border
-                draw.rectangle([sx + 2, sy + 2, sx + size - 2, sy + size - 2],
-                             outline=(229, 231, 235), width=1)
-
-                # Draw text
-                try:
-                    font = ImageFont.load_default()
-
-                    # Player name
-                    player = castle.get("player", "")[:15]
-                    if player and size > 20:
-                        draw.text((sx + size/2, sy + size/2 - 6), player, fill=(255, 255, 255),
-                                font=font, anchor="mm")
-
-                    # Level
-                    level = castle.get("player_level", 0)
-                    if size > 20:
-                        draw.text((sx + size/2, sy + size/2 + 4), f"Lv {level}", fill=(255, 255, 255),
-                                font=font, anchor="mm")
-
-                    # Preference
-                    pref = castle.get("preference", "")
-                    if pref and size > 20:
-                        draw.text((sx + size/2, sy + size/2 + 12), str(pref)[:8], fill=(255, 255, 255),
-                                font=font, anchor="mm")
-                except Exception:
-                    pass  # Skip text if font fails
-
-                # Locked indicator
-                if castle.get("locked") and size > 15:
-                    try:
-                        draw.text((sx + size - 8, sy + size - 8), "🔒", fill=(255, 255, 255),
-                                anchor="mm")
-                    except:
-                        pass
-
-        # Save to bytes
-        buf = BytesIO()
-        img.save(buf, format="PNG")
-        buf.seek(0)
         return StreamingResponse(buf, media_type="image/png",
                                headers={"Content-Disposition": "attachment; filename=map.png"})
 
@@ -459,6 +307,7 @@ def download_map_image():
         print(f"Error generating image: {e}")
         import traceback
         traceback.print_exc()
+
         # Return error image
         error_img = Image.new('RGB', (1600, 1600), (255, 0, 0))
         draw = ImageDraw.Draw(error_img)
@@ -468,3 +317,75 @@ def download_map_image():
         buf.seek(0)
         return StreamingResponse(buf, media_type="image/png",
                                headers={"Content-Disposition": "attachment; filename=error.png"})
+
+@router.post("/api/send_map_to_discord")
+def send_map_to_discord(request_data: DiscordMapRequest):
+    """Send the current map image to a Discord webhook channel.
+
+    Args:
+        request_data: DiscordMapRequest with 'channel' and 'message'.
+                     channel: 'r4' or 'announcements'
+                     message: Custom message to include with the image
+
+    Returns:
+        Success/error response.
+    """
+    try:
+        import requests
+        from server.screenshot import get_map_screenshot_sync
+
+        channel = request_data.channel
+        message = request_data.message
+
+        # Discord webhook URLs
+        webhooks = {
+            "r4": "https://discord.com/api/webhooks/1451086715975503942/fsGgLPkDQCKYr5txMsFyggj-IelKqYdvUQdF2Xdc9S-u1PglG5YM-nIDRUlT9DT7R1HA",
+            "announcements": "https://discord.com/api/webhooks/1451086879725326477/K4yQSWtl8xP3bHGRDPTgEwPaKhBFjpnK4lKqDcAwJvMC6QTtUT_xdrg4Wx-9YFlE5XN6",
+            "general": "https://discord.com/api/webhooks/1451089385574371433/c5D8N0OSbO3c5pL1CAbifsuV6IVLKUkCmrCrqlNsJgMaAkGAchgcgtxu0Zg4GpxpMOC4"
+        }
+
+        # Get the map screenshot
+        screenshot_buf = get_map_screenshot_sync(base_url="http://localhost:3000")
+
+        # Determine which channels to post to
+        channels_to_post = []
+        if channel == "announcements":
+            # Post to both Announcements and General
+            channels_to_post = ["announcements", "general"]
+        else:
+            channels_to_post = [channel]
+
+        # Send to each channel
+        failed_channels = []
+        for target_channel in channels_to_post:
+            webhook_url = webhooks.get(target_channel)
+            if not webhook_url:
+                failed_channels.append(target_channel)
+                continue
+
+            # Reset buffer position for each send
+            screenshot_buf.seek(0)
+
+            # Send to Discord
+            files = {
+                'file': ('map.png', screenshot_buf.getvalue(), 'image/png')
+            }
+            data = {
+                'content': message
+            }
+
+            response = requests.post(webhook_url, files=files, data=data)
+
+            if response.status_code not in (200, 204):
+                failed_channels.append(target_channel)
+
+        if failed_channels:
+            return {"success": False, "error": f"Failed to send to: {', '.join(failed_channels)}"}
+
+        return {"success": True, "message": f"Map sent to {', '.join(channels_to_post)} channel(s)"}
+
+    except Exception as e:
+        print(f"Error sending map to Discord: {e}")
+        import traceback
+        traceback.print_exc()
+        return {"success": False, "error": str(e)}
