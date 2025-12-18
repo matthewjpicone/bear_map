@@ -159,34 +159,37 @@ def render_map_to_image(config: Dict[str, Any], show_grid: bool = True) -> bytes
     bear_traps = config.get('bear_traps', [])
     castles = config.get('castles', [])
     
-    # Calculate canvas size (rotated grid dimensions)
-    # After 45° rotation, a square grid becomes wider
+    # Calculate canvas size to fit the rotated grid with padding
+    # After 45° rotation, a square grid becomes wider (diagonal = side * sqrt(2))
     grid_pixel_size = grid_size * TILE_SIZE
-    
-    # Calculate rotated dimensions
-    # A square rotated 45° has diagonal = side * sqrt(2)
     diagonal = grid_pixel_size * math.sqrt(2)
     
-    # Add padding for better visibility
-    padding = 100
+    # Use generous padding to ensure everything fits
+    padding = 200
     canvas_width = int(diagonal + padding * 2)
     canvas_height = int(diagonal + padding * 2)
     
-    # Create image with white background
-    img = Image.new('RGBA', (canvas_width, canvas_height), (255, 255, 255, 255))
+    # Create image with dark background to match client theme
+    # The client uses a dark background (#0f172a or similar)
+    img = Image.new('RGBA', (canvas_width, canvas_height), (15, 23, 42, 255))
     draw = ImageDraw.Draw(img)
     
-    # Calculate center point for rotation
+    # Calculate center point - this is where the rotated grid will be centered
     center_x = canvas_width // 2
     center_y = canvas_height // 2
     
-    # Offset to center the rotated grid properly
-    # The client-side code uses: viewOffsetY = (mapData.grid_size * TILE_SIZE) * (Math.SQRT2 / 2)
-    offset_x = 0
-    offset_y = grid_pixel_size * (math.sqrt(2) / 2)
+    # Calculate viewOffset to match client-side centering
+    # Client uses: viewOffsetY = (mapData.grid_size * TILE_SIZE) * (Math.SQRT2 / 2)
+    view_offset_x = 0
+    view_offset_y = grid_pixel_size * (math.sqrt(2) / 2)
     
     def transform_coords(gx: float, gy: float) -> Tuple[float, float]:
-        """Transform grid coordinates to screen coordinates with rotation.
+        """Transform grid coordinates to screen coordinates with 45° rotation.
+        
+        Matches the client-side transformation exactly:
+        1. Translate by -viewOffset
+        2. Rotate 45° around origin
+        3. Translate to canvas center
         
         Args:
             gx: Grid X coordinate (in pixels).
@@ -195,14 +198,14 @@ def render_map_to_image(config: Dict[str, Any], show_grid: bool = True) -> bytes
         Returns:
             Screen (x, y) coordinates.
         """
-        # Apply offset
-        x = gx - offset_x
-        y = gy - offset_y
+        # Step 1: Apply view offset (like client's translateSelf(-viewOffsetX, -viewOffsetY))
+        tx = gx - view_offset_x
+        ty = gy - view_offset_y
         
-        # Rotate around origin
-        rx, ry = rotate_point(x, y, ISO_DEG)
+        # Step 2: Rotate 45° around origin
+        rx, ry = rotate_point(tx, ty, ISO_DEG)
         
-        # Translate to center of canvas
+        # Step 3: Translate to center of canvas
         sx = rx + center_x
         sy = ry + center_y
         
