@@ -75,6 +75,40 @@ Logs are written to `/home/matthewpicone/bearMap/update.log` on the production s
 - The FastAPI application is defined in `main.py`.
 - `requirements.txt` pins the versions needed for local development and GitHub Codespaces installs.
 
+## Automated Versioning and Releases
+
+This project uses [Semantic Release](https://semantic-release.gitbook.io/) for automated versioning and changelog generation.
+
+### How It Works
+
+1. **Commit Convention**: Follow [Conventional Commits](https://www.conventionalcommits.org/) format:
+   - `feat:` - New features (triggers minor version bump)
+   - `fix:` - Bug fixes (triggers patch version bump)
+   - `BREAKING CHANGE:` - Breaking changes (triggers major version bump)
+   - `chore:`, `docs:`, `style:`, etc. - No version bump
+
+2. **Automatic Process**: When code is pushed to the `main` branch:
+   - GitHub Actions runs the CI/CD pipeline
+   - Semantic Release analyzes commit messages since the last release
+   - If version-bumping commits are found:
+     - Version is updated in `package.json` and `version.json`
+     - `CHANGELOG.md` is updated with release notes
+     - Changes are committed back to the repository
+     - A GitHub release is created with release notes
+
+3. **Configuration**:
+   - `.releaserc.json` - Semantic Release configuration
+   - `package.json` - NPM package metadata (required by Semantic Release)
+   - `.github/workflows/deploy.yml` - CI/CD pipeline with versioning step
+
+### Troubleshooting
+
+If versioning fails:
+- Ensure commits follow the Conventional Commits format
+- Check that the workflow has `contents: write` permission
+- Verify all required semantic-release plugins are installed
+- Review the GitHub Actions logs for errors
+
 ## Priority and Efficiency Scoring
 
 The application computes priority ranks and efficiency scores for castle placements to help optimize rally assignments.
