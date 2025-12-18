@@ -73,7 +73,15 @@ jobs:
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       run: |
-        npm install -g semantic-release @semantic-release/commit-analyzer @semantic-release/release-notes-generator @semantic-release/changelog @semantic-release/npm @semantic-release/exec @semantic-release/git @semantic-release/github
+        npm install -g \
+          semantic-release \
+          @semantic-release/commit-analyzer \
+          @semantic-release/release-notes-generator \
+          @semantic-release/changelog \
+          @semantic-release/npm \
+          @semantic-release/exec \
+          @semantic-release/git \
+          @semantic-release/github
         npx semantic-release
 
     - name: Deploy to Server (Only on Push to Main)
