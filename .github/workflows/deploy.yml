@@ -9,11 +9,15 @@ on:
 jobs:
   check-and-deploy:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
     steps:
     - name: Checkout Code
       uses: actions/checkout@v4
       with:
         token: ${{ secrets.GITHUB_TOKEN }}
+        fetch-depth: 0
 
     - name: Set up Python
       uses: actions/setup-python@v4
@@ -66,8 +70,10 @@ jobs:
 
     - name: Run Semantic Release
       if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       run: |
-        npm install -g semantic-release @semantic-release/exec @semantic-release/git
+        npm install -g semantic-release @semantic-release/commit-analyzer @semantic-release/release-notes-generator @semantic-release/changelog @semantic-release/npm @semantic-release/exec @semantic-release/git @semantic-release/github
         npx semantic-release
 
     - name: Deploy to Server (Only on Push to Main)
