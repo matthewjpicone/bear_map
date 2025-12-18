@@ -1,0 +1,12 @@
+{
+  "name": "bear_map",
+  "version": "1.0.4",
+  "description": "Bear Map - FastAPI-powered tool for visualizing and arranging the Bear Planner layout",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/matthewjpicone/bear_map.git"
+  },
+  "author": "Matthew Picone",
+  "license": "MIT",
+  "private": true
+}
