@@ -47,6 +47,10 @@ let selectedCastleIds = new Set();
 let visibleCastleIds = new Set();
 let hoveredCastleId = null;
 
+// Prevent refresh while editing table cells
+let isEditingCell = false;
+let pendingSSERefresh = false;
+
 const canvas = document.getElementById("map");
 if (!canvas) throw new Error("Canvas #map not found");
 
@@ -103,6 +107,12 @@ function initSSE() {
         console.log("[SSE] message:", evt.data);  // Log all messages
 
         if (msg.type === "config_update") {
+          // If user is editing a table cell, defer refresh until editing completes
+          if (isEditingCell) {
+            pendingSSERefresh = true;
+            return;
+          }
+
           // Authoritative signal: server says map data changed
           const ok = await loadMapData();
           if (!ok) return;
@@ -350,6 +360,20 @@ function highlightText(text, query) {
   return frag;
 }
 
+/**
+ * Debounce a function so it only runs after no calls for `delayMs`.
+ * @param {Function} fn - Function to debounce
+ * @param {number} delayMs - Delay in milliseconds
+ * @returns {Function} debounced function
+ */
+function debounce(fn, delayMs) {
+  let tId;
+  return (...args) => {
+    clearTimeout(tId);
+    tId = setTimeout(() => fn.apply(null, args), delayMs);
+  };
+}
+
 // ==========================
 // Tooltip Functions
 // ==========================
@@ -468,15 +492,56 @@ function hideCastleTooltip() {
 // ==========================
 // Input Builders
 // ==========================
-function createTextInput(value, onChange) {
+function createTextInput(value, onCommit) {
   const input = document.createElement("input");
   input.type = "text";
   input.value = value ?? "";
   input.size = Math.max(input.value.length, 4);
 
+  let originalValue = input.value;
+
+  input.addEventListener("focus", () => {
+    isEditingCell = true;
+  });
+
   input.addEventListener("input", () => {
+    // Only resize input while typing; do not commit yet
     input.size = Math.max(input.value.length, 4);
-    onChange(input.value);
+  });
+
+  function commitIfChanged() {
+    const newVal = input.value;
+    if (typeof onCommit === 'function' && newVal !== originalValue) {
+      onCommit(newVal);
+      originalValue = newVal; // update base
+    }
+  }
+
+  input.addEventListener("keydown", e => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      commitIfChanged();
+      input.blur();
+    } else if (e.key === 'Escape') {
+      // Revert and blur
+      input.value = originalValue;
+      input.blur();
+    }
+  });
+
+  input.addEventListener("blur", async () => {
+    // Commit on blur
+    commitIfChanged();
+    isEditingCell = false;
+    // If a server update was deferred during editing, apply it now
+    if (pendingSSERefresh) {
+      pendingSSERefresh = false;
+      const ok = await loadMapData();
+      if (ok) {
+        renderCastleTable();
+        drawMap(mapData);
+      }
+    }
   });
 
   return input;
@@ -540,11 +605,10 @@ function tdReadonlyNumber(value) {
 function tdInput(field, obj) {
   const td = document.createElement("td");
 
-  const input = createTextInput(obj[field], value => {
+  const input = createTextInput(obj[field], async value => {
     obj[field] = value;
-
-    // Update only when changes are made, don't force redraw
-    updateCastleField(obj.id, field, value);
+    // Commit changes to server only on blur/Enter via onCommit
+    await updateCastleField(obj.id, field, value);
   });
 
   td.appendChild(input);
@@ -558,12 +622,44 @@ function tdNumber(field, obj) {
   input.type = "number";
   input.value = obj[field] ?? 0;
 
-  input.onchange = async () => {
-    const value = Number(input.value) || 0;
+  let originalValue = String(input.value);
 
-    // Send the updated value to the server
-    await updateCastleField(obj.id, field, value);
-  };
+  input.addEventListener('focus', () => {
+    isEditingCell = true;
+  });
+
+  function commitNumber() {
+    const value = Number(input.value);
+    if (String(value) !== originalValue) {
+      originalValue = String(value);
+      obj[field] = value;
+      updateCastleField(obj.id, field, value);
+    }
+  }
+
+  input.addEventListener('keydown', e => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      commitNumber();
+      input.blur();
+    } else if (e.key === 'Escape') {
+      input.value = originalValue;
+      input.blur();
+    }
+  });
+
+  input.addEventListener('blur', async () => {
+    commitNumber();
+    isEditingCell = false;
+    if (pendingSSERefresh) {
+      pendingSSERefresh = false;
+      const ok = await loadMapData();
+      if (ok) {
+        renderCastleTable();
+        drawMap(mapData);
+      }
+    }
+  });
 
   td.appendChild(input);
   return td;
@@ -2220,9 +2316,10 @@ window.loadFullState = function (state) {
 const searchInput = document.getElementById("castleSearch");
 
 if (searchInput) {
-  searchInput.addEventListener("input", () => {
+  const debouncedRender = debounce(() => {
     renderCastleTable();
-  });
+  }, 300);
+  searchInput.addEventListener("input", debouncedRender);
 }
 
 document.getElementById("howToBtn").addEventListener("click", () => {
