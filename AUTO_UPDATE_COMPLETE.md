@@ -68,7 +68,7 @@ API serves updated version via GET /api/version
 
 ### Check Current Version:
 ```bash
-curl http://localhost:8000/api/version
+curl http://localhost:3000/api/version
 # Returns: {"version": "2.0.1"}
 ```
 

@@ -15,9 +15,9 @@ FastAPI-powered tool for visualizing and arranging the "Bear Planner" layout. Th
    ```
 3. Launch the API and static site:
    ```bash
-   uvicorn main:app --reload --host 0.0.0.0 --port 8000
+   uvicorn main:app --reload --host 0.0.0.0 --port 3000
    ```
-4. Open the UI at <http://localhost:8000>.
+4. Open the UI at <http://localhost:3000>.
 
 ## Configuration
 

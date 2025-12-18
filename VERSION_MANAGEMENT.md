@@ -93,7 +93,7 @@ python3 scripts/update_version.py
 
 4. **Check API:**
    ```bash
-   curl http://localhost:8000/api/version
+   curl http://localhost:3000/api/version
    ```
 
 ### Semantic Release not working?
