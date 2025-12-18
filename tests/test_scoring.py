@@ -21,28 +21,30 @@ def test_compute_priority():
             "power": 1000000,
             "player_level": 10,
             "command_centre_level": 5,
-            "attendance": 50
+            "attendance": 50,
         },
         {
             "id": "C2",
             "power": 2000000,
             "player_level": 15,
             "command_centre_level": 10,
-            "attendance": 75
-        }
+            "attendance": 75,
+        },
     ]
 
     result = compute_priority(castles)
 
     # C2 should have higher priority_score
-    assert result[0]['priority_score'] < result[1]['priority_score']
-    assert result[0]['priority_rank_100'] > result[1]['priority_rank_100']  # Lower rank number is better
+    assert result[0]["priority_score"] < result[1]["priority_score"]
+    assert (
+        result[0]["priority_rank_100"] > result[1]["priority_rank_100"]
+    )  # Lower rank number is better
 
     # Check fields exist
     for c in result:
-        assert 'priority_score' in c
-        assert 'priority_rank_100' in c
-        assert 'priority_debug' in c
+        assert "priority_score" in c
+        assert "priority_rank_100" in c
+        assert "priority_debug" in c
 
 
 def test_compute_priority_null_attendance():
@@ -52,14 +54,14 @@ def test_compute_priority_null_attendance():
             "power": 1000000,
             "player_level": 10,
             "command_centre_level": 5,
-            "attendance": None
+            "attendance": None,
         }
     ]
 
     result = compute_priority(castles)
 
     # Should not crash, use median
-    assert 'priority_score' in result[0]
+    assert "priority_score" in result[0]
 
 
 def test_compute_efficiency_simple():
@@ -68,35 +70,37 @@ def test_compute_efficiency_simple():
         "banners": [],
         "bear_traps": [
             {"id": "Bear 1", "x": 0, "y": 0},
-            {"id": "Bear 2", "x": 9, "y": 9}
-        ]
+            {"id": "Bear 2", "x": 9, "y": 9},
+        ],
     }
 
     castles = [
         {
             "id": "C1",
             "preference": "Bear 1",
-            "x": 1, "y": 1,
+            "x": 1,
+            "y": 1,
             "priority_score": 0.8,
-            "priority_rank_100": 10
+            "priority_rank_100": 10,
         },
         {
             "id": "C2",
             "preference": "Bear 1",
-            "x": 2, "y": 2,
+            "x": 2,
+            "y": 2,
             "priority_score": 0.6,
-            "priority_rank_100": 20
-        }
+            "priority_rank_100": 20,
+        },
     ]
 
     result = compute_efficiency(map_data, castles)
 
     # Check fields exist
     for c in result:
-        assert 'efficiency_score' in c
-        assert 'actual_travel_time' in c
-        assert 'ideal_travel_time' in c
-        assert 'regret' in c
+        assert "efficiency_score" in c
+        assert "actual_travel_time" in c
+        assert "ideal_travel_time" in c
+        assert "regret" in c
 
     # If placed optimally, scores should be low
     # But in this case, they are close, so scores should be reasonable

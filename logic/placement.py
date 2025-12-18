@@ -11,11 +11,23 @@ Date: 2025-12-17
 from typing import List, Dict, Tuple
 
 from .config import load_config, save_config
-from .validation import check_castle_overlap, check_castle_overlap_with_entities, rectangles_overlap
-from .scoring import compute_priority, compute_efficiency, get_walkable_tiles, chebyshev_distance, compute_ideal_allocation
+from .validation import (
+    check_castle_overlap,
+    check_castle_overlap_with_entities,
+    rectangles_overlap,
+)
+from .scoring import (
+    compute_priority,
+    compute_efficiency,
+    get_walkable_tiles,
+    chebyshev_distance,
+    compute_ideal_allocation,
+)
 
 
-def resolve_all_collisions(castles: List[Dict], grid_size: int, bear_traps: List[Dict], banners: List[Dict]):
+def resolve_all_collisions(
+    castles: List[Dict], grid_size: int, bear_traps: List[Dict], banners: List[Dict]
+):
     """Resolve all collisions on the map by iteratively pushing invalid castles outward from the center.
 
     Args:
@@ -29,12 +41,16 @@ def resolve_all_collisions(castles: List[Dict], grid_size: int, bear_traps: List
     center_x, center_y = grid_size // 2, grid_size // 2
 
     while iterations < max_iterations:
-        invalid_castles = [c for c in castles if is_castle_invalid(c, castles, bear_traps, banners)]
+        invalid_castles = [
+            c for c in castles if is_castle_invalid(c, castles, bear_traps, banners)
+        ]
         if not invalid_castles:
             break
 
         for castle in invalid_castles:
-            push_castle_outward(castle, center_x, center_y, castles, grid_size, bear_traps, banners)
+            push_castle_outward(
+                castle, center_x, center_y, castles, grid_size, bear_traps, banners
+            )
 
         iterations += 1
 
@@ -105,39 +121,71 @@ async def auto_place_castles() -> Dict[str, int]:
             bear = next((b for b in bear_traps if b.get("id") == "Bear 1"), None)
             if bear and bear.get("x") is not None and bear.get("y") is not None:
                 candidates = sorted(
-                    [t for t in walkable if t not in occupied and 0 <= t[0] <= grid_size - 2 and 0 <= t[1] <= grid_size - 2],
-                    key=lambda t: chebyshev_distance(t[0], t[1], bear["x"], bear["y"])
+                    [
+                        t
+                        for t in walkable
+                        if t not in occupied
+                        and 0 <= t[0] <= grid_size - 2
+                        and 0 <= t[1] <= grid_size - 2
+                    ],
+                    key=lambda t: chebyshev_distance(t[0], t[1], bear["x"], bear["y"]),
                 )[:K]
         elif preference == "bear 2":
             bear = next((b for b in bear_traps if b.get("id") == "Bear 2"), None)
             if bear and bear.get("x") is not None and bear.get("y") is not None:
                 candidates = sorted(
-                    [t for t in walkable if t not in occupied and 0 <= t[0] <= grid_size - 2 and 0 <= t[1] <= grid_size - 2],
-                    key=lambda t: chebyshev_distance(t[0], t[1], bear["x"], bear["y"])
+                    [
+                        t
+                        for t in walkable
+                        if t not in occupied
+                        and 0 <= t[0] <= grid_size - 2
+                        and 0 <= t[1] <= grid_size - 2
+                    ],
+                    key=lambda t: chebyshev_distance(t[0], t[1], bear["x"], bear["y"]),
                 )[:K]
         else:  # both
             bear1 = next((b for b in bear_traps if b.get("id") == "Bear 1"), None)
             bear2 = next((b for b in bear_traps if b.get("id") == "Bear 2"), None)
-            if bear1 and bear2 and bear1.get("x") is not None and bear1.get("y") is not None and bear2.get("x") is not None and bear2.get("y") is not None:
+            if (
+                bear1
+                and bear2
+                and bear1.get("x") is not None
+                and bear1.get("y") is not None
+                and bear2.get("x") is not None
+                and bear2.get("y") is not None
+            ):
                 mid = grid_size // 2
                 spine_cols = [mid - 1, mid]
-                spine_tiles = [t for t in walkable if t[0] in spine_cols and t not in occupied and 0 <= t[0] <= grid_size - 2 and 0 <= t[1] <= grid_size - 2]
+                spine_tiles = [
+                    t
+                    for t in walkable
+                    if t[0] in spine_cols
+                    and t not in occupied
+                    and 0 <= t[0] <= grid_size - 2
+                    and 0 <= t[1] <= grid_size - 2
+                ]
                 if spine_tiles:
                     candidates = sorted(
                         spine_tiles,
                         key=lambda t: min(
                             chebyshev_distance(t[0], t[1], bear1["x"], bear1["y"]),
-                            chebyshev_distance(t[0], t[1], bear2["x"], bear2["y"])
-                        )
+                            chebyshev_distance(t[0], t[1], bear2["x"], bear2["y"]),
+                        ),
                     )[:K]
                 else:
                     # Fallback to best of bear1/bear2
                     candidates = sorted(
-                        [t for t in walkable if t not in occupied and 0 <= t[0] <= grid_size - 2 and 0 <= t[1] <= grid_size - 2],
+                        [
+                            t
+                            for t in walkable
+                            if t not in occupied
+                            and 0 <= t[0] <= grid_size - 2
+                            and 0 <= t[1] <= grid_size - 2
+                        ],
                         key=lambda t: min(
                             chebyshev_distance(t[0], t[1], bear1["x"], bear1["y"]),
-                            chebyshev_distance(t[0], t[1], bear2["x"], bear2["y"])
-                        )
+                            chebyshev_distance(t[0], t[1], bear2["x"], bear2["y"]),
+                        ),
                     )[:K]
 
         if not candidates:
@@ -169,9 +217,14 @@ async def auto_place_castles() -> Dict[str, int]:
         if best_tile:
             # Validate the tile is still legal
             from .validation import is_tile_legal
-            is_legal, reason = is_tile_legal(best_tile[0], best_tile[1], grid_size, banners, bear_traps, occupied)
+
+            is_legal, reason = is_tile_legal(
+                best_tile[0], best_tile[1], grid_size, banners, bear_traps, occupied
+            )
             if not is_legal:
-                print(f"Warning: Best tile {best_tile} for castle {castle['id']} is illegal: {reason}")
+                print(
+                    f"Warning: Best tile {best_tile} for castle {castle['id']} is illegal: {reason}"
+                )
                 continue  # Skip this placement
             castle["x"] = best_tile[0]
             castle["y"] = best_tile[1]
@@ -190,7 +243,10 @@ async def auto_place_castles() -> Dict[str, int]:
             for y in range(grid_size - 1):
                 if (x, y) not in occupied:
                     from .validation import is_tile_legal
-                    is_legal, _ = is_tile_legal(x, y, grid_size, banners, bear_traps, occupied)
+
+                    is_legal, _ = is_tile_legal(
+                        x, y, grid_size, banners, bear_traps, occupied
+                    )
                     if is_legal:
                         castle["x"] = x
                         castle["y"] = y
@@ -231,16 +287,24 @@ async def auto_place_castles() -> Dict[str, int]:
         bear2 = next((b for b in bear_traps if b.get("id") == "Bear 2"), None)
         if bear1 and bear2:
             distances = [
-                min(chebyshev_distance(t[0], t[1], bear1["x"], bear1["y"]),
-                    chebyshev_distance(t[0], t[1], bear2["x"], bear2["y"]))
+                min(
+                    chebyshev_distance(t[0], t[1], bear1["x"], bear1["y"]),
+                    chebyshev_distance(t[0], t[1], bear2["x"], bear2["y"]),
+                )
                 for t in empty_tiles
             ]
             T_max = grid_size * 2
             q_values = [1 - min(1, d / T_max) for d in distances]
             empty_score_100 = round(100 * (sum(q_values) / len(q_values)))
 
-    placed_castles = [c for c in castles if c.get("x") is not None and c.get("y") is not None]
-    avg_eff = sum(c.get("efficiency_score", 0) for c in placed_castles) / len(placed_castles) if placed_castles else 0
+    placed_castles = [
+        c for c in castles if c.get("x") is not None and c.get("y") is not None
+    ]
+    avg_eff = (
+        sum(c.get("efficiency_score", 0) for c in placed_castles) / len(placed_castles)
+        if placed_castles
+        else 0
+    )
 
     scaled_eff_900 = 9 * avg_eff
     scaled_eff_900 *= 0.9
@@ -265,16 +329,23 @@ async def auto_place_castles() -> Dict[str, int]:
     for i, c1 in enumerate(castles):
         if c1.get("x") is None or c1.get("y") is None:
             continue
-        for c2 in castles[i+1:]:
+        for c2 in castles[i + 1 :]:
             if c2.get("x") is None or c2.get("y") is None:
                 continue
-            if not (c1["x"] + 2 <= c2["x"] or c2["x"] + 2 <= c1["x"] or c1["y"] + 2 <= c2["y"] or c2["y"] + 2 <= c1["y"]):
+            if not (
+                c1["x"] + 2 <= c2["x"]
+                or c2["x"] + 2 <= c1["x"]
+                or c1["y"] + 2 <= c2["y"]
+                or c2["y"] + 2 <= c1["y"]
+            ):
                 print(f"Overlap detected between {c1['id']} and {c2['id']}")
                 overlaps_found = True
     for c in castles:
         if c.get("x") is None or c.get("y") is None:
             continue
-        has_overlap, reason = check_castle_overlap_with_entities(c["x"], c["y"], bear_traps, banners)
+        has_overlap, reason = check_castle_overlap_with_entities(
+            c["x"], c["y"], bear_traps, banners
+        )
         if has_overlap:
             print(f"Castle {c['id']} overlaps with {reason}")
             overlaps_found = True
@@ -287,7 +358,9 @@ async def auto_place_castles() -> Dict[str, int]:
     return {"success": True, "placed": placed_count}
 
 
-def compute_efficiency_for_castle(castle: Dict, all_castles: List[Dict], bear_traps: List[Dict], grid_size: int) -> float:
+def compute_efficiency_for_castle(
+    castle: Dict, all_castles: List[Dict], bear_traps: List[Dict], grid_size: int
+) -> float:
     """Compute efficiency score for a single castle given current positions.
 
     Calculates the efficiency score based on travel time regret and blocking penalties.
@@ -308,18 +381,29 @@ def compute_efficiency_for_castle(castle: Dict, all_castles: List[Dict], bear_tr
             if pref == "bear 1":
                 bear = next((b for b in bear_traps if b.get("id") == "Bear 1"), None)
                 if bear and bear.get("x") is not None and bear.get("y") is not None:
-                    c["actual_travel_time"] = chebyshev_distance(c["x"], c["y"], bear["x"], bear["y"])
+                    c["actual_travel_time"] = chebyshev_distance(
+                        c["x"], c["y"], bear["x"], bear["y"]
+                    )
             elif pref == "bear 2":
                 bear = next((b for b in bear_traps if b.get("id") == "Bear 2"), None)
                 if bear and bear.get("x") is not None and bear.get("y") is not None:
-                    c["actual_travel_time"] = chebyshev_distance(c["x"], c["y"], bear["x"], bear["y"])
+                    c["actual_travel_time"] = chebyshev_distance(
+                        c["x"], c["y"], bear["x"], bear["y"]
+                    )
             else:
                 bear1 = next((b for b in bear_traps if b.get("id") == "Bear 1"), None)
                 bear2 = next((b for b in bear_traps if b.get("id") == "Bear 2"), None)
-                if bear1 and bear2 and bear1.get("x") is not None and bear1.get("y") is not None and bear2.get("x") is not None and bear2.get("y") is not None:
+                if (
+                    bear1
+                    and bear2
+                    and bear1.get("x") is not None
+                    and bear1.get("y") is not None
+                    and bear2.get("x") is not None
+                    and bear2.get("y") is not None
+                ):
                     c["actual_travel_time"] = min(
                         chebyshev_distance(c["x"], c["y"], bear1["x"], bear1["y"]),
-                        chebyshev_distance(c["x"], c["y"], bear2["x"], bear2["y"])
+                        chebyshev_distance(c["x"], c["y"], bear2["x"], bear2["y"]),
                     )
 
     # Regret
@@ -330,7 +414,11 @@ def compute_efficiency_for_castle(castle: Dict, all_castles: List[Dict], bear_tr
     regret = max(0, actual - ideal)
 
     # Tscale
-    all_regrets = [max(0, c.get("actual_travel_time", 0) - c.get("ideal_travel_time", 0)) for c in all_castles if c.get("actual_travel_time") is not None]
+    all_regrets = [
+        max(0, c.get("actual_travel_time", 0) - c.get("ideal_travel_time", 0))
+        for c in all_castles
+        if c.get("actual_travel_time") is not None
+    ]
     nonzero = [r for r in all_regrets if r > 0]
     Tscale = sorted(nonzero)[int(0.9 * len(nonzero))] if nonzero else 1
     base = min(1, regret / Tscale) if Tscale > 0 else 0
@@ -340,10 +428,14 @@ def compute_efficiency_for_castle(castle: Dict, all_castles: List[Dict], bear_tr
     for other in all_castles:
         if other["id"] == castle["id"]:
             continue
-        if other.get("priority_rank_100", 0) < castle.get("priority_rank_100", 0) and other.get("actual_travel_time", 0) > castle.get("actual_travel_time", 0):
+        if other.get("priority_rank_100", 0) < castle.get(
+            "priority_rank_100", 0
+        ) and other.get("actual_travel_time", 0) > castle.get("actual_travel_time", 0):
             rank_diff = castle["priority_rank_100"] - other["priority_rank_100"]
             sigmoid = 1 / (1 + 2.718 ** (-(rank_diff - 10) / 5))
-            block += (other["actual_travel_time"] - castle["actual_travel_time"]) * sigmoid
+            block += (
+                other["actual_travel_time"] - castle["actual_travel_time"]
+            ) * sigmoid
 
     block_p90 = sorted([block] + [0])[int(0.9 * 1)] if [block] else 0  # rough
     block_norm = block / max(block_p90, 1e-6)
@@ -359,7 +451,7 @@ def push_castles_outward(
     grid_size: int,
     bear_traps: List[Dict],
     banners: List[Dict],
-    exclude_id: str = None
+    exclude_id: str = None,
 ) -> Tuple[bool, str]:
     """Push unlocked castles outward that would overlap with a newly placed castle.
 
@@ -384,20 +476,36 @@ def push_castles_outward(
         if cx is None or cy is None:
             continue
         # Check if 2x2 rectangles overlap
-        if not (placed_castle_x + 2 <= cx or cx + 2 <= placed_castle_x or
-                placed_castle_y + 2 <= cy or cy + 2 <= placed_castle_y):
+        if not (
+            placed_castle_x + 2 <= cx
+            or cx + 2 <= placed_castle_x
+            or placed_castle_y + 2 <= cy
+            or cy + 2 <= placed_castle_y
+        ):
             overlapping_castles.append(castle)
 
     # Check if any overlapping castles are locked
     locked_overlaps = [c for c in overlapping_castles if c.get("locked", False)]
     if locked_overlaps:
-        return False, f"Cannot place castle: overlaps with locked castle '{locked_overlaps[0]['id']}'"
+        return (
+            False,
+            f"Cannot place castle: overlaps with locked castle '{locked_overlaps[0]['id']}'",
+        )
 
     # Push unlocked overlapping castles outward
     for castle in overlapping_castles:
         if castle.get("locked", False):
             continue  # Should not happen due to check above, but safety
-        push_castle_outward(castle, placed_castle_x, placed_castle_y, castles, grid_size, bear_traps, banners, exclude_id)
+        push_castle_outward(
+            castle,
+            placed_castle_x,
+            placed_castle_y,
+            castles,
+            grid_size,
+            bear_traps,
+            banners,
+            exclude_id,
+        )
 
     return True, ""
 
@@ -410,7 +518,7 @@ def push_castle_outward(
     grid_size: int,
     bear_traps: List[Dict],
     banners: List[Dict],
-    exclude_id: str = None
+    exclude_id: str = None,
 ):
     """Push a single castle outward to avoid overlap with a position.
 
@@ -448,20 +556,37 @@ def push_castle_outward(
     new_y = max(0, min(new_y, grid_size - 2))
 
     # Check if new position is free (no castle overlap and no bear/banner overlap)
-    has_castle_overlap, _ = check_castle_overlap(new_x, new_y, all_castles, exclude_id=castle["id"])
-    has_entity_overlap, _ = check_castle_overlap_with_entities(new_x, new_y, bear_traps, banners)
+    has_castle_overlap, _ = check_castle_overlap(
+        new_x, new_y, all_castles, exclude_id=castle["id"]
+    )
+    has_entity_overlap, _ = check_castle_overlap_with_entities(
+        new_x, new_y, bear_traps, banners
+    )
     if not has_castle_overlap and not has_entity_overlap:
         castle["x"] = new_x
         castle["y"] = new_y
         return
 
     # If blocked, try other directions
-    for attempt in [(2, 0), (-2, 0), (0, 2), (0, -2), (2, 2), (-2, -2), (2, -2), (-2, 2)]:
+    for attempt in [
+        (2, 0),
+        (-2, 0),
+        (0, 2),
+        (0, -2),
+        (2, 2),
+        (-2, -2),
+        (2, -2),
+        (-2, 2),
+    ]:
         test_x = cx + attempt[0]
         test_y = cy + attempt[1]
-        if (0 <= test_x <= grid_size - 2 and 0 <= test_y <= grid_size - 2):
-            has_castle_overlap, _ = check_castle_overlap(test_x, test_y, all_castles, exclude_id=castle["id"])
-            has_entity_overlap, _ = check_castle_overlap_with_entities(test_x, test_y, bear_traps, banners)
+        if 0 <= test_x <= grid_size - 2 and 0 <= test_y <= grid_size - 2:
+            has_castle_overlap, _ = check_castle_overlap(
+                test_x, test_y, all_castles, exclude_id=castle["id"]
+            )
+            has_entity_overlap, _ = check_castle_overlap_with_entities(
+                test_x, test_y, bear_traps, banners
+            )
             if not has_castle_overlap and not has_entity_overlap:
                 castle["x"] = test_x
                 castle["y"] = test_y
@@ -473,7 +598,7 @@ def move_castle_to_edge(
     all_castles: List[Dict],
     grid_size: int,
     bear_traps: List[Dict],
-    banners: List[Dict]
+    banners: List[Dict],
 ) -> bool:
     """Move a castle to the nearest edge of the map, pushing other castles out of the way.
 
@@ -507,8 +632,12 @@ def move_castle_to_edge(
         target_x, target_y = cx, grid_size - 2
 
     # Check if target position is clear (no castle overlap and no bear/banner overlap)
-    has_castle_overlap, overlapping_id = check_castle_overlap(target_x, target_y, all_castles, exclude_id=castle["id"])
-    has_entity_overlap, _ = check_castle_overlap_with_entities(target_x, target_y, bear_traps, banners)
+    has_castle_overlap, overlapping_id = check_castle_overlap(
+        target_x, target_y, all_castles, exclude_id=castle["id"]
+    )
+    has_entity_overlap, _ = check_castle_overlap_with_entities(
+        target_x, target_y, bear_traps, banners
+    )
     if not has_castle_overlap and not has_entity_overlap:
         castle["x"] = target_x
         castle["y"] = target_y
@@ -523,11 +652,17 @@ def move_castle_to_edge(
         [(grid_size - 2, y) for y in range(0, grid_size - 1, 2)],  # Right edge
     ]:
         for pos_x, pos_y in edge_positions:
-            has_castle_overlap, overlapping_id = check_castle_overlap(pos_x, pos_y, all_castles, exclude_id=castle["id"])
-            has_entity_overlap, _ = check_castle_overlap_with_entities(pos_x, pos_y, bear_traps, banners)
+            has_castle_overlap, overlapping_id = check_castle_overlap(
+                pos_x, pos_y, all_castles, exclude_id=castle["id"]
+            )
+            has_entity_overlap, _ = check_castle_overlap_with_entities(
+                pos_x, pos_y, bear_traps, banners
+            )
             if not has_castle_overlap and not has_entity_overlap:
                 # Check if any castle at this position is locked
-                overlapping_castle = next((c for c in all_castles if c.get("id") == overlapping_id), None)
+                overlapping_castle = next(
+                    (c for c in all_castles if c.get("id") == overlapping_id), None
+                )
                 if overlapping_castle and overlapping_castle.get("locked", False):
                     continue  # Skip locked castles
                 castle["x"] = pos_x
@@ -543,7 +678,7 @@ def push_castles_away_from_bear(
     castles: List[Dict],
     grid_size: int,
     bear_traps: List[Dict],
-    banners: List[Dict]
+    banners: List[Dict],
 ) -> Tuple[bool, str]:
     """Push unlocked castles outward that would overlap with a bear trap position.
 
@@ -571,7 +706,10 @@ def push_castles_away_from_bear(
     # Check if any overlapping castles are locked
     locked_overlaps = [c for c in overlapping_castles if c.get("locked", False)]
     if locked_overlaps:
-        return False, f"Cannot place bear trap: overlaps with locked castle '{locked_overlaps[0]['id']}'"
+        return (
+            False,
+            f"Cannot place bear trap: overlaps with locked castle '{locked_overlaps[0]['id']}'",
+        )
 
     # Temporarily add the new bear to prevent castles from moving to its position
     temp_bear_traps = bear_traps + [{"x": bear_x, "y": bear_y}]
@@ -580,16 +718,15 @@ def push_castles_away_from_bear(
     for castle in overlapping_castles:
         if castle.get("locked", False):
             continue  # Should not happen due to check above, but safety
-        push_castle_outward(castle, bear_x, bear_y, castles, grid_size, temp_bear_traps, banners)
+        push_castle_outward(
+            castle, bear_x, bear_y, castles, grid_size, temp_bear_traps, banners
+        )
 
     return True, ""
 
 
 def is_castle_invalid(
-    castle: Dict,
-    all_castles: List[Dict],
-    bear_traps: List[Dict],
-    banners: List[Dict]
+    castle: Dict, all_castles: List[Dict], bear_traps: List[Dict], banners: List[Dict]
 ) -> bool:
     """Check if a castle is in an invalid position.
 
@@ -609,12 +746,16 @@ def is_castle_invalid(
         return False  # Unplaced castles are not invalid
 
     # Check overlap with other castles
-    has_castle_overlap, _ = check_castle_overlap(cx, cy, all_castles, exclude_id=castle["id"])
+    has_castle_overlap, _ = check_castle_overlap(
+        cx, cy, all_castles, exclude_id=castle["id"]
+    )
     if has_castle_overlap:
         return True
 
     # Check overlap with bears or banners
-    has_entity_overlap, _ = check_castle_overlap_with_entities(cx, cy, bear_traps, banners)
+    has_entity_overlap, _ = check_castle_overlap_with_entities(
+        cx, cy, bear_traps, banners
+    )
     if has_entity_overlap:
         return True
 
@@ -627,7 +768,7 @@ def resolve_map_collisions(
     castles: List[Dict],
     grid_size: int,
     bear_traps: List[Dict],
-    banners: List[Dict]
+    banners: List[Dict],
 ):
     """Resolve all collisions on the map by iteratively pushing invalid castles outward.
 
@@ -643,12 +784,16 @@ def resolve_map_collisions(
     iterations = 0
 
     while iterations < max_iterations:
-        invalid_castles = [c for c in castles if is_castle_invalid(c, castles, bear_traps, banners)]
+        invalid_castles = [
+            c for c in castles if is_castle_invalid(c, castles, bear_traps, banners)
+        ]
         if not invalid_castles:
             break
 
         for castle in invalid_castles:
-            push_castle_outward(castle, placed_x, placed_y, castles, grid_size, bear_traps, banners)
+            push_castle_outward(
+                castle, placed_x, placed_y, castles, grid_size, bear_traps, banners
+            )
 
         iterations += 1
 
@@ -660,6 +805,7 @@ def resolve_map_collisions(
 # ==========================
 # ROUND TRIP TIME CALCULATIONS
 # ==========================
+
 
 def calculate_euclidean_distance(x1: float, y1: float, x2: float, y2: float) -> float:
     """Calculate straight-line (as the crow flies) distance between two points.
@@ -723,7 +869,9 @@ def calculate_round_trip_time(castle: Dict, bear_traps: List[Dict]) -> float:
 
     else:
         # Calculate for specific bear
-        bear = next((b for b in bear_traps if b.get("id", "").lower() == preference), None)
+        bear = next(
+            (b for b in bear_traps if b.get("id", "").lower() == preference), None
+        )
         if not bear:
             return None
         return calculate_single_round_trip(castle, bear)
@@ -748,7 +896,9 @@ def calculate_single_round_trip(castle: Dict, bear: Dict) -> float:
         return None
 
     # Calculate distance (castle center to bear center)
-    distance = calculate_euclidean_distance(castle_x + 1, castle_y + 1, bear_x + 1, bear_y + 1)
+    distance = calculate_euclidean_distance(
+        castle_x + 1, castle_y + 1, bear_x + 1, bear_y + 1
+    )
 
     # Travel time one way
     travel_time = calculate_travel_time(distance)

@@ -41,8 +41,7 @@ async def render_map_screenshot(base_url: str = "http://localhost:3000") -> Byte
         # Use 1.5x device pixel ratio for crisp output
         # 1920x1440 viewport at 1.5x = 2880x2160 effective pixels
         page = await browser.new_page(
-            viewport={"width": 1920, "height": 1440},
-            device_scale_factor=1.5
+            viewport={"width": 1920, "height": 1440}, device_scale_factor=1.5
         )
 
         try:
@@ -59,14 +58,15 @@ async def render_map_screenshot(base_url: str = "http://localhost:3000") -> Byte
                     const table = document.getElementById('castleTableBody');
                     return table && table.children.length > 0;
                 }""",
-                timeout=5000
+                timeout=5000,
             )
 
             # Give the app time to render the initial view
             await page.wait_for_timeout(500)
 
             # Execute JavaScript to zoom in to fit all castles with larger view
-            await page.evaluate("""() => {
+            await page.evaluate(
+                """() => {
                 // Reset view with more zoom for larger map display
                 if (typeof viewZoom !== 'undefined' && typeof mapData !== 'undefined') {
                     viewZoom = 0.81;  // ~25% larger for better visibility
@@ -74,7 +74,8 @@ async def render_map_screenshot(base_url: str = "http://localhost:3000") -> Byte
                     viewOffsetY = (mapData.grid_size * TILE_SIZE) * (Math.SQRT2 / 2);
                     drawMap(mapData);
                 }
-            }""")
+            }"""
+            )
 
             # Wait for the map to render with new zoom
             await page.wait_for_timeout(300)

@@ -101,6 +101,48 @@ This project uses [Semantic Release](https://semantic-release.gitbook.io/) for a
    - `package.json` - NPM package metadata (required by Semantic Release)
    - `.github/workflows/deploy.yml` - CI/CD pipeline with versioning step
 
+### AI-Powered Version Bumper (Manual)
+
+For local or manual version bumps, use the `version_ai_bumper.py` script that leverages AI to analyze commit history and determine appropriate version bumps:
+
+**Features:**
+- Analyzes commit messages and diffs since the last version
+- Uses OpenAI GPT to classify commit impact (breaking, feature, fix, etc.)
+- Determines semantic version bump (major, minor, patch)
+- Updates `version.json`, `package.json`, and `CHANGELOG.md`
+- Supports conventional commit parsing
+- Includes dry-run mode for preview
+
+**Setup:**
+```bash
+# Install required dependency
+pip install openai
+
+# Set your OpenAI API key
+export OPENAI_API_KEY="your-api-key-here"
+```
+
+**Usage:**
+```bash
+# Dry run to preview changes
+python version_ai_bumper.py --dry-run
+
+# Actually bump the version
+python version_ai_bumper.py
+
+# Use a different model
+python version_ai_bumper.py --model gpt-4
+
+# Pass API key directly
+python version_ai_bumper.py --api-key sk-...
+```
+
+**After running:**
+1. Review the changes: `git diff`
+2. Commit: `git add -A && git commit -m 'chore(release): X.Y.Z'`
+3. Tag: `git tag -a vX.Y.Z -m 'Release vX.Y.Z'`
+4. Push: `git push && git push --tags`
+
 ### Troubleshooting
 
 If versioning fails:
@@ -108,6 +150,7 @@ If versioning fails:
 - Check that the workflow has `contents: write` permission
 - Verify all required semantic-release plugins are installed
 - Review the GitHub Actions logs for errors
+- For AI bumper: Ensure OPENAI_API_KEY is set and valid
 
 ## Priority and Efficiency Scoring
 

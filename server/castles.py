@@ -13,7 +13,12 @@ from typing import Any, Dict
 from fastapi import APIRouter, Body, HTTPException, UploadFile, File
 
 from logic.config import load_config, save_config
-from logic.validation import ALLOWED_CASTLE_FIELDS, VALID_PREFERENCES, sanitise_player_name, sanitise_int
+from logic.validation import (
+    ALLOWED_CASTLE_FIELDS,
+    VALID_PREFERENCES,
+    sanitise_player_name,
+    sanitise_int,
+)
 from server.broadcast import notify_config_updated
 
 router = APIRouter()
@@ -80,6 +85,7 @@ async def update_castle(payload: Dict[str, Any] = Body(...)):
     # Update last_updated only if player data fields changed
     if data_fields_changed:
         from datetime import datetime
+
         castle["last_updated"] = datetime.now().isoformat()
 
     save_config(config)
@@ -168,6 +174,7 @@ async def bulk_update_castles(payload: Dict[str, Any] = Body(...)):
         # Update last_updated only if player data fields changed
         if data_fields_changed:
             from datetime import datetime
+
             castle["last_updated"] = datetime.now().isoformat()
 
         updated_ids.append(castle_id)
@@ -270,6 +277,7 @@ async def delete_castle(data: Dict[str, Any] = Body(...)):
 
     # Unmark as busy if it was
     from server.broadcast import busy_set
+
     busy_set.discard(castle_id)
 
     reason = data.get("reason", "No reason provided")

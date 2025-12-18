@@ -25,6 +25,7 @@ from logic.scoring import compute_priority, compute_efficiency
 
 class DiscordMapRequest(BaseModel):
     """Request model for sending map to Discord."""
+
     channel: str
     message: str
 
@@ -36,10 +37,10 @@ def parse_power(s: str) -> int:
     """Parse power string like '30.7M' to integer."""
     s = s.strip()
     multiplier = 1
-    if s.endswith('M'):
+    if s.endswith("M"):
         multiplier = 1000000
         s = s[:-1]
-    elif s.endswith('K'):
+    elif s.endswith("K"):
         multiplier = 1000
         s = s[:-1]
     try:
@@ -56,7 +57,7 @@ def efficiency_color(value):
         {"max": 6, "color": "#16a34a"},
         {"max": 10, "color": "#2563eb"},
         {"max": 15, "color": "#64748b"},
-        {"max": float('inf'), "color": "#1f2937"}
+        {"max": float("inf"), "color": "#1f2937"},
     ]
     for tier in efficiency_scale:
         if value <= tier["max"]:
@@ -93,6 +94,7 @@ def get_map():
 
     # Update round trip times for all castles
     from logic.placement import update_all_round_trip_times
+
     update_all_round_trip_times(config.get("castles", []), config.get("bear_traps", []))
 
     # Compute priority and efficiency
@@ -143,9 +145,23 @@ def download_csv():
 
     output = StringIO()
     fieldnames = [
-        "id", "player", "power", "player_level", "command_centre_level",
-        "attendance", "rallies_30min", "preference", "current_trap", "recommended_trap",
-        "priority", "efficiency", "round_trip", "last_updated", "x", "y", "locked"
+        "id",
+        "player",
+        "power",
+        "player_level",
+        "command_centre_level",
+        "attendance",
+        "rallies_30min",
+        "preference",
+        "current_trap",
+        "recommended_trap",
+        "priority",
+        "efficiency",
+        "round_trip",
+        "last_updated",
+        "x",
+        "y",
+        "locked",
     ]
     writer = csv.DictWriter(output, fieldnames=fieldnames)
     writer.writeheader()
@@ -167,7 +183,7 @@ def download_csv():
             "last_updated": castle.get("last_updated", ""),
             "x": castle.get("x"),
             "y": castle.get("y"),
-            "locked": castle.get("locked", False)
+            "locked": castle.get("locked", False),
         }
         writer.writerow(row)
 
@@ -179,7 +195,7 @@ def download_csv():
     return StreamingResponse(
         iter_csv(),
         media_type="text/csv",
-        headers={"Content-Disposition": "attachment; filename=castles.csv"}
+        headers={"Content-Disposition": "attachment; filename=castles.csv"},
     )
 
 
@@ -199,8 +215,8 @@ async def upload_csv(file: UploadFile = File(...)):
     text = content.decode("utf-8").strip()
 
     # Parse the data
-    lines = text.split('\n')
-    if not lines or lines[0].strip() != 'name,power,level':
+    lines = text.split("\n")
+    if not lines or lines[0].strip() != "name,power,level":
         # Assume it's raw text, try to parse as comma-separated
         # But for now, assume it's the format
         pass
@@ -210,18 +226,20 @@ async def upload_csv(file: UploadFile = File(...)):
         line = line.strip()
         if not line:
             continue
-        parts = [p.strip() for p in line.split(',')]
+        parts = [p.strip() for p in line.split(",")]
         if len(parts) != 3:
             continue
         name, power_str, level_str = parts
         try:
             power = parse_power(power_str)
             level = int(level_str)
-            parsed_data.append({
-                "player": name,
-                "power": power,
-                "player_level": level,
-            })
+            parsed_data.append(
+                {
+                    "player": name,
+                    "power": power,
+                    "player_level": level,
+                }
+            )
         except ValueError:
             continue  # Skip invalid lines
 
@@ -230,7 +248,9 @@ async def upload_csv(file: UploadFile = File(...)):
 
     config = load_config()
     existing_castles = config.get("castles", [])
-    existing_by_player = {c.get("player", ""): c for c in existing_castles if c.get("player")}
+    existing_by_player = {
+        c.get("player", ""): c for c in existing_castles if c.get("player")
+    }
 
     now = datetime.now().isoformat()
     updated_count = 0
@@ -277,9 +297,13 @@ async def upload_csv(file: UploadFile = File(...)):
 
     # Notify clients to refresh data
     from server.broadcast import notify_config_updated
+
     await notify_config_updated()
 
-    return {"success": True, "message": f"Updated {updated_count} castles, added {added_count} new castles"}
+    return {
+        "success": True,
+        "message": f"Updated {updated_count} castles, added {added_count} new castles",
+    }
 
 
 @router.get("/api/download_map_image")
@@ -298,23 +322,31 @@ def download_map_image():
         # Render using headless browser (app runs on port 3000)
         buf = get_map_screenshot_sync(base_url="http://localhost:3000")
 
-        return StreamingResponse(buf, media_type="image/png",
-                               headers={"Content-Disposition": "attachment; filename=map.png"})
+        return StreamingResponse(
+            buf,
+            media_type="image/png",
+            headers={"Content-Disposition": "attachment; filename=map.png"},
+        )
 
     except Exception as e:
         print(f"Error generating image: {e}")
         import traceback
+
         traceback.print_exc()
 
         # Return error image
-        error_img = Image.new('RGB', (1600, 1600), (255, 0, 0))
+        error_img = Image.new("RGB", (1600, 1600), (255, 0, 0))
         draw = ImageDraw.Draw(error_img)
         draw.text((10, 10), f"Error: {str(e)[:80]}", fill=(255, 255, 255))
         buf = BytesIO()
         error_img.save(buf, format="PNG")
         buf.seek(0)
-        return StreamingResponse(buf, media_type="image/png",
-                               headers={"Content-Disposition": "attachment; filename=error.png"})
+        return StreamingResponse(
+            buf,
+            media_type="image/png",
+            headers={"Content-Disposition": "attachment; filename=error.png"},
+        )
+
 
 @router.post("/api/send_map_to_discord")
 def send_map_to_discord(request_data: DiscordMapRequest):
@@ -339,7 +371,7 @@ def send_map_to_discord(request_data: DiscordMapRequest):
         webhooks = {
             "r4": "https://discord.com/api/webhooks/1451086879725326477/K4yQSWtl8xP3bHGRDPTgEwPaKhBFjpnK4lKqDcAwJvMC6QTtUT_xdrg4Wx-9YFlE5XN6",
             "announcements": "https://discord.com/api/webhooks/1451086715975503942/fsGgLPkDQCKYr5txMsFyggj-IelKqYdvUQdF2Xdc9S-u1PglG5YM-nIDRUlT9DT7R1HA",
-            "general": "https://discord.com/api/webhooks/1451088022354526302/loqSQ55_LoMGfHYZvJH1qjS5Nf4vSS7hYsjvlj_31zWT3U4POXhMH_ztRIudpxQkJdwq"
+            "general": "https://discord.com/api/webhooks/1451088022354526302/loqSQ55_LoMGfHYZvJH1qjS5Nf4vSS7hYsjvlj_31zWT3U4POXhMH_ztRIudpxQkJdwq",
         }
 
         # Get the map screenshot
@@ -365,12 +397,8 @@ def send_map_to_discord(request_data: DiscordMapRequest):
             screenshot_buf.seek(0)
 
             # Send to Discord
-            files = {
-                'file': ('map.png', screenshot_buf.getvalue(), 'image/png')
-            }
-            data = {
-                'content': message
-            }
+            files = {"file": ("map.png", screenshot_buf.getvalue(), "image/png")}
+            data = {"content": message}
 
             response = requests.post(webhook_url, files=files, data=data)
 
@@ -378,12 +406,19 @@ def send_map_to_discord(request_data: DiscordMapRequest):
                 failed_channels.append(target_channel)
 
         if failed_channels:
-            return {"success": False, "error": f"Failed to send to: {', '.join(failed_channels)}"}
+            return {
+                "success": False,
+                "error": f"Failed to send to: {', '.join(failed_channels)}",
+            }
 
-        return {"success": True, "message": f"Map sent to {', '.join(channels_to_post)} channel(s)"}
+        return {
+            "success": True,
+            "message": f"Map sent to {', '.join(channels_to_post)} channel(s)",
+        }
 
     except Exception as e:
         print(f"Error sending map to Discord: {e}")
         import traceback
+
         traceback.print_exc()
         return {"success": False, "error": str(e)}

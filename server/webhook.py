@@ -20,7 +20,11 @@ from fastapi import APIRouter, Request, HTTPException, Header
 router = APIRouter()
 
 WEBHOOK_SECRET = os.getenv("GITHUB_WEBHOOK_SECRET")
-UPDATE_SCRIPT_PATH = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "scripts", "update_and_restart.sh")
+UPDATE_SCRIPT_PATH = os.path.join(
+    os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+    "scripts",
+    "update_and_restart.sh",
+)
 
 
 def verify_webhook_signature(payload_body: bytes, signature_header: str) -> bool:
