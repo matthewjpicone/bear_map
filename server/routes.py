@@ -282,6 +282,73 @@ async def upload_csv(file: UploadFile = File(...)):
     return {"success": True, "message": f"Updated {updated_count} castles, added {added_count} new castles"}
 
 
+class CastleCreate(BaseModel):
+    """Request model for creating a new castle."""
+    player: str
+    power: int = 0
+    player_level: int = 0
+    command_centre_level: int = 0
+    attendance: int | None = None
+    rallies_30min: int = 0
+    preference: str = "Both"
+    x: int = 0
+    y: int = 0
+
+
+@router.post("/api/castles")
+async def create_castle(castle_data: CastleCreate):
+    """Create a new castle.
+
+    Args:
+        castle_data: Castle information.
+
+    Returns:
+        The newly created castle with assigned ID.
+    """
+    config = load_config()
+    castles = config.get("castles", [])
+
+    # Generate new castle ID
+    castle_id = f"Castle {len(castles) + 1}"
+
+    now = datetime.now().isoformat()
+
+    new_castle = {
+        "id": castle_id,
+        "player": castle_data.player,
+        "power": castle_data.power,
+        "player_level": castle_data.player_level,
+        "command_centre_level": castle_data.command_centre_level,
+        "attendance": castle_data.attendance,
+        "rallies_30min": castle_data.rallies_30min,
+        "preference": castle_data.preference,
+        "current_trap": "",
+        "recommended_trap": "",
+        "priority_score": 0.0,
+        "efficiency_score": 0.0,
+        "round_trip": None,
+        "last_updated": now,
+        "x": castle_data.x,
+        "y": castle_data.y,
+        "locked": False,
+    }
+
+    castles.append(new_castle)
+    config["castles"] = castles
+
+    # Recompute priorities and efficiencies
+    compute_priority(castles)
+    compute_efficiency(config, castles)
+
+    save_config(config)
+
+    # Notify clients
+    from server.broadcast import notify_config_updated
+    await notify_config_updated()
+
+    return {"success": True, "castle": new_castle}
+
+
 @router.get("/api/download_map_image")
 def download_map_image():
     """Download the current map as a PNG image.
@@ -337,9 +404,9 @@ def send_map_to_discord(request_data: DiscordMapRequest):
 
         # Discord webhook URLs
         webhooks = {
-            "r4": "https://discord.com/api/webhooks/1451086879725326477/K4yQSWtl8xP3bHGRDPTgEwPaKhBFjpnK4lKqDcAwJvMC6QTtUT_xdrg4Wx-9YFlE5XN6",
-            "announcements": "https://discord.com/api/webhooks/1451086715975503942/fsGgLPkDQCKYr5txMsFyggj-IelKqYdvUQdF2Xdc9S-u1PglG5YM-nIDRUlT9DT7R1HA",
-            "general": "https://discord.com/api/webhooks/1451088022354526302/loqSQ55_LoMGfHYZvJH1qjS5Nf4vSS7hYsjvlj_31zWT3U4POXhMH_ztRIudpxQkJdwq"
+            "r4": "https://discord.com/api/webhooks/1451086715975503942/fsGgLPkDQCKYr5txMsFyggj-IelKqYdvUQdF2Xdc9S-u1PglG5YM-nIDRUlT9DT7R1HA",
+            "announcements": "https://discord.com/api/webhooks/1451086879725326477/K4yQSWtl8xP3bHGRDPTgEwPaKhBFjpnK4lKqDcAwJvMC6QTtUT_xdrg4Wx-9YFlE5XN6",
+            "general": "https://discord.com/api/webhooks/1451089385574371433/c5D8N0OSbO3c5pL1CAbifsuV6IVLKUkCmrCrqlNsJgMaAkGAchgcgtxu0Zg4GpxpMOC4"
         }
 
         # Get the map screenshot

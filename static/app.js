@@ -2261,6 +2261,146 @@ TIP
 `);
 });
 
+// ==========================
+// Add Castle Modal Functions
+// ==========================
+
+/**
+ * Open the Add Castle modal
+ */
+function openAddCastleModal() {
+  // Clear previous inputs
+  document.getElementById('addCastleName').value = '';
+  document.getElementById('addCastlePower').value = '';
+  document.getElementById('addCastleLevel').value = '25';
+  document.getElementById('addCastlePreference').value = 'Both';
+
+  // Show modal
+  document.getElementById('addCastleModal').style.display = 'block';
+
+  // Focus on name input
+  document.getElementById('addCastleName').focus();
+}
+
+/**
+ * Close the Add Castle modal
+ */
+function closeAddCastleModal() {
+  document.getElementById('addCastleModal').style.display = 'none';
+}
+
+/**
+ * Submit the Add Castle form
+ */
+async function submitAddCastle() {
+  const playerName = document.getElementById('addCastleName').value.trim();
+  const powerStr = document.getElementById('addCastlePower').value.trim();
+  const levelStr = document.getElementById('addCastleLevel').value;
+  const preference = document.getElementById('addCastlePreference').value;
+
+  // Validate inputs
+  if (!playerName) {
+    showToast('Player name is required', 'error');
+    return;
+  }
+
+  if (!powerStr) {
+    showToast('Power is required', 'error');
+    return;
+  }
+
+  try {
+    // Parse power (handle M/K suffix)
+    let power = 0;
+    const powerTrimmed = powerStr.toUpperCase();
+    if (powerTrimmed.endsWith('M')) {
+      power = Math.floor(parseFloat(powerTrimmed) * 1000000);
+    } else if (powerTrimmed.endsWith('K')) {
+      power = Math.floor(parseFloat(powerTrimmed) * 1000);
+    } else {
+      power = parseInt(powerTrimmed);
+    }
+
+    const level = parseInt(levelStr);
+
+    // Validate inputs
+    if (isNaN(power) || power < 0) {
+      showToast('Invalid power value', 'error');
+      return;
+    }
+    if (isNaN(level) || level < 1 || level > 50) {
+      showToast('Invalid level (must be 1-50)', 'error');
+      return;
+    }
+
+    // Call API to create castle
+    const response = await fetch('/api/castles', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        player: playerName,
+        power: power,
+        player_level: level,
+        preference: preference
+      })
+    });
+
+    if (!response.ok) {
+      throw new Error('Failed to create castle');
+    }
+
+    const result = await response.json();
+    showToast(`Castle added for ${playerName}! ✅`, 'success');
+
+    // Close modal
+    closeAddCastleModal();
+
+    // Reload map data to show new castle
+    await loadMapData();
+    renderCastleTable();
+
+  } catch (error) {
+    console.error('Error adding castle:', error);
+    showToast('Failed to add castle', 'error');
+  }
+}
+
+// Add Castle button - open modal
+document.getElementById("addCastleBtn")?.addEventListener("click", () => {
+  openAddCastleModal();
+});
+
+// Cancel button - close modal
+document.getElementById("cancelAddCastle")?.addEventListener("click", () => {
+  closeAddCastleModal();
+});
+
+// Confirm button - submit form
+document.getElementById("confirmAddCastle")?.addEventListener("click", async () => {
+  await submitAddCastle();
+});
+
+// Enter key support in modal inputs
+document.getElementById("addCastleName")?.addEventListener("keypress", (e) => {
+  if (e.key === 'Enter') {
+    e.preventDefault();
+    document.getElementById('addCastlePower').focus();
+  }
+});
+
+document.getElementById("addCastlePower")?.addEventListener("keypress", (e) => {
+  if (e.key === 'Enter') {
+    e.preventDefault();
+    document.getElementById('addCastleLevel').focus();
+  }
+});
+
+document.getElementById("addCastleLevel")?.addEventListener("keypress", async (e) => {
+  if (e.key === 'Enter') {
+    e.preventDefault();
+    await submitAddCastle();
+  }
+});
 
 document.getElementById("castleLimit").addEventListener("change", renderCastleTable);
 

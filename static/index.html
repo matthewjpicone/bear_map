@@ -181,6 +181,36 @@
     <button id="confirmDelete">Delete</button>
   </div>
 </div>
+
+<!-- Add Castle Modal -->
+<div id="addCastleModal" style="display: none; position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); background: var(--panel); border: 1px solid var(--border); padding: 20px; z-index: 10; border-radius: 8px; min-width: 350px;">
+  <h3>Add New Castle</h3>
+  <div style="margin: 15px 0;">
+    <label style="display: block; margin-bottom: 5px; font-weight: 500;">Player Name *</label>
+    <input id="addCastleName" type="text" placeholder="Enter player name" style="width: 100%; padding: 8px; border: 1px solid var(--border); border-radius: 4px; background: var(--surface); color: var(--text);" />
+  </div>
+  <div style="margin: 15px 0;">
+    <label style="display: block; margin-bottom: 5px; font-weight: 500;">Power *</label>
+    <input id="addCastlePower" type="text" placeholder="e.g., 25.5M or 25500000" style="width: 100%; padding: 8px; border: 1px solid var(--border); border-radius: 4px; background: var(--surface); color: var(--text);" />
+  </div>
+  <div style="margin: 15px 0;">
+    <label style="display: block; margin-bottom: 5px; font-weight: 500;">TC Level *</label>
+    <input id="addCastleLevel" type="number" min="1" max="50" value="25" placeholder="1-50" style="width: 100%; padding: 8px; border: 1px solid var(--border); border-radius: 4px; background: var(--surface); color: var(--text);" />
+  </div>
+  <div style="margin: 15px 0;">
+    <label style="display: block; margin-bottom: 5px; font-weight: 500;">Bear Preference *</label>
+    <select id="addCastlePreference" style="width: 100%; padding: 8px; border: 1px solid var(--border); border-radius: 4px; background: var(--surface); color: var(--text);">
+      <option value="Both">Both</option>
+      <option value="Bear 1">Bear 1</option>
+      <option value="Bear 2">Bear 2</option>
+    </select>
+  </div>
+  <div style="margin-top: 20px; text-align: right;">
+    <button id="cancelAddCastle" style="margin-right: 10px;">Cancel</button>
+    <button id="confirmAddCastle" style="background: var(--accent); color: white;">Add Castle</button>
+  </div>
+</div>
+
 <script src="/static/toast.js"></script>
 <script src="/static/sync.js"></script>
 <script src="/static/app.js"></script>
