@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="WebServers">
+    <option name="servers">
+      <webServer id="25361f48-7c3f-4c49-9b94-d8ab3fb0a88f" name="Ingleburn Server">
+        <fileTransfer accessType="SFTP" host="10.0.0.100" port="22" sshConfigId="ad78aabf-5b0c-4009-84f4-fb8843497ee0" sshConfig="Ingleburn Server">
+          <advancedOptions>
+            <advancedOptions dataProtectionLevel="Private" passiveMode="true" shareSSLContext="true" isUseRsync="true" />
+          </advancedOptions>
+        </fileTransfer>
+      </webServer>
+    </option>
+  </component>
+</project>
