@@ -22,7 +22,7 @@ pytesseract==0.3.13
 python-dotenv==1.2.1
 python-multipart==0.0.21
 PyYAML==6.0.3
-requests==2.31.0
+requests==2.32.4
 starlette==0.50.0
 typing-inspection==0.4.2
 typing_extensions==4.15.0
