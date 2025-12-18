@@ -206,12 +206,14 @@ class VersionBumper:
             return conventional_type
 
         # Use AI for classification
+        # Limit diff to first 1000 chars
+        diff_summary = commit["diff"][:1000]
         prompt = f"""Analyze this git commit and classify its impact on semantic versioning.
 
 Commit message: {commit['message']}
 
 Diff summary:
-{commit['diff'][:1000]}  # Limit diff to first 1000 chars
+{diff_summary}
 
 Classify this commit as one of:
 - BREAKING: Breaking changes that require a major version bump
