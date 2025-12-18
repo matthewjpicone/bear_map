@@ -150,6 +150,12 @@ function initSSE() {
 // ==========================
 // Normalisation functions
 // ==========================
+/**
+ * Normalize bear trap data structure with defaults
+ * @param {Object} bear - Raw bear data from server
+ * @param {number} index - Index of bear in array
+ * @returns {Object} Normalized bear object
+ */
 function normaliseBear(bear, index) {
   return {
     id: bear.id ?? `Bear ${index + 1}`,
@@ -160,6 +166,12 @@ function normaliseBear(bear, index) {
   };
 }
 
+/**
+ * Normalize castle data structure with defaults
+ * @param {Object} castle - Raw castle data from server
+ * @param {number} index - Index of castle in array
+ * @returns {Object} Normalized castle object
+ */
 function normaliseCastle(castle, index) {
   return {
     id: castle.id ?? `Castle ${index + 1}`,
@@ -219,6 +231,12 @@ function normaliseCastle(castle, index) {
   };
 }
 
+/**
+ * Normalize banner data structure with defaults
+ * @param {Object} banner - Raw banner data from server
+ * @param {number} index - Index of banner in array
+ * @returns {Object} Normalized banner object
+ */
 function normaliseBanner(banner, index) {
   return {
     id: banner.id ?? `B${index + 1}`,
@@ -292,10 +310,22 @@ async function loadMapData() {
 // ==========================
 // Utilities
 // ==========================
+
+/**
+ * Escape special regex characters in a string
+ * @param {string} str - String to escape
+ * @returns {string} Escaped string safe for use in RegExp
+ */
 function escapeRegex(str) {
   return str.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
 
+/**
+ * Highlight search query within text using HTML mark tags
+ * @param {string} text - Text to highlight within
+ * @param {string} query - Search query to highlight
+ * @returns {DocumentFragment} Document fragment with highlighted text
+ */
 function highlightText(text, query) {
   if (!query) return document.createTextNode(text);
 
@@ -2031,6 +2061,9 @@ function showBulkOperationModal(operationType, title, message) {
   document.getElementById('bulkOperationModal').style.display = 'block';
 }
 
+/**
+ * Close bulk operation modal and reset pending operation
+ */
 function closeBulkOperationModal() {
   document.getElementById('bulkOperationModal').style.display = 'none';
   pendingBulkOperation = null;

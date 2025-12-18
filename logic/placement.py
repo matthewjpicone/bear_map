@@ -11,7 +11,7 @@ Date: 2025-12-17
 from typing import List, Dict, Tuple
 
 from .config import load_config, save_config
-from .validation import is_within_bounds, check_castle_overlap, check_castle_overlap_with_entities, rectangles_overlap
+from .validation import check_castle_overlap, check_castle_overlap_with_entities, rectangles_overlap
 from .scoring import compute_priority, compute_efficiency, get_walkable_tiles, chebyshev_distance, compute_ideal_allocation
 
 
@@ -288,7 +288,19 @@ async def auto_place_castles() -> Dict[str, int]:
 
 
 def compute_efficiency_for_castle(castle: Dict, all_castles: List[Dict], bear_traps: List[Dict], grid_size: int) -> float:
-    """Compute efficiency score for a single castle given current positions."""
+    """Compute efficiency score for a single castle given current positions.
+
+    Calculates the efficiency score based on travel time regret and blocking penalties.
+
+    Args:
+        castle: The castle to compute efficiency for.
+        all_castles: List of all castles for comparison.
+        bear_traps: List of bear trap positions.
+        grid_size: Size of the grid.
+
+    Returns:
+        Efficiency score (0-100, lower is better).
+    """
     # Compute actual_travel_time for all
     for c in all_castles:
         if c.get("x") is not None and c.get("y") is not None:

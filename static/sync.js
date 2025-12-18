@@ -1,6 +1,14 @@
-// =========================
-// Bear Planner – Client Sync
-// =========================
+/**
+ * Bear Planner – Client Sync Module
+ *
+ * Manages WebSocket connections for real-time synchronization of entity
+ * positions and states across multiple clients with optimistic updates
+ * and soft-locking mechanism.
+ *
+ * @module Sync
+ * @author Matthew Picone
+ * @date 2025-12-17
+ */
 
 const AUTO_SAVE_INTERVAL = 5000; // 5 seconds
 

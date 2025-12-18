@@ -12,9 +12,7 @@ import json
 import os
 import csv
 from io import StringIO, BytesIO
-from typing import Dict, Any
 from datetime import datetime
-import math
 
 from fastapi import APIRouter, UploadFile, File
 from fastapi.responses import HTMLResponse, FileResponse, StreamingResponse
@@ -339,9 +337,9 @@ def send_map_to_discord(request_data: DiscordMapRequest):
 
         # Discord webhook URLs
         webhooks = {
-            "r4": "https://discord.com/api/webhooks/1451086715975503942/fsGgLPkDQCKYr5txMsFyggj-IelKqYdvUQdF2Xdc9S-u1PglG5YM-nIDRUlT9DT7R1HA",
-            "announcements": "https://discord.com/api/webhooks/1451086879725326477/K4yQSWtl8xP3bHGRDPTgEwPaKhBFjpnK4lKqDcAwJvMC6QTtUT_xdrg4Wx-9YFlE5XN6",
-            "general": "https://discord.com/api/webhooks/1451089385574371433/c5D8N0OSbO3c5pL1CAbifsuV6IVLKUkCmrCrqlNsJgMaAkGAchgcgtxu0Zg4GpxpMOC4"
+            "r4": "https://discord.com/api/webhooks/1451086879725326477/K4yQSWtl8xP3bHGRDPTgEwPaKhBFjpnK4lKqDcAwJvMC6QTtUT_xdrg4Wx-9YFlE5XN6",
+            "announcements": "https://discord.com/api/webhooks/1451086715975503942/fsGgLPkDQCKYr5txMsFyggj-IelKqYdvUQdF2Xdc9S-u1PglG5YM-nIDRUlT9DT7R1HA",
+            "general": "https://discord.com/api/webhooks/1451088022354526302/loqSQ55_LoMGfHYZvJH1qjS5Nf4vSS7hYsjvlj_31zWT3U4POXhMH_ztRIudpxQkJdwq"
         }
 
         # Get the map screenshot

@@ -1,3 +1,13 @@
+"""
+WebSocket synchronization module.
+
+This module handles real-time WebSocket connections for collaborative editing
+with soft-locking mechanism to prevent conflicts.
+
+Author: Matthew Picone (mail@matthewpicone.com)
+Date: 2025-12-17
+"""
+
 # from fastapi import WebSocket, WebSocketDisconnect
 # from fastapi import APIRouter
 # import time
@@ -112,7 +122,6 @@
 
 from fastapi import WebSocket, WebSocketDisconnect, APIRouter
 import time
-import asyncio
 
 router = APIRouter()
 
@@ -136,11 +145,20 @@ soft_locks: dict[str, dict] = {}
 # Helpers
 # ==========================
 def now_ms() -> int:
+    """Get current time in milliseconds since epoch.
+
+    Returns:
+        Current timestamp in milliseconds.
+    """
     return int(time.time() * 1000)
 
 
 def cleanup_expired_locks():
-    """Remove expired locks"""
+    """Remove all expired soft locks from the global locks dictionary.
+
+    Checks all locks against the current timestamp and removes any that
+    have exceeded their TTL.
+    """
     t = now_ms()
     expired = [
         obj_id for obj_id, lock in soft_locks.items()
@@ -151,6 +169,12 @@ def cleanup_expired_locks():
 
 
 async def broadcast(payload, sender=None):
+    """Broadcast a message to all connected WebSocket clients.
+
+    Args:
+        payload: JSON-serializable payload to send to clients.
+        sender: Optional WebSocket connection to exclude from broadcast.
+    """
     dead = set()
     for c in clients:
         if c is sender:
@@ -165,6 +189,11 @@ async def broadcast(payload, sender=None):
 
 
 async def broadcast_lock_release(obj_id: str):
+    """Broadcast a lock release message to all clients.
+
+    Args:
+        obj_id: ID of the entity whose lock was released.
+    """
     await broadcast({
         "type": "release",
         "id": obj_id
