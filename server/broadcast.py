@@ -59,3 +59,4 @@ async def notify_config_updated():
     from logic.config import load_config
     config = load_config()
     await broadcast_config(config)
+

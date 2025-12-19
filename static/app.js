@@ -1567,6 +1567,8 @@ function onMouseDown(e) {
       if (window.remoteBusy?.has(castle.id)) return;
 
       draggingCastle = castle;
+Sync.markBusy(castle.id)
+
       castle._original = { x: castle.x, y: castle.y };
       castle._grab = { dx: x - castle.x, dy: y - castle.y };
 
@@ -1582,6 +1584,7 @@ function onMouseDown(e) {
       if (window.remoteBusy?.has(banner.id)) return;
 
       draggingBanner = banner;
+      Sync.markBusy(banner.id)
       banner._original = { x: banner.x, y: banner.y };
 
       drawMap(mapData);
@@ -1596,6 +1599,7 @@ function onMouseDown(e) {
       if (window.remoteBusy?.has(bear.id)) return;
 
       draggingBear = bear;
+      Sync.markBusy(bear.id)
       bear._original = { x: bear.x, y: bear.y };
 
       drawMap(mapData);
