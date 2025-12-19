@@ -3593,10 +3593,10 @@
       "current_trap": "",
       "recommended_trap": "",
       "priority_score": 0.21588122932486664,
-      "efficiency_score": 0,
+      "efficiency_score": 46,
       "round_trip": 354,
       "last_updated": "2025-12-18T00:47:40.890737",
-      "locked": true,
+      "locked": false,
       "priority_debug": {
         "n_power": 0.27461960150687614,
         "n_player_level": 0.14285714285714285,
@@ -3614,11 +3614,11 @@
       },
       "priority_index": 80,
       "priority_rank_100": 80,
-      "ideal_x": 10,
-      "ideal_y": 4,
-      "ideal_travel_time": 10,
+      "ideal_x": 13,
+      "ideal_y": 14,
+      "ideal_travel_time": 2,
       "actual_travel_time": 10,
-      "regret": 0,
+      "regret": 8,
       "block_penalty_raw": 0,
       "priority": 0.0,
       "efficiency": 0.0,
@@ -4604,8 +4604,8 @@
       "locked": false
     }
   ],
-  "map_score_900": 827,
-  "map_score_percent": 91.9,
+  "map_score_900": 824,
+  "map_score_percent": 91.6,
   "empty_score_100": 82,
-  "efficiency_avg": 7.1
+  "efficiency_avg": 7.6
 }

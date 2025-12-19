@@ -84,6 +84,16 @@ const FALLBACK_EFFICIENCY_SCALE = [
 // Server-Sent Events (SSE)
 // ==========================
 let sse = null;
+let sseReloadScheduled = false;
+
+function scheduleHardReload() {
+  if (sseReloadScheduled) return;
+  sseReloadScheduled = true;
+  console.warn("SSE disconnected — reloading page to resync with server");
+  setTimeout(() => {
+    window.location.reload();
+  }, 1500);
+}
 
 function initSSE() {
   if (sse) return; // prevent double-connects
@@ -93,11 +103,12 @@ function initSSE() {
 
     sse.onopen = () => {
       console.log("[SSE] Connected");
+      sseReloadScheduled = false; // clear any pending reload
     };
 
     sse.onerror = err => {
       console.warn("[SSE] Connection lost", err);
-      // Browser will auto-retry; no manual reconnect needed
+      scheduleHardReload();
     };
 
     // Single message handler for all events
@@ -133,6 +144,7 @@ function initSSE() {
 
   } catch (e) {
     console.error("[SSE] Failed to initialise", e);
+    scheduleHardReload();
   }
 }
 
