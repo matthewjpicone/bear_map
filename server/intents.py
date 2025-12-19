@@ -476,36 +476,20 @@ async def lock_all_placed():
 
 @router.post("/api/intent/unlock_all")
 async def unlock_all():
-    """Unlock all castles, banners, and bear traps.
-
-    Sets the locked state to False for all entities across the map.
+    """Unlock all castles (does not affect banners or bear traps).
 
     Returns:
-        Dictionary with success status and counts of unlocked entities.
+        Dictionary with success status and count of unlocked castles.
     """
     config = load_config()
     castles = config.get("castles", [])
-    banners = config.get("banners", [])
-    bear_traps = config.get("bear_traps", [])
 
     unlocked_castles = 0
-    unlocked_banners = 0
-    unlocked_bear_traps = 0
 
     for castle in castles:
         if castle.get("locked", False):
             castle["locked"] = False
             unlocked_castles += 1
-
-    for banner in banners:
-        if banner.get("locked", False):
-            banner["locked"] = False
-            unlocked_banners += 1
-
-    for bear_trap in bear_traps:
-        if bear_trap.get("locked", False):
-            bear_trap["locked"] = False
-            unlocked_bear_traps += 1
 
     save_config(config)
     await notify_config_updated()
@@ -513,8 +497,6 @@ async def unlock_all():
     return {
         "success": True,
         "unlocked_castles": unlocked_castles,
-        "unlocked_banners": unlocked_banners,
-        "unlocked_bear_traps": unlocked_bear_traps,
     }
 
 

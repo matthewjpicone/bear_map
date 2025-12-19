@@ -1969,6 +1969,8 @@ function onMouseMovePan(e) {
     clearTimeout(tooltipTimer);
     tooltipTimer = null;
     hideCastleTooltip();
+    // While panning, cursor stays grabbing
+    canvas.style.cursor = 'grabbing';
   } else if (!draggingCastle && !draggingBear && !draggingBanner) {
     // Detect hover over castles when not dragging or panning
     const rect = canvas.getBoundingClientRect();
@@ -1976,40 +1978,75 @@ function onMouseMovePan(e) {
     const mouseCanvasY = e.clientY - rect.top;
     const { x, y } = screenToGrid(mouseCanvasX, mouseCanvasY);
 
-    // Check if hovering over a castle on the grid
-    let hoveredCastle = null;
+    let hoveredEntity = null;
+
+    // Check castles
     for (let castle of mapData?.castles || []) {
       if (castle.x == null || castle.y == null) continue;
       if (isPointInEntity(x, y, castle)) {
-        hoveredCastle = castle;
+        hoveredEntity = { type: 'castle', entity: castle };
         break;
       }
     }
 
+    // Check bears if nothing yet
+    if (!hoveredEntity) {
+      for (let bear of mapData?.bear_traps || []) {
+        if (bear.x == null || bear.y == null) continue;
+        if (isPointInEntity(x, y, bear)) {
+          hoveredEntity = { type: 'bear', entity: bear };
+          break;
+        }
+      }
+    }
+
+    // Check banners if still nothing
+    if (!hoveredEntity) {
+      for (let banner of mapData?.banners || []) {
+        if (banner.x == null || banner.y == null) continue;
+        if (isPointInEntity(x, y, banner)) {
+          hoveredEntity = { type: 'banner', entity: banner };
+          break;
+        }
+      }
+    }
+
+    // Update cursor based on hover state
+    if (hoveredEntity) {
+      const ent = hoveredEntity.entity;
+      const isLocked = !!ent.locked;
+      const isBusy = window.remoteBusy?.has(ent.id);
+      if (isLocked || isBusy) {
+        canvas.style.cursor = 'not-allowed';
+      } else {
+        // Castles show a grab cursor; other entities get a pointer
+        if (hoveredEntity.type === 'castle') {
+          canvas.style.cursor = 'grab';
+        } else {
+          canvas.style.cursor = 'pointer';
+        }
+      }
+    } else {
+      canvas.style.cursor = 'default';
+    }
+
+    // Existing tooltip handling for castles
+    let hoveredCastle = hoveredEntity?.type === 'castle' ? hoveredEntity.entity : null;
     if (hoveredCastle) {
-      // Check if tooltip is currently visible (use cached element for performance)
       const isTooltipVisible = tooltipElement && tooltipElement.classList.contains("visible");
-      
       if (hoveredCastleOnCanvas !== hoveredCastle) {
-        // New castle detected, clear any existing timer and start a new one
         clearTimeout(tooltipTimer);
         tooltipTimer = null;
         hoveredCastleOnCanvas = hoveredCastle;
         hideCastleTooltip();
-        
-        // Set timer to show tooltip after TOOLTIP_DELAY_MS
         tooltipTimer = setTimeout(() => {
           showCastleTooltip(hoveredCastle, e.clientX, e.clientY);
-          // Clear timer reference for state management (indicates no timer is active)
           tooltipTimer = null;
         }, TOOLTIP_DELAY_MS);
       } else if (isTooltipVisible) {
-        // Same castle and tooltip is visible - update position on mouse move
         showCastleTooltip(hoveredCastle, e.clientX, e.clientY);
       }
-      // If same castle and timer is pending, do nothing (let timer complete)
     } else {
-      // Not hovering over any castle
       if (hoveredCastleOnCanvas) {
         hoveredCastleOnCanvas = null;
         clearTimeout(tooltipTimer);
@@ -2122,6 +2159,37 @@ document
     });
 
 document
+    .getElementById("jokeBtn")
+    .addEventListener("click", async () => {
+        try {
+            const response = await fetch('https://official-joke-api.appspot.com/jokes/random');
+            if (!response.ok) throw new Error('Failed to fetch joke');
+            const joke = await response.json();
+            document.getElementById('jokeSetup').textContent = joke.setup;
+            document.getElementById('jokePunchline').textContent = joke.punchline;
+            document.getElementById('jokePunchline').style.display = 'none';
+            document.getElementById('jokeModal').style.display = 'block';
+        } catch (error) {
+            console.error('Error fetching joke:', error);
+            showToast('Failed to fetch joke', 'error');
+        }
+    });
+
+document
+    .getElementById("revealPunchline")
+    .addEventListener("click", () => {
+        document.getElementById('jokePunchline').style.display = 'block';
+        document.getElementById('revealPunchline').style.display = 'none';
+    });
+
+document
+    .getElementById("closeJoke")
+    .addEventListener("click", () => {
+        document.getElementById('jokeModal').style.display = 'none';
+        document.getElementById('revealPunchline').style.display = 'block';
+    });
+
+document
     .getElementById("sendToR4Btn")
     .addEventListener("click", async () => {
         try {
@@ -2154,6 +2222,49 @@ document
             showToast('Failed to publish map to Discord', 'error');
         }
     });
+
+// Publish modal logic
+const publishModal = document.getElementById('publishConfirmModal');
+const cancelPublishBtn = document.getElementById('cancelPublish');
+const confirmPublishBtn = document.getElementById('confirmPublish');
+
+function openPublishModal() {
+  if (publishModal) publishModal.style.display = 'block';
+}
+
+function closePublishModal() {
+  if (publishModal) publishModal.style.display = 'none';
+}
+
+cancelPublishBtn?.addEventListener('click', () => {
+  closePublishModal();
+});
+
+confirmPublishBtn?.addEventListener('click', async () => {
+  closePublishModal();
+  try {
+    const response = await fetch('/api/send_map_to_discord', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        channel: 'announcements',
+        message: 'New map available! Please carefully review the updated positions and make your way to your designated location when able.'
+      }),
+    });
+    if (!response.ok) throw new Error('Send failed');
+    showToast('Map published to Announcements! ✅', 'success');
+  } catch (error) {
+    console.error('Error publishing map to Discord:', error);
+    showToast('Failed to publish map to Discord', 'error');
+  }
+});
+
+// Override publish button to open confirmation modal
+const publishBtn = document.getElementById('sendToAnnouncementsBtn');
+publishBtn?.addEventListener('click', (e) => {
+  e.preventDefault();
+  openPublishModal();
+});
 
 // ==========================
 // Bulk Operation Modal State
@@ -2556,19 +2667,14 @@ document.getElementById("lockAllBtn").addEventListener("click", async () => {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' }
     });
-    
     if (!response.ok) {
       throw new Error(`Failed to lock castles: ${response.statusText}`);
     }
-    
     const result = await response.json();
-    console.log(`Locked ${result.locked_count} placed castles`);
-    
-    // UI will update via SSE, but we can show a quick notification
-    alert(`Locked ${result.locked_count} placed castle(s)`);
+    showToast(`Locked ${result.locked_count} placed castle(s)`, 'success');
   } catch (error) {
     console.error('Error locking castles:', error);
-    alert('Failed to lock castles. See console for details.');
+    showToast('Failed to lock castles. See console for details.', 'error');
   }
 });
 
@@ -2578,20 +2684,15 @@ document.getElementById("unlockAllBtn").addEventListener("click", async () => {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' }
     });
-    
     if (!response.ok) {
-      throw new Error(`Failed to unlock entities: ${response.statusText}`);
+      throw new Error(`Failed to unlock castles: ${response.statusText}`);
     }
-    
     const result = await response.json();
-    const total = result.unlocked_castles + result.unlocked_banners + result.unlocked_bear_traps;
-    console.log(`Unlocked ${result.unlocked_castles} castles, ${result.unlocked_banners} banners, ${result.unlocked_bear_traps} bear traps`);
-    
-    // UI will update via SSE, but we can show a quick notification
-    alert(`Unlocked ${total} entity/entities (${result.unlocked_castles} castles, ${result.unlocked_banners} banners, ${result.unlocked_bear_traps} bear traps)`);
+    // Inform user
+    showToast(`Unlocked ${result.unlocked_castles} castle(s)`, 'success');
   } catch (error) {
-    console.error('Error unlocking entities:', error);
-    alert('Failed to unlock entities. See console for details.');
+    console.error('Error unlocking castles:', error);
+    showToast('Failed to unlock castles. See console for details.', 'error');
   }
 });
 

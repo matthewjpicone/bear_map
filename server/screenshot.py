@@ -41,8 +41,8 @@ async def render_map_screenshot(base_url: str = "http://localhost:3000") -> Byte
         # Use 1.5x device pixel ratio for crisp output
         # 1920x1440 viewport at 1.5x = 2880x2160 effective pixels
         page = await browser.new_page(
-            viewport={"width": 1920, "height": 1440},
-            device_scale_factor=1.5
+            viewport={"width": 2450, "height": 1600},
+            device_scale_factor=5
         )
 
         try:

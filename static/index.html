@@ -16,7 +16,7 @@
 
 <!-- TOP TOOLBAR -->
 <div class="toolbar">
-  <button>Placeholder 1</button>
+  <button id="jokeBtn">Tell me a joke</button>
   <button>Placeholder 2</button>
   <button>Placeholder 3</button>
   <button>Placeholder 4</button>
@@ -75,9 +75,7 @@
       </select>
       <button id="uploadCsvBtn" aria-label="Upload CSV file">Upload CSV</button>
       <button id="downloadCsvBtn" class="secondary" aria-label="Download CSV file">Download CSV</button>
-      <button id="addCastleBtn">Add Castle</button>
-      <button id="addBearBtn">Add Bear</button>
-    </div>
+      <button id="addCastleBtn">Add Castle</button></div>
 
     <!-- Bulk Operations Toolbar -->
     <div id="bulkOpsToolbar" class="bulk-ops-toolbar" style="display: none;">
@@ -211,9 +209,34 @@
   </div>
 </div>
 
+<!-- Publish Confirmation Modal -->
+<div id="publishConfirmModal" style="display: none; position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); background: var(--panel); border: 1px solid var(--border); padding: 20px; z-index: 10; border-radius: 8px; max-width: 420px;">
+  <h3>Publish to Discord?</h3>
+  <p>This will post the latest map to the Announcements channel for all members. Are you sure you want to publish?</p>
+  <div style="background: var(--surface); border-left: 4px solid var(--accent); padding: 12px; margin: 15px 0; border-radius: 4px;">
+    <strong>Heads up:</strong> This notifies everyone. Please confirm the map is final before publishing.
+  </div>
+  <div style="margin-top: 20px; text-align: right;">
+    <button id="cancelPublish" style="margin-right: 10px;">Cancel</button>
+    <button id="confirmPublish" style="background: var(--accent); color: white;">Publish</button>
+  </div>
+</div>
+
+<!-- Joke Modal -->
+<div id="jokeModal" style="display: none; position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); background: var(--panel); border: 1px solid var(--border); padding: 20px; z-index: 10; border-radius: 8px; max-width: 500px;">
+  <h3>Joke of the Day</h3>
+  <p id="jokeSetup"></p>
+  <div id="jokePunchline" style="display: none; margin-top: 15px; font-weight: bold;"></div>
+  <div style="margin-top: 20px; text-align: right;">
+    <button id="revealPunchline" style="background: var(--accent); color: white;">Reveal Punchline</button>
+    <button id="closeJoke" style="margin-left: 10px;">Close</button>
+  </div>
+</div>
+
 <script src="/static/toast.js"></script>
 <script src="/static/sync.js"></script>
 <script src="/static/app.js"></script>
 
 </body>
 </html>
+
