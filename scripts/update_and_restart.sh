@@ -1,82 +1,26 @@
-#!/bin/bash
+#!/usr/bin/env bash
+set -euo pipefail
 
-# Script to update the Bear Map application and restart the service
-# This script is called by the GitHub webhook handler
+REPO_DIR="$HOME/bear_map"
+BRANCH="main"
+REMOTE="origin"
+SERVICE_NAME="bearmap"
 
-set -e  # Exit on error
+cd "$REPO_DIR"
 
-# Configuration
-REPO_DIR="/home/matthewpicone/bear_map"
-VENV_PIP="/home/matthewpicone/bear_map/venv/bin/pip"
-SERVICE_NAME="bearmap.service"
-LOG_FILE="/home/matthewpicone/bear_map/update.log"
+git config --global --add safe.directory "$REPO_DIR" >/dev/null 2>&1 || true
 
-# Function to log messages
-log_message() {
-    echo "$(date '+%Y-%m-%d %H:%M:%S') - $1" | tee -a "$LOG_FILE"
-}
+git fetch --prune "$REMOTE"
+git reset --hard "$REMOTE/$BRANCH"
+git clean -fd
 
-log_message "========== Update Process Started =========="
-
-# Navigate to repository directory
-if [ ! -d "$REPO_DIR" ]; then
-    log_message "ERROR: Repository directory not found: $REPO_DIR"
-    exit 1
+if [[ ! -x "./venv/bin/python" ]]; then
+  python3 -m venv venv
 fi
 
-cd "$REPO_DIR" || exit 1
-log_message "Changed to directory: $REPO_DIR"
+./venv/bin/python -m pip install --upgrade pip setuptools wheel
+./venv/bin/python -m pip install -r requirements.txt
+./venv/bin/python -m pip check
 
-# Pull latest changes from main branch
-log_message "Pulling latest changes from main branch..."
-if git pull origin main; then
-    log_message "Successfully pulled latest changes"
-else
-    log_message "ERROR: Failed to pull changes from repository"
-    exit 1
-fi
-
-# Update version file from git tags and package.json
-log_message "Syncing version information..."
-if python3 scripts/update_version.py; then
-    log_message "Successfully synced version"
-else
-    log_message "WARNING: Failed to sync version, continuing anyway"
-fi
-
-# Update Python dependencies
-if [ ! -f "$VENV_PIP" ]; then
-    log_message "ERROR: Virtual environment pip not found: $VENV_PIP"
-    exit 1
-fi
-
-log_message "Updating Python dependencies..."
-if "$VENV_PIP" install -r requirements.txt; then
-    log_message "Successfully updated dependencies"
-else
-    log_message "ERROR: Failed to update dependencies"
-    exit 1
-fi
-
-# Restart systemd service
-# Note: This requires sudo access. Configure sudoers to allow the service user
-# to run 'systemctl restart bearmap.service' without a password prompt.
-# Example sudoers entry:
-#   matthewpicone ALL=(ALL) NOPASSWD: /usr/bin/systemctl restart bearmap.service
-log_message "Restarting $SERVICE_NAME..."
-if sudo systemctl restart "$SERVICE_NAME"; then
-    log_message "Successfully restarted $SERVICE_NAME"
-else
-    log_message "ERROR: Failed to restart $SERVICE_NAME"
-    exit 1
-fi
-
-# Check service status
-if sudo systemctl is-active --quiet "$SERVICE_NAME"; then
-    log_message "Service $SERVICE_NAME is running"
-    log_message "========== Update Process Completed Successfully =========="
-else
-    log_message "WARNING: Service $SERVICE_NAME may not be running correctly"
-    log_message "========== Update Process Completed with Warnings =========="
-    exit 1
-fi
+sudo systemctl restart "$SERVICE_NAME"
+sudo systemctl is-active --quiet "$SERVICE_NAME"
