@@ -112,7 +112,7 @@ main {
   box-sizing: border-box;
 }
 
-@media (min-width: 1800px) {
+@media (min-width: 1200px) {
   main {
     grid-template-columns: minmax(900px, 1.2fr) 1fr;
   }
