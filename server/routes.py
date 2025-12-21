@@ -113,6 +113,8 @@ def get_map():
         "map_score_percent": config.get("map_score_percent"),
         "empty_score_100": config.get("empty_score_100"),
         "efficiency_avg": config.get("efficiency_avg"),
+        "avg_round_trip": config.get("avg_round_trip"),
+        "avg_rallies": config.get("avg_rallies"),
     }
 
 
@@ -158,7 +160,7 @@ def download_csv():
             "command_centre_level": castle.get("command_centre_level", 0),
             "attendance": castle.get("attendance"),
             "rallies_30min": castle.get("rallies_30min", 0),
-            "preference": castle.get("preference", "Both"),
+            "preference": castle.get("preference", "BT1/2"),
             "current_trap": castle.get("current_trap", ""),
             "recommended_trap": castle.get("recommended_trap", ""),
             "priority": castle.get("priority_score"),
@@ -253,7 +255,7 @@ async def upload_csv(file: UploadFile = File(...)):
                 "command_centre_level": 0,  # default
                 "attendance": None,  # default
                 "rallies_30min": 0,
-                "preference": "Both",  # default
+                "preference": "BT1/2",  # default
                 "current_trap": "",
                 "recommended_trap": "",
                 "priority_score": 0.0,
@@ -290,7 +292,7 @@ class CastleCreate(BaseModel):
     command_centre_level: int = 0
     attendance: int | None = None
     rallies_30min: int = 0
-    preference: str = "Both"
+    preference: str = "BT1/2"
     x: int = 0
     y: int = 0
 

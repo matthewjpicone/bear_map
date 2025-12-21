@@ -204,7 +204,7 @@ function normaliseCastle(castle, index) {
     attendance: Number(castle.attendance) || 0,
     rallies_30min: Number(castle.rallies_30min) || 0,
 
-    preference: castle.preference ?? "both",
+    preference: castle.preference ?? "BT1/2",
 
     current_trap: castle.current_trap ?? null,
     recommended_trap: castle.recommended_trap ?? null,
@@ -314,6 +314,8 @@ async function loadMapData() {
       map_score_percent: raw.map_score_percent ?? null,
       empty_score_100: raw.empty_score_100 ?? null,
       efficiency_avg: raw.efficiency_avg ?? null,
+      avg_round_trip: raw.avg_round_trip ?? null,
+      avg_rallies: raw.avg_rallies ?? null,
     };
 
     mapData = config;
@@ -958,7 +960,7 @@ tr.addEventListener("click", (e) => {
     tr.appendChild(tdNumber("power", c));
     tr.appendChild(tdNumber("player_level", c));
     tr.appendChild(tdNumber("command_centre_level", c));
-    tr.appendChild(tdSelect("preference", c, ["Bear 1", "Bear 2", "Both"]));
+    tr.appendChild(tdSelect("preference", c, ["BT1", "BT2", "BT1/2", "BT2/1"]));
     tr.appendChild(tdCheckbox("locked", c));
     tr.appendChild(tdReadonly(c.attendance));  // Moved after locked and made read-only
     tr.appendChild(tdReadonly(c.rallies_30min));  // Read-only Rallies/Session
@@ -2873,11 +2875,27 @@ function updateMapScoreDisplay() {
   const percent = mapData.map_score_percent;
   const empty = mapData.empty_score_100 ?? "—";
   const avg = mapData.efficiency_avg ?? "—";
+  const avgRoundTrip = mapData.avg_round_trip ?? null;
+  const avgRallies = mapData.avg_rallies ?? "—";
+
+  // Format round trip time as minutes and seconds
+  let roundTripDisplay = "—";
+  if (avgRoundTrip != null && avgRoundTrip > 0) {
+    const minutes = Math.floor(avgRoundTrip / 60);
+    const seconds = avgRoundTrip % 60;
+    roundTripDisplay = `${minutes}m ${seconds}s`;
+  }
 
   console.log(`Map Score: ${score} / 900 (${percent}%)<br>Empty Tiles: ${empty} / 100<br>Avg Efficiency: ${avg}`);
 
   if (score != null && percent != null) {
-    display.innerHTML = `Map Score: ${score} / 900 (${percent}%)<br>Tile Waste Efficiency: ${empty} / 100<br>Avg Efficiency Score: ${avg}`;
+    display.innerHTML = `
+      Map Score: ${score} / 900 (${percent}%)<br>
+      Tile Waste Efficiency: ${empty} / 100<br>
+      Avg Efficiency Score: ${avg}<br>
+      Avg Round Trip: ${roundTripDisplay}<br>
+      Avg Rallies/Castle: ${avgRallies}
+    `;
     // Color
     display.classList.remove('score-good', 'score-warn', 'score-bad');
     if (percent >= 80) {

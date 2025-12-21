@@ -23,7 +23,7 @@ ALLOWED_CASTLE_FIELDS = {
     "preference": str,
 }
 
-VALID_PREFERENCES = {"Bear 1", "Bear 2", "Both"}
+VALID_PREFERENCES = {"BT1", "BT2", "BT1/2", "BT2/1"}
 MAX_PLAYER_NAME_LEN = 32
 
 

@@ -207,16 +207,16 @@ def compute_ideal_allocation(map_data: Dict, castles: List[Dict]) -> List[Dict]:
     sorted_castles = sorted(castles, key=lambda c: -c['priority_score'])
 
     for c in sorted_castles:
-        pref = c.get('preference', 'both').lower()
-        if pref not in ['bear 1', 'bear 2', 'both']:
-            pref = 'both'
+        pref = c.get('preference', 'BT1/2').lower()
+        if pref not in ['bt1', 'bt2', 'bt1/2', 'bt2/1']:
+            pref = 'bt1/2'
 
         # Check if locked and placed
         if c.get('locked') and c.get('x') is not None and c.get('y') is not None:
             ideal_x, ideal_y = c['x'], c['y']
             occupied_ideal.add((ideal_x, ideal_y))
         else:
-            if pref == 'bear 1':
+            if pref == 'bt1':
                 candidates = [t for t in tiles_bear1 if t not in occupied_ideal]
                 if candidates:
                     ideal_x, ideal_y = candidates[0]
@@ -224,137 +224,199 @@ def compute_ideal_allocation(map_data: Dict, castles: List[Dict]) -> List[Dict]:
                     # Fallback to any
                     candidates = [t for t in walkable if t not in occupied_ideal]
                     ideal_x, ideal_y = candidates[0] if candidates else (0, 0)
-            elif pref == 'bear 2':
+            elif pref == 'bt2':
                 candidates = [t for t in tiles_bear2 if t not in occupied_ideal]
                 if candidates:
                     ideal_x, ideal_y = candidates[0]
                 else:
                     candidates = [t for t in walkable if t not in occupied_ideal]
                     ideal_x, ideal_y = candidates[0] if candidates else (0, 0)
-            else:  # both
-                candidates = [t for t in tiles_spine if t not in occupied_ideal]
-                if candidates:
-                    ideal_x, ideal_y = candidates[0]
+            elif pref == 'bt1/2':
+                # Primary Bear 1, secondary Bear 2 - prefer tiles closer to Bear 1
+                # but also reasonably close to Bear 2
+                available = [t for t in walkable if t not in occupied_ideal]
+                if available:
+                    # Score: 70% weight on Bear 1 distance, 30% on Bear 2
+                    scored = [(t, 0.7 * chebyshev_distance(t[0], t[1], bear1['x'], bear1['y']) +
+                                  0.3 * chebyshev_distance(t[0], t[1], bear2['x'], bear2['y']))
+                              for t in available]
+                    ideal_x, ideal_y = min(scored, key=lambda x: x[1])[0]
                 else:
-                    # Best of bear1 or bear2
-                    all_candidates = [(t, min(
-                        chebyshev_distance(t[0], t[1], bear1['x'], bear1['y']),
-                        chebyshev_distance(t[0], t[1], bear2['x'], bear2['y'])
-                    )) for t in walkable if t not in occupied_ideal]
-                    if all_candidates:
-                        ideal_x, ideal_y = min(all_candidates, key=lambda x: x[1])[0]
-                    else:
-                        ideal_x, ideal_y = 0, 0
+                    ideal_x, ideal_y = 0, 0
+            else:  # bt2/1
+                # Primary Bear 2, secondary Bear 1 - prefer tiles closer to Bear 2
+                # but also reasonably close to Bear 1
+                available = [t for t in walkable if t not in occupied_ideal]
+                if available:
+                    # Score: 70% weight on Bear 2 distance, 30% on Bear 1
+                    scored = [(t, 0.7 * chebyshev_distance(t[0], t[1], bear2['x'], bear2['y']) +
+                                  0.3 * chebyshev_distance(t[0], t[1], bear1['x'], bear1['y']))
+                              for t in available]
+                    ideal_x, ideal_y = min(scored, key=lambda x: x[1])[0]
+                else:
+                    ideal_x, ideal_y = 0, 0
 
             occupied_ideal.add((ideal_x, ideal_y))
 
         c['ideal_x'] = ideal_x
         c['ideal_y'] = ideal_y
 
-        # Compute ideal travel time
-        if pref == 'bear 1':
-            ideal_travel_time = chebyshev_distance(ideal_x, ideal_y, bear1['x'], bear1['y'])
-        elif pref == 'bear 2':
-            ideal_travel_time = chebyshev_distance(ideal_x, ideal_y, bear2['x'], bear2['y'])
-        else:
-            ideal_travel_time = min(
-                chebyshev_distance(ideal_x, ideal_y, bear1['x'], bear1['y']),
-                chebyshev_distance(ideal_x, ideal_y, bear2['x'], bear2['y'])
-            )
+        # Compute ideal travel time with weighted scoring
+        dist_to_bear1 = chebyshev_distance(ideal_x, ideal_y, bear1['x'], bear1['y'])
+        dist_to_bear2 = chebyshev_distance(ideal_x, ideal_y, bear2['x'], bear2['y'])
+
+        if pref == 'bt1':
+            ideal_travel_time = dist_to_bear1
+        elif pref == 'bt2':
+            ideal_travel_time = dist_to_bear2
+        elif pref == 'bt1/2':
+            ideal_travel_time = 0.7 * dist_to_bear1 + 0.3 * dist_to_bear2
+        else:  # bt2/1
+            ideal_travel_time = 0.7 * dist_to_bear2 + 0.3 * dist_to_bear1
         c['ideal_travel_time'] = ideal_travel_time
 
     return castles
 
+def compute_efficiency_for_single_castle(
+    castle: Dict,
+    all_castles: List[Dict],
+    bear_traps: List[Dict],
+    grid_size: int
+) -> float:
+    """Compute efficiency score for a single castle.
 
-def compute_efficiency(map_data: Dict, castles: List[Dict]) -> List[Dict]:
-    """Compute efficiency scores for castles."""
-    bear_traps = map_data.get('bear_traps', [])
-    bear1 = next((b for b in bear_traps if b['id'] == 'Bear 1'), None)
-    bear2 = next((b for b in bear_traps if b['id'] == 'Bear 2'), None)
+    Efficiency is based on comparing actual travel time to ideal travel time.
+    Lower score = better efficiency.
 
-    if not bear1 or not bear2:
-        # Set defaults
-        for c in castles:
-            c['actual_travel_time'] = 0
-            c['regret'] = 0
-            c['block_penalty_raw'] = 0
-            c['efficiency_score'] = 0
-        return castles
+    Args:
+        castle: The castle to compute efficiency for.
+        all_castles: List of all castles (for context).
+        bear_traps: List of bear trap positions.
+        grid_size: Size of the grid.
 
-    # Compute ideal allocation
-    castles = compute_ideal_allocation(map_data, castles)
+    Returns:
+        Efficiency score from 0 (best) to 100 (worst), floored to nearest integer.
+    """
+    actual = castle.get("actual_travel_time")
+    ideal = castle.get("ideal_travel_time")
 
-    # Compute actual travel times
-    for c in castles:
-        x, y = c.get('x'), c.get('y')
-        if x is None or y is None:
-            c['actual_travel_time'] = c['ideal_travel_time'] + 100  # Bad score
-        else:
-            pref = c.get('preference', 'both').lower()
-            if pref == 'bear 1':
-                actual = chebyshev_distance(x, y, bear1['x'], bear1['y'])
-            elif pref == 'bear 2':
-                actual = chebyshev_distance(x, y, bear2['x'], bear2['y'])
-            else:
-                actual = min(
-                    chebyshev_distance(x, y, bear1['x'], bear1['y']),
-                    chebyshev_distance(x, y, bear2['x'], bear2['y'])
-                )
-            c['actual_travel_time'] = actual
+    if actual is None or ideal is None:
+        return 50  # Default mid-range if data missing
 
-    # Regrets
-    regrets = []
-    for c in castles:
-        regret = max(0, c['actual_travel_time'] - c['ideal_travel_time'])
-        c['regret'] = regret
-        if regret > 0:
-            regrets.append(regret)
+    if ideal == 0:
+        if actual == 0:
+            return 0  # Perfect placement
+        return 100  # Worst - should be at bear but isn't
 
-    # Tscale
-    if regrets:
-        Tscale = sorted(regrets)[int(len(regrets) * 0.9)] if len(regrets) >= 10 else max(regrets)
+    # Ratio of actual to ideal (1.0 = perfect, higher = worse)
+    ratio = actual / ideal
+
+    # Convert ratio to 0-100 score
+    # ratio 1.0 -> score 0 (perfect)
+    # ratio 2.0 -> score 50
+    # ratio 3.0+ -> score 100
+    if ratio <= 1.0:
+        return 0
+    elif ratio >= 3.0:
+        return 100
     else:
-        Tscale = 1
+        return math.floor((ratio - 1.0) * 50)  # Floor to nearest integer
 
-    # Blocking penalty
-    # Group by preference
-    groups = {'bear 1': [], 'bear 2': [], 'both': []}
+def compute_efficiency(config: Dict, castles: List[Dict]) -> List[Dict]:
+    """Compute efficiency scores for all castles and update map score fields.
+
+    Args:
+        config: Configuration dictionary containing bear_traps and grid_size.
+        castles: List of castle dictionaries.
+
+    Returns:
+        Updated list of castles with efficiency_score set.
+    """
+    bear_traps = config.get("bear_traps", [])
+    grid_size = config.get("grid_size", 28)
+    banners = config.get("banners", [])
+
+    bear1 = next((b for b in bear_traps if b.get("id") == "Bear 1"), None)
+    bear2 = next((b for b in bear_traps if b.get("id") == "Bear 2"), None)
+
+    # Compute actual_travel_time for ALL castles (including locked)
     for c in castles:
-        pref = c.get('preference', 'both').lower()
-        if pref not in groups:
-            pref = 'both'
-        groups[pref].append(c)
+        if c.get("x") is None or c.get("y") is None:
+            continue  # Skip unplaced castles, but NOT locked castles
 
-    for group_name, group in groups.items():
-        if not group:
+        pref = c.get("preference", "BT1/2").lower()
+
+        if bear1 and bear1.get("x") is not None and bear2 and bear2.get("x") is not None:
+            dist_to_bear1 = chebyshev_distance(c["x"], c["y"], bear1["x"], bear1["y"])
+            dist_to_bear2 = chebyshev_distance(c["x"], c["y"], bear2["x"], bear2["y"])
+
+            if pref == "bt1":
+                c["actual_travel_time"] = dist_to_bear1
+            elif pref == "bt2":
+                c["actual_travel_time"] = dist_to_bear2
+            elif pref == "bt1/2":
+                c["actual_travel_time"] = 0.7 * dist_to_bear1 + 0.3 * dist_to_bear2
+            else:  # bt2/1
+                c["actual_travel_time"] = 0.7 * dist_to_bear2 + 0.3 * dist_to_bear1
+
+    # Compute efficiency for ALL placed castles (including locked)
+    for castle in castles:
+        if castle.get("x") is None or castle.get("y") is None:
+            castle["efficiency_score"] = 100  # Unplaced gets worst score
             continue
-        # Sort by priority rank (lower rank is better)
-        group_sorted = sorted(group, key=lambda c: c['priority_rank_100'])
-        for i, ci in enumerate(group_sorted):
-            block = 0
-            for j, cj in enumerate(group_sorted):
-                if j >= i:  # Only lower priority
-                    continue
-                if ci['actual_travel_time'] < cj['actual_travel_time']:
-                    rank_diff = ci['priority_rank_100'] - cj['priority_rank_100']
-                    if rank_diff > 0:
-                        sigmoid_val = 1 / (1 + math.exp(-(rank_diff - 10) / 5))
-                        block += (cj['actual_travel_time'] - ci['actual_travel_time']) * sigmoid_val
-            ci['block_penalty_raw'] = block
 
-    # Normalize block
-    block_values = [c.get('block_penalty_raw', 0) for c in castles]
-    if block_values:
-        block_p90 = sorted(block_values)[int(len(block_values) * 0.9)] if len(block_values) >= 10 else max(block_values)
-        block_p90 = max(block_p90, 1e-6)
-    else:
-        block_p90 = 1
+        # Calculate efficiency regardless of lock status
+        eff = compute_efficiency_for_single_castle(castle, castles, bear_traps, grid_size)
+        castle["efficiency_score"] = eff
 
-    for c in castles:
-        block_raw = c.get('block_penalty_raw', 0)
-        block_norm = min(1, block_raw / block_p90)
-        base = min(1, c['regret'] / Tscale)
-        eff = 100 * (0.75 * base + 0.25 * block_norm)
-        c['efficiency_score'] = round(eff)
+    # Calculate map score fields
+    placed_castles = [c for c in castles if c.get("x") is not None and c.get("y") is not None]
+
+    # Average efficiency
+    avg_eff = sum(c.get("efficiency_score", 0) for c in placed_castles) / len(placed_castles) if placed_castles else 0
+
+    # Calculate empty tiles score
+    walkable = get_walkable_tiles(grid_size, banners, bear_traps)
+    occupied_after = set()
+    for c in placed_castles:
+        for dx in range(2):
+            for dy in range(2):
+                occupied_after.add((c["x"] + dx, c["y"] + dy))
+
+    empty_tiles = [t for t in walkable if t not in occupied_after]
+    empty_score_100 = 0
+    if empty_tiles and bear1 and bear2:
+        distances = [
+            min(chebyshev_distance(t[0], t[1], bear1["x"], bear1["y"]),
+                chebyshev_distance(t[0], t[1], bear2["x"], bear2["y"]))
+            for t in empty_tiles
+        ]
+        T_max = grid_size * 2
+        q_values = [1 - min(1, d / T_max) for d in distances]
+        empty_score_100 = round(100 * (sum(q_values) / len(q_values)))
+
+    # Map score calculation
+    scaled_eff_900 = 9 * avg_eff * 0.9
+    map_eff_component = 900 - scaled_eff_900
+    empty_component_900 = 9 * empty_score_100
+    map_score_900 = round(0.85 * map_eff_component + 0.15 * empty_component_900)
+    map_score_percent = round(100 * map_score_900 / 900, 1)
+
+    # Calculate average round trip time (in seconds)
+    round_trip_times = [c.get("round_trip", 0) for c in placed_castles
+                        if c.get("round_trip") is not None and c.get("round_trip") != "NA" and c.get("round_trip") > 0]
+    avg_round_trip = round(sum(round_trip_times) / len(round_trip_times)) if round_trip_times else 0
+
+    # Calculate average rallies per castle
+    rallies = [c.get("rallies_30min", 0) for c in placed_castles]
+    avg_rallies = round(sum(rallies) / len(rallies), 1) if rallies else 0
+
+    # Persist to config
+    config["map_score_900"] = map_score_900
+    config["map_score_percent"] = map_score_percent
+    config["empty_score_100"] = empty_score_100
+    config["efficiency_avg"] = round(avg_eff, 1)
+    config["avg_round_trip"] = avg_round_trip
+    config["avg_rallies"] = avg_rallies
 
     return castles

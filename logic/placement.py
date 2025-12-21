@@ -98,47 +98,44 @@ async def auto_place_castles() -> Dict[str, int]:
         if castle.get("locked"):
             continue
 
-        preference = castle.get("preference", "both").lower()
+        preference = castle.get("preference", "BT1/2").lower()
         candidates = []
 
-        if preference == "bear 1":
-            bear = next((b for b in bear_traps if b.get("id") == "Bear 1"), None)
-            if bear and bear.get("x") is not None and bear.get("y") is not None:
+        bear1 = next((b for b in bear_traps if b.get("id") == "Bear 1"), None)
+        bear2 = next((b for b in bear_traps if b.get("id") == "Bear 2"), None)
+
+        valid_tiles = [t for t in walkable if t not in occupied and 0 <= t[0] <= grid_size - 2 and 0 <= t[1] <= grid_size - 2]
+
+        if preference == "bt1":
+            # Only Bear 1 matters
+            if bear1 and bear1.get("x") is not None and bear1.get("y") is not None:
                 candidates = sorted(
-                    [t for t in walkable if t not in occupied and 0 <= t[0] <= grid_size - 2 and 0 <= t[1] <= grid_size - 2],
-                    key=lambda t: chebyshev_distance(t[0], t[1], bear["x"], bear["y"])
+                    valid_tiles,
+                    key=lambda t: chebyshev_distance(t[0], t[1], bear1["x"], bear1["y"])
                 )[:K]
-        elif preference == "bear 2":
-            bear = next((b for b in bear_traps if b.get("id") == "Bear 2"), None)
-            if bear and bear.get("x") is not None and bear.get("y") is not None:
+        elif preference == "bt2":
+            # Only Bear 2 matters
+            if bear2 and bear2.get("x") is not None and bear2.get("y") is not None:
                 candidates = sorted(
-                    [t for t in walkable if t not in occupied and 0 <= t[0] <= grid_size - 2 and 0 <= t[1] <= grid_size - 2],
-                    key=lambda t: chebyshev_distance(t[0], t[1], bear["x"], bear["y"])
+                    valid_tiles,
+                    key=lambda t: chebyshev_distance(t[0], t[1], bear2["x"], bear2["y"])
                 )[:K]
-        else:  # both
-            bear1 = next((b for b in bear_traps if b.get("id") == "Bear 1"), None)
-            bear2 = next((b for b in bear_traps if b.get("id") == "Bear 2"), None)
-            if bear1 and bear2 and bear1.get("x") is not None and bear1.get("y") is not None and bear2.get("x") is not None and bear2.get("y") is not None:
-                mid = grid_size // 2
-                spine_cols = [mid - 1, mid]
-                spine_tiles = [t for t in walkable if t[0] in spine_cols and t not in occupied and 0 <= t[0] <= grid_size - 2 and 0 <= t[1] <= grid_size - 2]
-                if spine_tiles:
-                    candidates = sorted(
-                        spine_tiles,
-                        key=lambda t: min(
-                            chebyshev_distance(t[0], t[1], bear1["x"], bear1["y"]),
-                            chebyshev_distance(t[0], t[1], bear2["x"], bear2["y"])
-                        )
-                    )[:K]
-                else:
-                    # Fallback to best of bear1/bear2
-                    candidates = sorted(
-                        [t for t in walkable if t not in occupied and 0 <= t[0] <= grid_size - 2 and 0 <= t[1] <= grid_size - 2],
-                        key=lambda t: min(
-                            chebyshev_distance(t[0], t[1], bear1["x"], bear1["y"]),
-                            chebyshev_distance(t[0], t[1], bear2["x"], bear2["y"])
-                        )
-                    )[:K]
+        elif preference == "bt1/2":
+            # Primary Bear 1 (70%), Secondary Bear 2 (30%)
+            if bear1 and bear2 and bear1.get("x") is not None and bear2.get("x") is not None:
+                candidates = sorted(
+                    valid_tiles,
+                    key=lambda t: (0.7 * chebyshev_distance(t[0], t[1], bear1["x"], bear1["y"]) +
+                                   0.3 * chebyshev_distance(t[0], t[1], bear2["x"], bear2["y"]))
+                )[:K]
+        else:  # bt2/1
+            # Primary Bear 2 (70%), Secondary Bear 1 (30%)
+            if bear1 and bear2 and bear1.get("x") is not None and bear2.get("x") is not None:
+                candidates = sorted(
+                    valid_tiles,
+                    key=lambda t: (0.7 * chebyshev_distance(t[0], t[1], bear2["x"], bear2["y"]) +
+                                   0.3 * chebyshev_distance(t[0], t[1], bear1["x"], bear1["y"]))
+                )[:K]
 
         if not candidates:
             continue
@@ -205,58 +202,11 @@ async def auto_place_castles() -> Dict[str, int]:
     # Resolve any remaining collisions
     resolve_all_collisions(castles, grid_size, bear_traps, banners)
 
-    # After placement, recompute full scores
-    castles = compute_efficiency(config, castles)
-
-    # Compute map score
-    occupied_after = set()
-    for b in bear_traps:
-        if b.get("x") is not None and b.get("y") is not None:
-            for dx in range(-1, 2):
-                for dy in range(-1, 2):
-                    occupied_after.add((b["x"] + dx, b["y"] + dy))
-    for ban in banners:
-        if ban.get("x") is not None and ban.get("y") is not None:
-            occupied_after.add((ban["x"], ban["y"]))
-    for c in castles:
-        if c.get("x") is not None and c.get("y") is not None:
-            for dx in range(2):
-                for dy in range(2):
-                    occupied_after.add((c["x"] + dx, c["y"] + dy))
-
-    empty_tiles = [t for t in walkable if t not in occupied_after]
-    empty_score_100 = 0
-    if empty_tiles:
-        bear1 = next((b for b in bear_traps if b.get("id") == "Bear 1"), None)
-        bear2 = next((b for b in bear_traps if b.get("id") == "Bear 2"), None)
-        if bear1 and bear2:
-            distances = [
-                min(chebyshev_distance(t[0], t[1], bear1["x"], bear1["y"]),
-                    chebyshev_distance(t[0], t[1], bear2["x"], bear2["y"]))
-                for t in empty_tiles
-            ]
-            T_max = grid_size * 2
-            q_values = [1 - min(1, d / T_max) for d in distances]
-            empty_score_100 = round(100 * (sum(q_values) / len(q_values)))
-
-    placed_castles = [c for c in castles if c.get("x") is not None and c.get("y") is not None]
-    avg_eff = sum(c.get("efficiency_score", 0) for c in placed_castles) / len(placed_castles) if placed_castles else 0
-
-    scaled_eff_900 = 9 * avg_eff
-    scaled_eff_900 *= 0.9
-    map_eff_component = 900 - scaled_eff_900
-    empty_component_900 = 9 * empty_score_100
-    map_score_900 = round(0.85 * map_eff_component + 0.15 * empty_component_900)
-    map_score_percent = round(100 * map_score_900 / 900, 1)
-
-    # Persist
-    config["map_score_900"] = map_score_900
-    config["map_score_percent"] = map_score_percent
-    config["empty_score_100"] = empty_score_100
-    config["efficiency_avg"] = round(avg_eff, 1)
-
-    # Update round trip times
+    # Update round trip times first (before computing efficiency)
     update_all_round_trip_times(castles, bear_traps)
+
+    # After placement, recompute full scores (this also calculates map scores)
+    castles = compute_efficiency(config, castles)
 
     save_config(config)
 
@@ -301,26 +251,29 @@ def compute_efficiency_for_castle(castle: Dict, all_castles: List[Dict], bear_tr
     Returns:
         Efficiency score (0-100, lower is better).
     """
-    # Compute actual_travel_time for all
+    # Get bear positions
+    bear1 = next((b for b in bear_traps if b.get("id") == "Bear 1"), None)
+    bear2 = next((b for b in bear_traps if b.get("id") == "Bear 2"), None)
+
+    # Compute actual_travel_time for all with weighted scoring
     for c in all_castles:
         if c.get("x") is not None and c.get("y") is not None:
-            pref = c.get("preference", "both").lower()
-            if pref == "bear 1":
-                bear = next((b for b in bear_traps if b.get("id") == "Bear 1"), None)
-                if bear and bear.get("x") is not None and bear.get("y") is not None:
-                    c["actual_travel_time"] = chebyshev_distance(c["x"], c["y"], bear["x"], bear["y"])
-            elif pref == "bear 2":
-                bear = next((b for b in bear_traps if b.get("id") == "Bear 2"), None)
-                if bear and bear.get("x") is not None and bear.get("y") is not None:
-                    c["actual_travel_time"] = chebyshev_distance(c["x"], c["y"], bear["x"], bear["y"])
-            else:
-                bear1 = next((b for b in bear_traps if b.get("id") == "Bear 1"), None)
-                bear2 = next((b for b in bear_traps if b.get("id") == "Bear 2"), None)
-                if bear1 and bear2 and bear1.get("x") is not None and bear1.get("y") is not None and bear2.get("x") is not None and bear2.get("y") is not None:
-                    c["actual_travel_time"] = min(
-                        chebyshev_distance(c["x"], c["y"], bear1["x"], bear1["y"]),
-                        chebyshev_distance(c["x"], c["y"], bear2["x"], bear2["y"])
-                    )
+            pref = c.get("preference", "BT1/2").lower()
+
+            if bear1 and bear1.get("x") is not None and bear2 and bear2.get("x") is not None:
+                dist_to_bear1 = chebyshev_distance(c["x"], c["y"], bear1["x"], bear1["y"])
+                dist_to_bear2 = chebyshev_distance(c["x"], c["y"], bear2["x"], bear2["y"])
+
+                if pref == "bt1":
+                    c["actual_travel_time"] = dist_to_bear1
+                elif pref == "bt2":
+                    c["actual_travel_time"] = dist_to_bear2
+                elif pref == "bt1/2":
+                    # Primary Bear 1 (70%), Secondary Bear 2 (30%)
+                    c["actual_travel_time"] = 0.7 * dist_to_bear1 + 0.3 * dist_to_bear2
+                else:  # bt2/1
+                    # Primary Bear 2 (70%), Secondary Bear 1 (30%)
+                    c["actual_travel_time"] = 0.7 * dist_to_bear2 + 0.3 * dist_to_bear1
 
     # Regret
     ideal = castle.get("ideal_travel_time", 0)
@@ -639,7 +592,7 @@ def resolve_map_collisions(
         bear_traps: List of bear traps.
         banners: List of banners.
     """
-    max_iterations = 100  # Prevent infinite loops
+    max_iterations = 10000  # Prevent infinite loops
     iterations = 0
 
     while iterations < max_iterations:
@@ -686,14 +639,17 @@ def calculate_travel_time(distance: float) -> float:
     Returns:
         Travel time in seconds
     """
-    travel_rate = 36 / 15  # seconds per tile
+    travel_rate = 45 / 15  # seconds per tile
     return distance * travel_rate
 
 
 def calculate_round_trip_time(castle: Dict, bear_traps: List[Dict]) -> float:
-    """Calculate round trip time for a castle to its bear trap(s).
+    """Calculate round trip time for a castle to its primary bear trap.
 
     Base time: 5 minutes (300 seconds) + travel to bear + travel from bear
+
+    BT1, BT1/2 -> Calculate to Bear 1 only
+    BT2, BT2/1 -> Calculate to Bear 2 only
 
     Args:
         castle: Castle dictionary
@@ -702,31 +658,19 @@ def calculate_round_trip_time(castle: Dict, bear_traps: List[Dict]) -> float:
     Returns:
         Round trip time in seconds, or None if no valid bear found
     """
-    preference = castle.get("preference", "Both").lower()
-    base_time = 300  # 5 minutes in seconds
+    preference = castle.get("preference", "BT1/2").lower()
 
-    if preference == "both":
-        # Calculate for both bears and average
-        bear1 = next((b for b in bear_traps if b.get("id") == "Bear 1"), None)
-        bear2 = next((b for b in bear_traps if b.get("id") == "Bear 2"), None)
+    # Determine primary bear based on preference
+    if preference in ("bt1", "bt1/2"):
+        bear_id = "Bear 1"
+    else:  # bt2, bt2/1
+        bear_id = "Bear 2"
 
-        if not bear1 or not bear2:
-            return None
+    bear = next((b for b in bear_traps if b.get("id") == bear_id), None)
+    if not bear:
+        return None
 
-        time1 = calculate_single_round_trip(castle, bear1)
-        time2 = calculate_single_round_trip(castle, bear2)
-
-        if time1 is None or time2 is None:
-            return None
-
-        return (time1 + time2) / 2
-
-    else:
-        # Calculate for specific bear
-        bear = next((b for b in bear_traps if b.get("id", "").lower() == preference), None)
-        if not bear:
-            return None
-        return calculate_single_round_trip(castle, bear)
+    return calculate_single_round_trip(castle, bear)
 
 
 def calculate_single_round_trip(castle: Dict, bear: Dict) -> float:

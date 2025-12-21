@@ -120,7 +120,7 @@ def ensure_castle_fields(castle: Dict[str, Any]):
         "command_centre_level": 0,
         "attendance": 0,
         "rallies_30min": 0,
-        "preference": "Both",
+        "preference": "BT1/2",
         "current_trap": "",
         "recommended_trap": "",
         "priority": 0.0,
