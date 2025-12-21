@@ -2298,17 +2298,21 @@ function closeBulkOperationModal() {
 document.getElementById('cancelBulkOperation')?.addEventListener('click', closeBulkOperationModal);
 
 document.getElementById('confirmBulkOperation')?.addEventListener('click', async () => {
+  // Save the operation type before closing modal (which clears pendingBulkOperation)
+  const operationType = pendingBulkOperation;
   closeBulkOperationModal();
 
   try {
-    if (pendingBulkOperation === 'autoplace') {
+    if (operationType === 'autoplace') {
+      showToast('Auto-placing castles... 🚀', 'info');
       const response = await fetch('/api/auto_place_castles', { method: 'POST' });
       if (!response.ok) throw new Error('Auto-place failed');
-      showToast('Auto-placing castles... 🚀', 'success');
-    } else if (pendingBulkOperation === 'moveaway') {
+      showToast('Castles placed successfully! ✅', 'success');
+    } else if (operationType === 'moveaway') {
+      showToast('Moving castles out of the way... 🚀', 'info');
       const response = await fetch('/api/move_all_out_of_way', { method: 'POST' });
       if (!response.ok) throw new Error('Move all out of way failed');
-      showToast('Moving castles out of the way... 🚀', 'success');
+      showToast('Castles moved successfully! ✅', 'success');
     }
   } catch (error) {
     console.error('Error performing bulk operation:', error);

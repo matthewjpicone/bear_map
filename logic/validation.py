@@ -153,7 +153,7 @@ def check_banner_overlap(
         if bx is None or by is None:
             continue
         if x == bx and y == by:
-            return True, banner.get("id")
+            return True, banner.get("id", f"Banner@{bx},{by}")
     return False, None
 
 
@@ -184,14 +184,14 @@ def check_bear_trap_overlap(
         if bx is not None and by is not None:
             # Other bear occupies 3x3 from (bx-1, by-1) to (bx+1, by+1)
             if rectangles_overlap(bear_x1, bear_y1, 3, 3, bx - 1, by - 1, 3, 3):
-                return True, bear["id"]
+                return True, bear.get("id", f"Bear@{bx},{by}")
 
     for banner in banners:
         bx, by = banner.get("x"), banner.get("y")
         if bx is not None and by is not None:
             # Banner is 1x1 at (bx, by)
             if rectangles_overlap(bear_x1, bear_y1, 3, 3, bx, by, 1, 1):
-                return True, banner["id"]
+                return True, banner.get("id", f"Banner@{bx},{by}")
 
     return False, None
 
@@ -217,14 +217,14 @@ def check_castle_overlap_with_entities(
         if bx is not None and by is not None:
             # Bear occupies 3x3 from (bx-1, by-1) to (bx+1, by+1)
             if rectangles_overlap(x, y, 2, 2, bx - 1, by - 1, 3, 3):
-                return True, bear["id"]
+                return True, bear.get("id", f"Bear@{bx},{by}")
 
     for banner in banners:
         bx, by = banner.get("x"), banner.get("y")
         if bx is not None and by is not None:
             # Banner is 1x1 at (bx, by)
             if rectangles_overlap(x, y, 2, 2, bx, by, 1, 1):
-                return True, banner["id"]
+                return True, banner.get("id", f"Banner@{bx},{by}")
 
     return False, None
 
@@ -256,7 +256,7 @@ def check_bear_trap_overlap_with_entities(
             continue
         # Other bear trap occupies 3x3 from (tx-1, ty-1) to (tx+1, ty+1)
         if rectangles_overlap(bear_trap_x1, bear_trap_y1, 3, 3, tx - 1, ty - 1, 3, 3):
-            return True, trap.get("id")
+            return True, trap.get("id", f"Bear@{tx},{ty}")
 
     # Check against banners (1x1)
     for banner in banners:
@@ -265,7 +265,7 @@ def check_bear_trap_overlap_with_entities(
             continue
         # Banner is 1x1 at (bx, by)
         if rectangles_overlap(bear_trap_x1, bear_trap_y1, 3, 3, bx, by, 1, 1):
-            return True, banner.get("id")
+            return True, banner.get("id", f"Banner@{bx},{by}")
 
     return False, None
 
