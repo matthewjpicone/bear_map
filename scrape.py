@@ -6,10 +6,10 @@ from random import random
 
 from PIL import Image
 
-
 # ---------------------------
 # ADB SETUP
 # ---------------------------
+
 
 def get_emulator():
     result = subprocess.check_output(["adb", "devices"], text=True)
@@ -40,7 +40,10 @@ def screenshot(save=True):
     img = Image.open(io.BytesIO(raw)).convert("RGB")
 
     if save:
-        filename = SCREENSHOT_DIR / f"screenshot_{datetime.now().strftime('%Y%m%d_%H%M%S')}.png"
+        filename = (
+            SCREENSHOT_DIR
+            / f"screenshot_{datetime.now().strftime('%Y%m%d_%H%M%S')}.png"
+        )
         img.save(filename)
         return img, filename
 
@@ -50,6 +53,7 @@ def screenshot(save=True):
 # ---------------------------
 # TEMPLATE MATCHING
 # ---------------------------
+
 
 def find_template(screen_img, template_path, threshold=0.8):
     screen = cv2.cvtColor(np.array(screen_img), cv2.COLOR_RGB2BGR)
@@ -70,6 +74,7 @@ def find_template(screen_img, template_path, threshold=0.8):
 # ---------------------------
 # INPUT ACTIONS
 # ---------------------------
+
 
 def tap(xMin, xMax, yMin, yMax):
     x = rand_centered(xMin, xMax)
@@ -132,18 +137,19 @@ for i in range(5):
 # tap(61,105,39,88)
 # rand_delay(0.5, 2)
 
-import cv2
-import pytesseract
-import numpy as np
-import re
 import os
+import re
+
+import cv2
+import numpy as np
+import pytesseract
 
 # -----------------------------
 # Regex (tolerant to OCR errors)
 # -----------------------------
-POWER_M_RE = re.compile(r'(\d+(?:\.\d+)?)\s*[mM]\b')
-POWER_NUM_RE = re.compile(r'\b(\d{1,3}(?:,\d{3})+|\d{4,})\b')
-LV_RE = re.compile(r'\b(?:Lv|Lw|Iv|Wv|wv)\.?\s*(\d{1,2})\b', re.I)
+POWER_M_RE = re.compile(r"(\d+(?:\.\d+)?)\s*[mM]\b")
+POWER_NUM_RE = re.compile(r"\b(\d{1,3}(?:,\d{3})+|\d{4,})\b")
+LV_RE = re.compile(r"\b(?:Lv|Lw|Iv|Wv|wv)\.?\s*(\d{1,2})\b", re.I)
 
 
 def parse_power(text: str):
@@ -167,18 +173,18 @@ def parse_level(text: str):
 
 def clean_name(s: str):
     s = s.strip()
-    s = re.sub(r'^(R[1-5]\s+)', '', s, flags=re.I)
-    s = re.sub(r'\s{2,}', ' ', s).strip()
+    s = re.sub(r"^(R[1-5]\s+)", "", s, flags=re.I)
+    s = re.sub(r"\s{2,}", " ", s).strip()
     # keep latin + digits + underscore + spaces + CJK
-    s = re.sub(r'^[^0-9A-Za-z\u4e00-\u9fff\u3040-\u30ff\uac00-\ud7af]+', '', s)
-    s = re.sub(r'[^0-9A-Za-z\u4e00-\u9fff\u3040-\u30ff\uac00-\ud7af_ ]+$', '', s)
+    s = re.sub(r"^[^0-9A-Za-z\u4e00-\u9fff\u3040-\u30ff\uac00-\ud7af]+", "", s)
+    s = re.sub(r"[^0-9A-Za-z\u4e00-\u9fff\u3040-\u30ff\uac00-\ud7af_ ]+$", "", s)
     return s.strip()
 
 
 def valid_name(s: str):
     if len(s) < 2:
         return False
-    return bool(re.search(r'[0-9A-Za-z\u4e00-\u9fff\u3040-\u30ff\uac00-\ud7af]', s))
+    return bool(re.search(r"[0-9A-Za-z\u4e00-\u9fff\u3040-\u30ff\uac00-\ud7af]", s))
 
 
 # -----------------------------
@@ -204,7 +210,7 @@ def ocr_text(bgr, lang="eng+chi_sim+jpn+kor", psm=6):
 # -----------------------------
 def detect_online(card_bgr):
     h, w = card_bgr.shape[:2]
-    roi = card_bgr[int(h * 0.70):int(h * 0.95), 0:int(w * 0.30)]
+    roi = card_bgr[int(h * 0.70) : int(h * 0.95), 0 : int(w * 0.30)]
     hsv = cv2.cvtColor(roi, cv2.COLOR_BGR2HSV)
     mask = cv2.inRange(hsv, (35, 60, 60), (90, 255, 255))
     return (mask.mean() / 255.0) > 0.02
@@ -283,7 +289,7 @@ def select_cards(boxes):
 # -----------------------------
 def parse_card(img_bgr, box):
     x, y, w, h = box
-    card = img_bgr[y:y + h, x:x + w]
+    card = img_bgr[y : y + h, x : x + w]
 
     # crop away left strip a bit, but not too aggressive
     x0 = int(w * 0.22)
@@ -307,7 +313,7 @@ def parse_card(img_bgr, box):
     for l in lines[:4]:
         if LV_RE.search(l):
             continue
-        if re.search(r'\d', l) and ('M' in l or ',' in l):
+        if re.search(r"\d", l) and ("M" in l or "," in l):
             continue
         cand = clean_name(l)
         if valid_name(cand):

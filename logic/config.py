@@ -11,7 +11,7 @@ Date: 2025-12-17
 import json
 import os
 from datetime import datetime
-from typing import Dict, Any
+from typing import Any, Dict
 
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 CONFIG_PATH = os.path.join(BASE_DIR, "config.json")
@@ -59,8 +59,8 @@ def get_default_config() -> Dict[str, Any]:
             {"max": 6, "color": "#16a34a", "label": "Excellent"},
             {"max": 10, "color": "#2563eb", "label": "Good"},
             {"max": 15, "color": "#64748b", "label": "Poor"},
-            {"max": float('inf'), "color": "#1f2937", "label": "Bad"}
-        ]
+            {"max": float("inf"), "color": "#1f2937", "label": "Bad"},
+        ],
     }
 
 
@@ -84,12 +84,15 @@ def ensure_config_fields(config: Dict[str, Any]) -> Dict[str, Any]:
         config["banners"] = config["banner"]
         del config["banner"]
 
-    config.setdefault("efficiency_scale", [
-        {"max": 6, "color": "#16a34a", "label": "Excellent"},
-        {"max": 10, "color": "#2563eb", "label": "Good"},
-        {"max": 15, "color": "#64748b", "label": "Poor"},
-        {"max": float('inf'), "color": "#1f2937", "label": "Bad"}
-    ])
+    config.setdefault(
+        "efficiency_scale",
+        [
+            {"max": 6, "color": "#16a34a", "label": "Excellent"},
+            {"max": 10, "color": "#2563eb", "label": "Good"},
+            {"max": 15, "color": "#64748b", "label": "Poor"},
+            {"max": float("inf"), "color": "#1f2937", "label": "Bad"},
+        ],
+    )
 
     # Ensure each castle has all required fields
     for castle in config["castles"]:

@@ -39,6 +39,7 @@ app.include_router(webhook_router)
 # SSE Endpoint
 # ============================================================
 
+
 @app.get("/api/stream")
 async def stream(request: Request):
     """Server-Sent Events (SSE) endpoint for real-time updates.
@@ -53,6 +54,7 @@ async def stream(request: Request):
         StreamingResponse with text/event-stream content type.
     """
     from server.broadcast import event_generator
+
     queue = asyncio.Queue()
     subscribers.add(queue)
 

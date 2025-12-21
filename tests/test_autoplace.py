@@ -18,17 +18,17 @@ import sys
 # Add parent directory to path for imports
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
+from logic.config import load_config
 from logic.placement import (
+    _has_xy,
     auto_place_castles,
+    build_slices,
     normalize_preference,
     primary_bear_id,
     round_trip_for_tile,
-    build_slices,
     tile_free,
-    _has_xy,
 )
-from logic.validation import rectangles_overlap, check_castle_overlap_with_entities
-from logic.config import load_config
+from logic.validation import check_castle_overlap_with_entities, rectangles_overlap
 
 
 def test_normalize_preference():
@@ -146,7 +146,7 @@ def check_no_overlaps(castles, bear_traps, banners):
             continue
 
         # Check castle-castle overlaps
-        for c2 in castles[i + 1:]:
+        for c2 in castles[i + 1 :]:
             if not _has_xy(c2):
                 continue
             if rectangles_overlap(c1["x"], c1["y"], 2, 2, c2["x"], c2["y"], 2, 2):

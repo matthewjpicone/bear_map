@@ -9,12 +9,12 @@ Date: 2025-12-17
 
 import math
 from statistics import median, quantiles
-from typing import List, Dict, Tuple, Optional
-
+from typing import Dict, List, Optional, Tuple
 
 # =========================
 # Public: Priority Scoring
 # =========================
+
 
 def compute_priority(castles: List[Dict]) -> List[Dict]:
     """Compute priority scores and ranks for castles.
@@ -95,10 +95,7 @@ def compute_priority(castles: List[Dict]) -> List[Dict]:
             n_attendance = norm(float(attendance), p05_att, p95_att)
 
         priority_score = (
-                0.50 * n_power +
-                0.20 * n_player_level +
-                0.20 * n_cc +
-                0.10 * n_attendance
+            0.50 * n_power + 0.20 * n_player_level + 0.20 * n_cc + 0.10 * n_attendance
         )
 
         c["priority_score"] = priority_score
@@ -145,12 +142,15 @@ def compute_priority(castles: List[Dict]) -> List[Dict]:
 # Geometry / Tiles
 # =========================
 
+
 def chebyshev_distance(x1: int, y1: int, x2: int, y2: int) -> int:
     """Chebyshev distance (max dx, dy)."""
     return max(abs(x1 - x2), abs(y1 - y2))
 
 
-def get_walkable_tiles(grid_size: int, banners: List[Dict], bear_traps: List[Dict]) -> List[Tuple[int, int]]:
+def get_walkable_tiles(
+    grid_size: int, banners: List[Dict], bear_traps: List[Dict]
+) -> List[Tuple[int, int]]:
     """Get all walkable tiles, excluding banners and bear influence areas."""
     walkable: List[Tuple[int, int]] = []
     occupied = set()
@@ -182,6 +182,7 @@ def get_walkable_tiles(grid_size: int, banners: List[Dict], bear_traps: List[Dic
 # Internal Helpers (DRY)
 # =========================
 
+
 def _find_bear(bear_traps: List[Dict], bear_id: str) -> Optional[Dict]:
     return next((b for b in bear_traps if b.get("id") == bear_id), None)
 
@@ -206,10 +207,13 @@ def _normalize_preference(raw: Optional[str]) -> str:
     """
     # Import here to avoid circular imports
     from .placement import normalize_preference
+
     return normalize_preference(raw)
 
 
-def _weighted_travel_time(pref_norm: str, dist_to_bear1: float, dist_to_bear2: float) -> float:
+def _weighted_travel_time(
+    pref_norm: str, dist_to_bear1: float, dist_to_bear2: float
+) -> float:
     if pref_norm == "bt1":
         return dist_to_bear1
     if pref_norm == "bt2":
@@ -220,7 +224,9 @@ def _weighted_travel_time(pref_norm: str, dist_to_bear1: float, dist_to_bear2: f
     return 0.7 * dist_to_bear1 + 0.3 * dist_to_bear2
 
 
-def _choose_first_available(tiles: List[Tuple[int, int]], occupied: set) -> Optional[Tuple[int, int]]:
+def _choose_first_available(
+    tiles: List[Tuple[int, int]], occupied: set
+) -> Optional[Tuple[int, int]]:
     for t in tiles:
         if t not in occupied:
             return t
@@ -230,6 +236,7 @@ def _choose_first_available(tiles: List[Tuple[int, int]], occupied: set) -> Opti
 # =========================
 # Ideal Allocation
 # =========================
+
 
 def compute_ideal_allocation(map_data: Dict, castles: List[Dict]) -> List[Dict]:
     """Compute ideal allocation for castles.
@@ -319,7 +326,9 @@ def compute_ideal_allocation(map_data: Dict, castles: List[Dict]) -> List[Dict]:
 
         dist_to_bear1 = chebyshev_distance(ideal_x, ideal_y, bear1["x"], bear1["y"])
         dist_to_bear2 = chebyshev_distance(ideal_x, ideal_y, bear2["x"], bear2["y"])
-        c["ideal_travel_time"] = _weighted_travel_time(pref, dist_to_bear1, dist_to_bear2)
+        c["ideal_travel_time"] = _weighted_travel_time(
+            pref, dist_to_bear1, dist_to_bear2
+        )
 
     return castles
 
@@ -328,11 +337,12 @@ def compute_ideal_allocation(map_data: Dict, castles: List[Dict]) -> List[Dict]:
 # Efficiency
 # =========================
 
+
 def compute_efficiency_for_single_castle(
-        castle: Dict,
-        all_castles: List[Dict],
-        bear_traps: List[Dict],
-        grid_size: int,
+    castle: Dict,
+    all_castles: List[Dict],
+    bear_traps: List[Dict],
+    grid_size: int,
 ) -> float:
     """Compute efficiency score for a single castle.
 
@@ -363,7 +373,9 @@ def compute_efficiency_for_single_castle(
         return math.floor((ratio - 1.0) * 50)
 
 
-def _compute_actual_travel_times(castles: List[Dict], bear1: Optional[Dict], bear2: Optional[Dict]) -> None:
+def _compute_actual_travel_times(
+    castles: List[Dict], bear1: Optional[Dict], bear2: Optional[Dict]
+) -> None:
     """Mutates castles in-place: sets actual_travel_time for placed castles."""
     if not bear1 or not bear2 or not _has_xy(bear1) or not _has_xy(bear2):
         return
@@ -375,11 +387,18 @@ def _compute_actual_travel_times(castles: List[Dict], bear1: Optional[Dict], bea
         pref = _normalize_preference(c.get("preference"))
         dist_to_bear1 = chebyshev_distance(c["x"], c["y"], bear1["x"], bear1["y"])
         dist_to_bear2 = chebyshev_distance(c["x"], c["y"], bear2["x"], bear2["y"])
-        c["actual_travel_time"] = _weighted_travel_time(pref, dist_to_bear1, dist_to_bear2)
+        c["actual_travel_time"] = _weighted_travel_time(
+            pref, dist_to_bear1, dist_to_bear2
+        )
 
 
-def _compute_map_scores(config: Dict, castles: List[Dict], bear_traps: List[Dict], grid_size: int,
-                        banners: List[Dict]) -> None:
+def _compute_map_scores(
+    config: Dict,
+    castles: List[Dict],
+    bear_traps: List[Dict],
+    grid_size: int,
+    banners: List[Dict],
+) -> None:
     """Mutates config in-place with map score fields (no return)."""
     bear1 = _find_bear(bear_traps, "Bear 1")
     bear2 = _find_bear(bear_traps, "Bear 2")
@@ -387,7 +406,8 @@ def _compute_map_scores(config: Dict, castles: List[Dict], bear_traps: List[Dict
     placed_castles = [c for c in castles if _has_xy(c)]
 
     avg_eff = (
-        sum(float(c.get("efficiency_score", 0)) for c in placed_castles) / len(placed_castles)
+        sum(float(c.get("efficiency_score", 0)) for c in placed_castles)
+        / len(placed_castles)
         if placed_castles
         else 0
     )
@@ -428,10 +448,12 @@ def _compute_map_scores(config: Dict, castles: List[Dict], bear_traps: List[Dict
         c.get("round_trip", 0)
         for c in placed_castles
         if c.get("round_trip") is not None
-           and c.get("round_trip") != "NA"
-           and c.get("round_trip") > 0
+        and c.get("round_trip") != "NA"
+        and c.get("round_trip") > 0
     ]
-    avg_round_trip = round(sum(round_trip_times) / len(round_trip_times)) if round_trip_times else 0
+    avg_round_trip = (
+        round(sum(round_trip_times) / len(round_trip_times)) if round_trip_times else 0
+    )
 
     # Average rallies per castle
     rallies = [c.get("rallies_30min", 0) for c in placed_castles]

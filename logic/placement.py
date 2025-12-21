@@ -16,14 +16,14 @@ Last Updated: 2025-12-21
 """
 
 import math
-from typing import List, Dict, Tuple, Optional, Set
+from typing import Dict, List, Optional, Set, Tuple
 
 from .config import load_config, save_config
 from .scoring import (
-    compute_priority,
-    compute_efficiency,
     chebyshev_distance,
+    compute_efficiency,
     compute_ideal_allocation,
+    compute_priority,
 )
 from .validation import (
     check_castle_overlap,
@@ -55,6 +55,7 @@ DEBUG = False
 # =========================
 # DRY Helper Functions
 # =========================
+
 
 def normalize_preference(raw: Optional[str]) -> str:
     """Normalize preference string to canonical lowercase form.
@@ -134,15 +135,16 @@ def round_trip_for_tile(tile_x: int, tile_y: int, bear_x: int, bear_y: int) -> f
     bear_center_y = bear_y + 1
 
     distance = euclidean_distance(
-        castle_center_x, castle_center_y,
-        bear_center_x, bear_center_y
+        castle_center_x, castle_center_y, bear_center_x, bear_center_y
     )
 
     travel_rate = 3  # seconds per tile
     return 300 + 2 * (distance * travel_rate)
 
 
-def weighted_travel_time(pref_norm: str, dist_to_bear1: float, dist_to_bear2: float) -> float:
+def weighted_travel_time(
+    pref_norm: str, dist_to_bear1: float, dist_to_bear2: float
+) -> float:
     """Calculate weighted travel time based on preference."""
     if pref_norm == "bt1":
         return dist_to_bear1
@@ -157,6 +159,7 @@ def weighted_travel_time(pref_norm: str, dist_to_bear1: float, dist_to_bear2: fl
 # =========================
 # Tile Helpers
 # =========================
+
 
 def tile_free(x: int, y: int, occupied: Set[Tuple[int, int]]) -> bool:
     """Check if a 2x2 castle footprint is free of occupied tiles."""
@@ -218,11 +221,12 @@ def preferred_parity(castles: List[Dict]) -> Tuple[int, int]:
 # Phase 2: Queue Builders
 # =========================
 
+
 def build_bear_queue(
-        all_valid_tiles: List[Tuple[int, int]],
-        bear: Dict,
-        other_bear: Optional[Dict],
-        occupied: Set[Tuple[int, int]]
+    all_valid_tiles: List[Tuple[int, int]],
+    bear: Dict,
+    other_bear: Optional[Dict],
+    occupied: Set[Tuple[int, int]],
 ) -> List[Tuple[int, int]]:
     """Build a queue of tiles sorted by closeness to a bear (committed players).
 
@@ -244,11 +248,11 @@ def build_bear_queue(
 
 
 def build_midline_queue(
-        all_valid_tiles: List[Tuple[int, int]],
-        bear1: Optional[Dict],
-        bear2: Optional[Dict],
-        pref_norm: str,
-        occupied: Set[Tuple[int, int]]
+    all_valid_tiles: List[Tuple[int, int]],
+    bear1: Optional[Dict],
+    bear2: Optional[Dict],
+    pref_norm: str,
+    occupied: Set[Tuple[int, int]],
 ) -> List[Tuple[int, int]]:
     """Build a queue for hybrid players (BT1/2, BT2/1).
 
@@ -287,16 +291,17 @@ def build_midline_queue(
 # Phase 3: Scoring Function
 # =========================
 
+
 def score_tile_v2(
-        tile_x: int,
-        tile_y: int,
-        castle: Dict,
-        bear1: Optional[Dict],
-        bear2: Optional[Dict],
-        pref_norm: str,
-        occupied: Set[Tuple[int, int]],
-        max_priority: float,
-        is_committed: bool
+    tile_x: int,
+    tile_y: int,
+    castle: Dict,
+    bear1: Optional[Dict],
+    bear2: Optional[Dict],
+    pref_norm: str,
+    occupied: Set[Tuple[int, int]],
+    max_priority: float,
+    is_committed: bool,
 ) -> float:
     """Score a candidate tile for placement. Lower is better.
 
@@ -328,7 +333,7 @@ def score_tile_v2(
         over = max(0, rt - RT_TARGET)
 
         # Quadratic penalty weighted by priority
-        travel_penalty = (over ** 2) * priority_weight * 0.01
+        travel_penalty = (over**2) * priority_weight * 0.01
         score += travel_penalty
 
         # Small bonus for being under target
@@ -338,8 +343,7 @@ def score_tile_v2(
         # Hybrid anti-sniping: penalize if too close to primary bear
         if not is_committed:
             d_primary = chebyshev_distance(
-                tile_x + 1, tile_y + 1,
-                primary_bear["x"] + 1, primary_bear["y"] + 1
+                tile_x + 1, tile_y + 1, primary_bear["x"] + 1, primary_bear["y"] + 1
             )
             if d_primary <= HYBRID_NEAR_RADIUS:
                 score += HYBRID_NEAR_PENALTY
@@ -355,13 +359,14 @@ def score_tile_v2(
 # Phase 3: Compaction Pass
 # =========================
 
+
 def compact_layout(
-        castles: List[Dict],
-        all_valid_tiles: List[Tuple[int, int]],
-        occupied: Set[Tuple[int, int]],
-        bear1: Optional[Dict],
-        bear2: Optional[Dict],
-        max_priority: float
+    castles: List[Dict],
+    all_valid_tiles: List[Tuple[int, int]],
+    occupied: Set[Tuple[int, int]],
+    bear1: Optional[Dict],
+    bear2: Optional[Dict],
+    max_priority: float,
 ) -> int:
     """Run compaction passes to fill holes and reduce whitespace.
 
@@ -374,10 +379,7 @@ def compact_layout(
     total_moves = 0
 
     # Get unlocked placed castles, sorted by priority ascending (low first)
-    movable = [
-        c for c in castles
-        if not c.get("locked") and _has_xy(c)
-    ]
+    movable = [c for c in castles if not c.get("locked") and _has_xy(c)]
     movable.sort(key=lambda c: float(c.get("priority_score", 0)))
 
     for _pass in range(COMPACTION_PASSES):
@@ -394,8 +396,15 @@ def compact_layout(
 
             # Current score
             current_score = score_tile_v2(
-                current_x, current_y, castle, bear1, bear2,
-                pref_norm, occupied, max_priority, is_committed
+                current_x,
+                current_y,
+                castle,
+                bear1,
+                bear2,
+                pref_norm,
+                occupied,
+                max_priority,
+                is_committed,
             )
             current_contact = neighbor_contact_score(current_x, current_y, occupied)
 
@@ -412,8 +421,15 @@ def compact_layout(
                     continue
 
                 new_score = score_tile_v2(
-                    tile[0], tile[1], castle, bear1, bear2,
-                    pref_norm, occupied, max_priority, is_committed
+                    tile[0],
+                    tile[1],
+                    castle,
+                    bear1,
+                    bear2,
+                    pref_norm,
+                    occupied,
+                    max_priority,
+                    is_committed,
                 )
                 new_contact = neighbor_contact_score(tile[0], tile[1], occupied)
 
@@ -445,22 +461,24 @@ def compact_layout(
 # Collision Resolution
 # =========================
 
+
 def is_castle_invalid(
-        castle: Dict,
-        all_castles: List[Dict],
-        bear_traps: List[Dict],
-        banners: List[Dict]
+    castle: Dict, all_castles: List[Dict], bear_traps: List[Dict], banners: List[Dict]
 ) -> bool:
     """Check if a castle is in an invalid position."""
     cx, cy = castle.get("x"), castle.get("y")
     if cx is None or cy is None:
         return False
 
-    has_castle_overlap, _ = check_castle_overlap(cx, cy, all_castles, exclude_id=castle["id"])
+    has_castle_overlap, _ = check_castle_overlap(
+        cx, cy, all_castles, exclude_id=castle["id"]
+    )
     if has_castle_overlap:
         return True
 
-    has_entity_overlap, _ = check_castle_overlap_with_entities(cx, cy, bear_traps, banners)
+    has_entity_overlap, _ = check_castle_overlap_with_entities(
+        cx, cy, bear_traps, banners
+    )
     if has_entity_overlap:
         return True
 
@@ -468,14 +486,14 @@ def is_castle_invalid(
 
 
 def push_castle_outward(
-        castle: Dict,
-        avoid_x: int,
-        avoid_y: int,
-        all_castles: List[Dict],
-        grid_size: int,
-        bear_traps: List[Dict],
-        banners: List[Dict],
-        exclude_id: str = None
+    castle: Dict,
+    avoid_x: int,
+    avoid_y: int,
+    all_castles: List[Dict],
+    grid_size: int,
+    bear_traps: List[Dict],
+    banners: List[Dict],
+    exclude_id: str = None,
 ):
     """Push a single castle outward to avoid overlap with a position."""
     cx, cy = castle.get("x"), castle.get("y")
@@ -487,9 +505,14 @@ def push_castle_outward(
     step = 2
 
     for attempt in [
-        (dx * step, 0), (0, dy * step), (dx * step, dy * step),
-        (-dx * step, 0), (0, -dy * step), (dx * step, -dy * step),
-        (-dx * step, dy * step), (-dx * step, -dy * step),
+        (dx * step, 0),
+        (0, dy * step),
+        (dx * step, dy * step),
+        (-dx * step, 0),
+        (0, -dy * step),
+        (dx * step, -dy * step),
+        (-dx * step, dy * step),
+        (-dx * step, -dy * step),
     ]:
         test_x = cx + attempt[0]
         test_y = cy + attempt[1]
@@ -511,10 +534,7 @@ def push_castle_outward(
 
 
 def resolve_all_collisions(
-        castles: List[Dict],
-        grid_size: int,
-        bear_traps: List[Dict],
-        banners: List[Dict]
+    castles: List[Dict], grid_size: int, bear_traps: List[Dict], banners: List[Dict]
 ):
     """Resolve all collisions by iteratively pushing invalid castles outward."""
     max_iterations = 100
@@ -522,8 +542,7 @@ def resolve_all_collisions(
 
     for _ in range(max_iterations):
         invalid_castles = [
-            c for c in castles
-            if is_castle_invalid(c, castles, bear_traps, banners)
+            c for c in castles if is_castle_invalid(c, castles, bear_traps, banners)
         ]
         if not invalid_castles:
             break
@@ -535,18 +554,17 @@ def resolve_all_collisions(
 
 
 def resolve_map_collisions(
-        placed_x: int,
-        placed_y: int,
-        castles: List[Dict],
-        grid_size: int,
-        bear_traps: List[Dict],
-        banners: List[Dict]
+    placed_x: int,
+    placed_y: int,
+    castles: List[Dict],
+    grid_size: int,
+    bear_traps: List[Dict],
+    banners: List[Dict],
 ):
     """Resolve collisions after a specific placement."""
     for _ in range(100):
         invalid_castles = [
-            c for c in castles
-            if is_castle_invalid(c, castles, bear_traps, banners)
+            c for c in castles if is_castle_invalid(c, castles, bear_traps, banners)
         ]
         if not invalid_castles:
             break
@@ -558,13 +576,13 @@ def resolve_map_collisions(
 
 
 def push_castles_outward(
-        placed_castle_x: int,
-        placed_castle_y: int,
-        castles: List[Dict],
-        grid_size: int,
-        bear_traps: List[Dict],
-        banners: List[Dict],
-        exclude_id: str = None
+    placed_castle_x: int,
+    placed_castle_y: int,
+    castles: List[Dict],
+    grid_size: int,
+    bear_traps: List[Dict],
+    banners: List[Dict],
+    exclude_id: str = None,
 ) -> Tuple[bool, str]:
     """Push unlocked castles outward that would overlap with a newly placed castle."""
     overlapping_castles = []
@@ -579,26 +597,35 @@ def push_castles_outward(
 
     locked_overlaps = [c for c in overlapping_castles if c.get("locked", False)]
     if locked_overlaps:
-        return False, f"Cannot place: overlaps locked castle '{locked_overlaps[0]['id']}'"
+        return (
+            False,
+            f"Cannot place: overlaps locked castle '{locked_overlaps[0]['id']}'",
+        )
 
     for castle in overlapping_castles:
         if castle.get("locked", False):
             continue
         push_castle_outward(
-            castle, placed_castle_x, placed_castle_y,
-            castles, grid_size, bear_traps, banners, exclude_id
+            castle,
+            placed_castle_x,
+            placed_castle_y,
+            castles,
+            grid_size,
+            bear_traps,
+            banners,
+            exclude_id,
         )
 
     return True, ""
 
 
 def push_castles_away_from_bear(
-        bear_x: int,
-        bear_y: int,
-        castles: List[Dict],
-        grid_size: int,
-        bear_traps: List[Dict],
-        banners: List[Dict]
+    bear_x: int,
+    bear_y: int,
+    castles: List[Dict],
+    grid_size: int,
+    bear_traps: List[Dict],
+    banners: List[Dict],
 ) -> Tuple[bool, str]:
     """Push unlocked castles away from a bear trap position."""
     overlapping_castles = []
@@ -611,7 +638,10 @@ def push_castles_away_from_bear(
 
     locked_overlaps = [c for c in overlapping_castles if c.get("locked", False)]
     if locked_overlaps:
-        return False, f"Cannot place bear: overlaps locked castle '{locked_overlaps[0]['id']}'"
+        return (
+            False,
+            f"Cannot place bear: overlaps locked castle '{locked_overlaps[0]['id']}'",
+        )
 
     # Temporarily add the new bear position (with id to avoid KeyError in validation)
     temp_bear_traps = bear_traps + [{"id": "temp_bear", "x": bear_x, "y": bear_y}]
@@ -627,11 +657,11 @@ def push_castles_away_from_bear(
 
 
 def move_castle_to_edge(
-        castle: Dict,
-        all_castles: List[Dict],
-        grid_size: int,
-        bear_traps: List[Dict],
-        banners: List[Dict]
+    castle: Dict,
+    all_castles: List[Dict],
+    grid_size: int,
+    bear_traps: List[Dict],
+    banners: List[Dict],
 ) -> bool:
     """Move a castle to the nearest edge of the map."""
     cx, cy = castle.get("x", 0) or 0, castle.get("y", 0) or 0
@@ -688,6 +718,7 @@ def move_castle_to_edge(
 # =========================
 # Auto-Placement Algorithm
 # =========================
+
 
 async def auto_place_castles() -> Dict[str, int]:
     """Auto-place castles on the grid using committed-first ordering.
@@ -768,10 +799,9 @@ async def auto_place_castles() -> Dict[str, int]:
             mark_occupied(c["x"], c["y"], occupied)
 
     # Get max priority for normalization
-    max_priority = max(
-        (float(c.get("priority_score", 0)) for c in castles),
-        default=1.0
-    ) or 1.0
+    max_priority = (
+        max((float(c.get("priority_score", 0)) for c in castles), default=1.0) or 1.0
+    )
 
     # ========================================
     # PHASE 1: Grouping + Ordering (Committed-First)
@@ -815,8 +845,10 @@ async def auto_place_castles() -> Dict[str, int]:
     placement_order = g_bt1 + g_bt2 + g_bt12 + g_bt21
 
     if DEBUG:
-        print(f"[DEBUG] Groups: BT1={len(g_bt1)}, BT2={len(g_bt2)}, "
-              f"BT1/2={len(g_bt12)}, BT2/1={len(g_bt21)}")
+        print(
+            f"[DEBUG] Groups: BT1={len(g_bt1)}, BT2={len(g_bt2)}, "
+            f"BT1/2={len(g_bt12)}, BT2/1={len(g_bt21)}"
+        )
 
     # ========================================
     # PHASE 2 & 3: Placement with Distance Queues
@@ -834,7 +866,9 @@ async def auto_place_castles() -> Dict[str, int]:
         elif pref_norm == "bt2":
             queue = build_bear_queue(all_valid_tiles, bear2, bear1, occupied)
         else:
-            queue = build_midline_queue(all_valid_tiles, bear1, bear2, pref_norm, occupied)
+            queue = build_midline_queue(
+                all_valid_tiles, bear1, bear2, pref_norm, occupied
+            )
 
         # Prefer parity-aligned tiles
         parity_queue = [t for t in queue if t[0] % 2 == px and t[1] % 2 == py]
@@ -849,8 +883,15 @@ async def auto_place_castles() -> Dict[str, int]:
                 continue
 
             score = score_tile_v2(
-                tile[0], tile[1], castle, bear1, bear2,
-                pref_norm, occupied, max_priority, is_committed
+                tile[0],
+                tile[1],
+                castle,
+                bear1,
+                bear2,
+                pref_norm,
+                occupied,
+                max_priority,
+                is_committed,
             )
 
             if score < best_score:
@@ -867,8 +908,15 @@ async def auto_place_castles() -> Dict[str, int]:
                     continue
 
                 score = score_tile_v2(
-                    tile[0], tile[1], castle, bear1, bear2,
-                    pref_norm, occupied, max_priority, is_committed
+                    tile[0],
+                    tile[1],
+                    castle,
+                    bear1,
+                    bear2,
+                    pref_norm,
+                    occupied,
+                    max_priority,
+                    is_committed,
                 )
 
                 if score < best_score:
@@ -917,7 +965,7 @@ async def auto_place_castles() -> Dict[str, int]:
     for i, c1 in enumerate(castles):
         if not _has_xy(c1):
             continue
-        for c2 in castles[i + 1:]:
+        for c2 in castles[i + 1 :]:
             if not _has_xy(c2):
                 continue
             if rectangles_overlap(c1["x"], c1["y"], 2, 2, c2["x"], c2["y"], 2, 2):
@@ -934,12 +982,22 @@ async def auto_place_castles() -> Dict[str, int]:
     if DEBUG:
         # Compute metrics
         placed_castles = [c for c in castles if _has_xy(c)]
-        rt_values = [c.get("round_trip", 999) for c in placed_castles if c.get("round_trip")]
+        rt_values = [
+            c.get("round_trip", 999) for c in placed_castles if c.get("round_trip")
+        ]
         under_360 = sum(1 for rt in rt_values if rt <= 360)
         pct_under = (under_360 / len(rt_values) * 100) if rt_values else 0
 
-        bt1_rts = [c.get("round_trip", 999) for c in g_bt1 if _has_xy(c) and c.get("round_trip")]
-        bt2_rts = [c.get("round_trip", 999) for c in g_bt2 if _has_xy(c) and c.get("round_trip")]
+        bt1_rts = [
+            c.get("round_trip", 999)
+            for c in g_bt1
+            if _has_xy(c) and c.get("round_trip")
+        ]
+        bt2_rts = [
+            c.get("round_trip", 999)
+            for c in g_bt2
+            if _has_xy(c) and c.get("round_trip")
+        ]
 
         def percentile(vals, p):
             if not vals:
@@ -951,9 +1009,13 @@ async def auto_place_castles() -> Dict[str, int]:
         print(f"[DEBUG] Placed: {placed_count}")
         print(f"[DEBUG] RT <= 360s: {under_360}/{len(rt_values)} ({pct_under:.1f}%)")
         if bt1_rts:
-            print(f"[DEBUG] BT1 RT p50={percentile(bt1_rts, 50)}, p90={percentile(bt1_rts, 90)}")
+            print(
+                f"[DEBUG] BT1 RT p50={percentile(bt1_rts, 50)}, p90={percentile(bt1_rts, 90)}"
+            )
         if bt2_rts:
-            print(f"[DEBUG] BT2 RT p50={percentile(bt2_rts, 50)}, p90={percentile(bt2_rts, 90)}")
+            print(
+                f"[DEBUG] BT2 RT p50={percentile(bt2_rts, 50)}, p90={percentile(bt2_rts, 90)}"
+            )
 
         # Count hybrids near bears
         near_bear = 0
@@ -962,11 +1024,15 @@ async def auto_place_castles() -> Dict[str, int]:
                 continue
             for bear in [bear1, bear2]:
                 if bear and _has_xy(bear):
-                    d = chebyshev_distance(c["x"] + 1, c["y"] + 1, bear["x"] + 1, bear["y"] + 1)
+                    d = chebyshev_distance(
+                        c["x"] + 1, c["y"] + 1, bear["x"] + 1, bear["y"] + 1
+                    )
                     if d <= HYBRID_NEAR_RADIUS:
                         near_bear += 1
                         break
-        print(f"[DEBUG] Hybrids within radius {HYBRID_NEAR_RADIUS} of bears: {near_bear}")
+        print(
+            f"[DEBUG] Hybrids within radius {HYBRID_NEAR_RADIUS} of bears: {near_bear}"
+        )
 
     if overlaps_found:
         print("Warning: Overlaps found after autoplace")
@@ -977,22 +1043,23 @@ async def auto_place_castles() -> Dict[str, int]:
 
 
 def compute_efficiency_for_castle(
-        castle: Dict,
-        all_castles: List[Dict],
-        bear_traps: List[Dict],
-        grid_size: int
+    castle: Dict, all_castles: List[Dict], bear_traps: List[Dict], grid_size: int
 ) -> float:
     """Compute efficiency score for a single castle.
 
     DEPRECATED: Use scoring.compute_efficiency_for_single_castle instead.
     """
     from .scoring import compute_efficiency_for_single_castle
-    return compute_efficiency_for_single_castle(castle, all_castles, bear_traps, grid_size)
+
+    return compute_efficiency_for_single_castle(
+        castle, all_castles, bear_traps, grid_size
+    )
 
 
 # =========================
 # Round Trip Time Calculations
 # =========================
+
 
 def calculate_euclidean_distance(x1: float, y1: float, x2: float, y2: float) -> float:
     """Calculate Euclidean distance between two points."""
@@ -1031,8 +1098,7 @@ def calculate_single_round_trip(castle: Dict, bear: Dict) -> Optional[float]:
     bear_center_y = bear["y"] + 1
 
     distance = calculate_euclidean_distance(
-        castle_center_x, castle_center_y,
-        bear_center_x, bear_center_y
+        castle_center_x, castle_center_y, bear_center_x, bear_center_y
     )
 
     travel_time = calculate_travel_time(distance)
@@ -1051,7 +1117,9 @@ def update_castle_round_trip_time(castle: Dict, bear_traps: List[Dict]):
     round_trip = calculate_round_trip_time(castle, bear_traps)
     if round_trip is not None:
         castle["round_trip"] = round(round_trip)
-        castle["rallies_30min"] = min(5, int(1800 // round_trip)) if round_trip > 0 else 0
+        castle["rallies_30min"] = (
+            min(5, int(1800 // round_trip)) if round_trip > 0 else 0
+        )
     else:
         castle["round_trip"] = None
         castle["rallies_30min"] = 0
@@ -1060,6 +1128,7 @@ def update_castle_round_trip_time(castle: Dict, bear_traps: List[Dict]):
 # =========================
 # Legacy Compatibility
 # =========================
+
 
 def build_slices(grid_size: int) -> Dict[str, List[int]]:
     """Build column slices (legacy, kept for compatibility but not used in placement)."""
@@ -1085,18 +1154,25 @@ def get_spill_order(pref_norm: str) -> List[str]:
 
 
 def score_tile(
-        tile_x: int,
-        tile_y: int,
-        castle: Dict,
-        bear1: Optional[Dict],
-        bear2: Optional[Dict],
-        pref_norm: str,
-        occupied: Set[Tuple[int, int]]
+    tile_x: int,
+    tile_y: int,
+    castle: Dict,
+    bear1: Optional[Dict],
+    bear2: Optional[Dict],
+    pref_norm: str,
+    occupied: Set[Tuple[int, int]],
 ) -> float:
     """Score a tile (legacy wrapper for compatibility)."""
     max_priority = 1.0
     is_committed = pref_norm in ("bt1", "bt2")
     return score_tile_v2(
-        tile_x, tile_y, castle, bear1, bear2,
-        pref_norm, occupied, max_priority, is_committed
+        tile_x,
+        tile_y,
+        castle,
+        bear1,
+        bear2,
+        pref_norm,
+        occupied,
+        max_priority,
+        is_committed,
     )
