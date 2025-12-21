@@ -315,13 +315,26 @@ async def create_castle(castle_data: CastleCreate):
 
     now = datetime.now().isoformat()
 
+    # Determine attendance value
+    attendance_value = castle_data.attendance
+    if attendance_value is None:
+        # Calculate average of existing non-null attendance values
+        existing_attendance = [
+            c.get("attendance") for c in castles
+            if c.get("attendance") is not None
+        ]
+        if existing_attendance:
+            attendance_value = round(sum(existing_attendance) / len(existing_attendance))
+        else:
+            attendance_value = 0
+
     new_castle = {
         "id": castle_id,
         "player": castle_data.player,
         "power": castle_data.power,
         "player_level": castle_data.player_level,
         "command_centre_level": castle_data.command_centre_level,
-        "attendance": castle_data.attendance,
+        "attendance": attendance_value,
         "rallies_30min": castle_data.rallies_30min,
         "preference": castle_data.preference,
         "current_trap": "",

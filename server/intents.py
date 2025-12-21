@@ -605,3 +605,63 @@ async def move_all_out_of_way():
         await notify_config_updated()
 
     return {"success": True, "moved_count": moved_count}
+
+
+@router.post("/api/intent/adjust_attendance")
+async def adjust_attendance(data: Dict[str, Any] = Body(...)):
+    """Adjust a castle's attendance by a delta value.
+
+    Increments or decrements the attendance value by the provided delta.
+    The result is clamped to a minimum of 0.
+
+    Args:
+        data: Dictionary with 'castle_id' and 'delta' (+1 or -1).
+
+    Returns:
+        Dictionary with success status and updated attendance value.
+
+    Raises:
+        HTTPException: If castle not found or invalid delta.
+    """
+    castle_id = data.get("castle_id")
+    delta = data.get("delta")
+
+    if not castle_id:
+        raise HTTPException(400, "Missing required field: castle_id")
+
+    if delta is None:
+        raise HTTPException(400, "Missing required field: delta")
+
+    try:
+        delta = int(delta)
+    except (TypeError, ValueError):
+        raise HTTPException(400, "Invalid delta value")
+
+    config = load_config()
+    castles = config.get("castles", [])
+
+    castle = next((c for c in castles if c.get("id") == castle_id), None)
+    if not castle:
+        raise HTTPException(404, f"Castle '{castle_id}' not found")
+
+    # Get current attendance (default to 0 if None)
+    current = int(castle.get("attendance") or 0)
+
+    # Calculate new value and clamp to minimum of 0
+    new_value = max(0, current + delta)
+
+    # Update the castle
+    castle["attendance"] = new_value
+
+    # Save config
+    save_config(config)
+
+    # Notify clients
+    await notify_config_updated()
+
+    return {
+        "success": True,
+        "castle_id": castle_id,
+        "attendance": new_value
+    }
+

@@ -782,4 +782,63 @@ footer {
 .checkbox-col input[type="checkbox"] {
   cursor: pointer;
 }
+
+/* ================= ATTENDANCE CONTROLS ================= */
+.attendance-cell {
+  padding: 4px 8px !important;
+}
+
+.attendance-controls {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.attendance-btn {
+  width: 22px;
+  height: 22px;
+  min-width: 22px;
+  padding: 0;
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 1;
+  border-radius: 4px;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  color: var(--text);
+  cursor: pointer;
+  transition: all 0.15s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.attendance-btn:hover:not(:disabled) {
+  border-color: var(--accent);
+  background: var(--panel-soft);
+}
+
+.attendance-btn:active:not(:disabled) {
+  transform: scale(0.95);
+}
+
+.attendance-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.attendance-minus {
+  color: #ef4444;
+}
+
+.attendance-plus {
+  color: #22c55e;
+}
+
+.attendance-value {
+  min-width: 28px;
+  padding: 0 6px;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+  font-weight: 500;
 }

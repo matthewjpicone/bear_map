@@ -616,6 +616,99 @@ function tdReadonlyNumber(value) {
   return td;
 }
 
+/**
+ * Create a table cell for attendance with increment/decrement buttons.
+ * @param {Object} castle - The castle object.
+ * @returns {HTMLTableCellElement} The table cell element.
+ */
+function tdAttendance(castle) {
+  const td = document.createElement("td");
+  td.classList.add("attendance-cell");
+
+  const container = document.createElement("div");
+  container.classList.add("attendance-controls");
+
+  // Decrement button
+  const minusBtn = document.createElement("button");
+  minusBtn.type = "button";
+  minusBtn.classList.add("attendance-btn", "attendance-minus");
+  minusBtn.textContent = "−";
+  minusBtn.title = "Decrease attendance";
+
+  // Value display
+  const valueSpan = document.createElement("span");
+  valueSpan.classList.add("attendance-value");
+  valueSpan.textContent = castle.attendance ?? 0;
+
+  // Increment button
+  const plusBtn = document.createElement("button");
+  plusBtn.type = "button";
+  plusBtn.classList.add("attendance-btn", "attendance-plus");
+  plusBtn.textContent = "+";
+  plusBtn.title = "Increase attendance";
+
+  // Track in-flight state to prevent spam
+  let inFlight = false;
+
+  async function adjustAttendance(delta) {
+    if (inFlight) return;
+
+    inFlight = true;
+    minusBtn.disabled = true;
+    plusBtn.disabled = true;
+
+    try {
+      const response = await fetch('/api/intent/adjust_attendance', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ castle_id: castle.id, delta: delta })
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.detail || 'Failed to adjust attendance');
+      }
+
+      const result = await response.json();
+
+      // Update local data
+      castle.attendance = result.attendance;
+      valueSpan.textContent = result.attendance;
+
+      // Update mapData to keep in sync
+      const mapCastle = mapData?.castles?.find(c => c.id === castle.id);
+      if (mapCastle) {
+        mapCastle.attendance = result.attendance;
+      }
+
+    } catch (error) {
+      console.error('Error adjusting attendance:', error);
+      showToast('Failed to adjust attendance: ' + error.message, 'error');
+    } finally {
+      inFlight = false;
+      minusBtn.disabled = false;
+      plusBtn.disabled = false;
+    }
+  }
+
+  minusBtn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    adjustAttendance(-1);
+  });
+
+  plusBtn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    adjustAttendance(1);
+  });
+
+  container.appendChild(minusBtn);
+  container.appendChild(valueSpan);
+  container.appendChild(plusBtn);
+  td.appendChild(container);
+
+  return td;
+}
+
 function tdInput(field, obj) {
   const td = document.createElement("td");
 
@@ -962,7 +1055,7 @@ tr.addEventListener("click", (e) => {
     tr.appendChild(tdNumber("command_centre_level", c));
     tr.appendChild(tdSelect("preference", c, ["BT1", "BT2", "BT1/2", "BT2/1"]));
     tr.appendChild(tdCheckbox("locked", c));
-    tr.appendChild(tdReadonly(c.attendance));  // Moved after locked and made read-only
+    tr.appendChild(tdAttendance(c));  // Attendance with +/- buttons
     tr.appendChild(tdReadonly(c.rallies_30min));  // Read-only Rallies/Session
     tr.appendChild(tdReadonly(c.round_trip || "NA"));  // New read-only Round Trip Time (s)
     tr.appendChild(tdReadonlyNumber(c.priority_rank_100));
