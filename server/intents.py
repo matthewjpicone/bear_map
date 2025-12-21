@@ -13,8 +13,8 @@ from typing import Any, Dict
 from fastapi import APIRouter, Body, HTTPException
 
 from logic.config import load_config, save_config
-from logic.validation import is_within_bounds, check_bear_trap_overlap
 from logic.placement import auto_place_castles
+from logic.validation import is_within_bounds, check_bear_trap_overlap
 from server.broadcast import notify_config_updated, busy_set
 
 router = APIRouter()
@@ -75,7 +75,8 @@ async def move_castle(data: Dict[str, Any] = Body(...)):
     if has_overlap:
         # Revert to original position and show error
         await notify_config_updated()  # Ensure frontend is in sync
-        return {"success": False, "error": "Move failed: overlaps with bear trap or banner", "message": "Move failed: position overlaps with an existing bear trap or banner"}
+        return {"success": False, "error": "Move failed: overlaps with bear trap or banner",
+                "message": "Move failed: position overlaps with an existing bear trap or banner"}
 
     # Check for overlaps with other castles and push them if needed
     from logic.placement import push_castles_outward
@@ -98,7 +99,6 @@ async def move_castle(data: Dict[str, Any] = Body(...)):
     # Recompute efficiency scores for all castles (this also calculates map scores)
     from logic.scoring import compute_efficiency
     castles = compute_efficiency(config, castles)
-
 
     save_config(config)
 
@@ -228,7 +228,8 @@ async def move_bear_trap(data: Dict[str, Any] = Body(...)):
     push_success, push_error = push_castles_away_from_bear(x, y, castles, grid_size, bear_traps, banners)
     if not push_success:
         await notify_config_updated()  # Ensure frontend is in sync
-        return {"success": False, "error": push_error, "message": "Can't place bear trap - it would overlap with a locked castle"}
+        return {"success": False, "error": push_error,
+                "message": "Can't place bear trap - it would overlap with a locked castle"}
 
     # Resolve any cascading collisions
     from logic.placement import resolve_map_collisions
@@ -246,7 +247,6 @@ async def move_bear_trap(data: Dict[str, Any] = Body(...)):
     # Recompute efficiency scores for all castles (this also calculates map scores)
     from logic.scoring import compute_efficiency
     castles = compute_efficiency(config, castles)
-
 
     save_config(config)
 
@@ -664,4 +664,3 @@ async def adjust_attendance(data: Dict[str, Any] = Body(...)):
         "castle_id": castle_id,
         "attendance": new_value
     }
-

@@ -6,8 +6,8 @@ let draggingCastle = null;     // mouse interaction only
 let draggingBanner = null;
 let mapData = null;            // hydrated from server, mutated locally for UI
 let castleSort = {             // table UI concern
-  key: null,
-  asc: true
+    key: null,
+    asc: true
 };
 // Viewport state
 let viewZoom = 1;     // Zoom level (1 = 100%)
@@ -63,21 +63,22 @@ if (!canvas) throw new Error("Canvas #map not found");
  * @param {string} type - Type: 'success', 'error', 'warning', 'info' (default: 'info')
  */
 function showToast(message, type = 'info') {
-  if (window.ToastManager) {
-    ToastManager.show(message, null, null, type);
-  } else {
-    console.warn('ToastManager not available, falling back to alert:', message);
-    alert(message);
-  }
+    if (window.ToastManager) {
+        ToastManager.show(message, null, null, type);
+    } else {
+        console.warn('ToastManager not available, falling back to alert:', message);
+        alert(message);
+    }
 }
+
 const ctx = canvas.getContext("2d");
 
 const TILE_SIZE = 40;
 const FALLBACK_EFFICIENCY_SCALE = [
-  { max: 6,  color: "#16a34a", label: "Excellent" },
-  { max: 10, color: "#2563eb", label: "Good" },
-  { max: 15, color: "#64748b", label: "Poor" },
-  { max: Infinity, color: "#1f2937", label: "Bad" }
+    {max: 6, color: "#16a34a", label: "Excellent"},
+    {max: 10, color: "#2563eb", label: "Good"},
+    {max: 15, color: "#64748b", label: "Poor"},
+    {max: Infinity, color: "#1f2937", label: "Bad"}
 ];
 
 // ==========================
@@ -87,86 +88,86 @@ let sse = null;
 let sseReloadScheduled = false;
 
 function scheduleHardReload() {
-  if (sseReloadScheduled) return;
-  sseReloadScheduled = true;
-  console.warn("SSE disconnected — reloading page to resync with server");
-  setTimeout(() => {
-    window.location.reload();
-  }, 1500);
+    if (sseReloadScheduled) return;
+    sseReloadScheduled = true;
+    console.warn("SSE disconnected — reloading page to resync with server");
+    setTimeout(() => {
+        window.location.reload();
+    }, 1500);
 }
 
 function initSSE() {
-  if (sse) return; // prevent double-connects
+    if (sse) return; // prevent double-connects
 
-  try {
-    sse = new EventSource("/api/stream");
+    try {
+        sse = new EventSource("/api/stream");
 
-    sse.onopen = () => {
-      console.log("[SSE] Connected");
-      sseReloadScheduled = false; // clear any pending reload
-    };
+        sse.onopen = () => {
+            console.log("[SSE] Connected");
+            sseReloadScheduled = false; // clear any pending reload
+        };
 
-    sse.onerror = err => {
-      console.warn("[SSE] Connection lost", err);
-      scheduleHardReload();
-    };
+        sse.onerror = err => {
+            console.warn("[SSE] Connection lost", err);
+            scheduleHardReload();
+        };
 
-    // Single message handler for all events
-    sse.onmessage = async evt => {
-      try {
-        const msg = JSON.parse(evt.data);
-        console.log("[SSE] message:", evt.data);  // Log all messages
+        // Single message handler for all events
+        sse.onmessage = async evt => {
+            try {
+                const msg = JSON.parse(evt.data);
+                console.log("[SSE] message:", evt.data);  // Log all messages
 
-        if (msg.type === "config_update") {
-          // If user is editing a table cell, defer refresh until editing completes
-          if (isEditingCell) {
-            pendingSSERefresh = true;
-            return;
-          }
+                if (msg.type === "config_update") {
+                    // If user is editing a table cell, defer refresh until editing completes
+                    if (isEditingCell) {
+                        pendingSSERefresh = true;
+                        return;
+                    }
 
-          // Authoritative signal: server says map data changed
-          const ok = await loadMapData();
-          if (!ok) return;
+                    // Authoritative signal: server says map data changed
+                    const ok = await loadMapData();
+                    if (!ok) return;
 
-          renderCastleTable();
-          drawMap(mapData);
-        }
-        // Add more type checks here if needed
-      } catch (error) {
-        console.error("[SSE] Error parsing message:", error);
-      }
-    };
+                    renderCastleTable();
+                    drawMap(mapData);
+                }
+                // Add more type checks here if needed
+            } catch (error) {
+                console.error("[SSE] Error parsing message:", error);
+            }
+        };
 
-    // Optional: server tells us it's ready
-    sse.addEventListener("server_ready", () => {
-      console.log("[SSE] server_ready");
-    });
+        // Optional: server tells us it's ready
+        sse.addEventListener("server_ready", () => {
+            console.log("[SSE] server_ready");
+        });
 
-  } catch (e) {
-    console.error("[SSE] Failed to initialise", e);
-    scheduleHardReload();
-  }
+    } catch (e) {
+        console.error("[SSE] Failed to initialise", e);
+        scheduleHardReload();
+    }
 }
 
 (async () => {
-  const ok = await loadMapData();
-  if (!ok) return;
+    const ok = await loadMapData();
+    if (!ok) return;
 
-  // Center the rotated grid
-  viewOffsetX = 0;
-  viewOffsetY = (mapData.grid_size * TILE_SIZE) * (Math.SQRT2 / 2);
+    // Center the rotated grid
+    viewOffsetX = 0;
+    viewOffsetY = (mapData.grid_size * TILE_SIZE) * (Math.SQRT2 / 2);
 
-  // Cache tooltip element reference for better performance
-  tooltipElement = document.getElementById("castleTooltip");
+    // Cache tooltip element reference for better performance
+    tooltipElement = document.getElementById("castleTooltip");
 
-  renderCastleTable();
-  drawMap(mapData);
+    renderCastleTable();
+    drawMap(mapData);
 
-  initSSE();
+    initSSE();
 
-  if (window.Sync?.init) {
-    Sync.init();
-  }
+    if (window.Sync?.init) {
+        Sync.init();
+    }
 })();
 
 // ==========================
@@ -179,13 +180,13 @@ function initSSE() {
  * @returns {Object} Normalized bear object
  */
 function normaliseBear(bear, index) {
-  return {
-    id: bear.id ?? `Bear ${index + 1}`,
-    x: typeof bear.x === "number" ? bear.x : null,
-    y: typeof bear.y === "number" ? bear.y : null,
-    locked: !!bear.locked,
-    size: { w: 3, h: 3, ox: 1, oy: 1 }  // 3x3 centered on (x,y)
-  };
+    return {
+        id: bear.id ?? `Bear ${index + 1}`,
+        x: typeof bear.x === "number" ? bear.x : null,
+        y: typeof bear.y === "number" ? bear.y : null,
+        locked: !!bear.locked,
+        size: {w: 3, h: 3, ox: 1, oy: 1}  // 3x3 centered on (x,y)
+    };
 }
 
 /**
@@ -195,62 +196,62 @@ function normaliseBear(bear, index) {
  * @returns {Object} Normalized castle object
  */
 function normaliseCastle(castle, index) {
-  return {
-    id: castle.id ?? `Castle ${index + 1}`,
-    player: (castle.player ?? "").substring(0, 20),  // Limit to 20 chars
-    power: Number(castle.power) || 0,
-    player_level: Number(castle.player_level) || 0,
-    command_centre_level: Number(castle.command_centre_level) || 0,
-    attendance: Number(castle.attendance) || 0,
-    rallies_30min: Number(castle.rallies_30min) || 0,
+    return {
+        id: castle.id ?? `Castle ${index + 1}`,
+        player: (castle.player ?? "").substring(0, 20),  // Limit to 20 chars
+        power: Number(castle.power) || 0,
+        player_level: Number(castle.player_level) || 0,
+        command_centre_level: Number(castle.command_centre_level) || 0,
+        attendance: Number(castle.attendance) || 0,
+        rallies_30min: Number(castle.rallies_30min) || 0,
 
-    preference: castle.preference ?? "BT1/2",
+        preference: castle.preference ?? "BT1/2",
 
-    current_trap: castle.current_trap ?? null,
-    recommended_trap: castle.recommended_trap ?? null,
+        current_trap: castle.current_trap ?? null,
+        recommended_trap: castle.recommended_trap ?? null,
 
-    round_trip: typeof castle.round_trip === "number" ? castle.round_trip : "NA",
+        round_trip: typeof castle.round_trip === "number" ? castle.round_trip : "NA",
 
-    last_updated: castle.last_updated ? new Date(castle.last_updated) : null,  // New field
+        last_updated: castle.last_updated ? new Date(castle.last_updated) : null,  // New field
 
-    x: typeof castle.x === "number" ? castle.x : null,
-    y: typeof castle.y === "number" ? castle.y : null,
+        x: typeof castle.x === "number" ? castle.x : null,
+        y: typeof castle.y === "number" ? castle.y : null,
 
-    locked: !!castle.locked,
-    size: { w: 2, h: 2, ox: 0, oy: 0 },  // 2x2 square from (x,y)
+        locked: !!castle.locked,
+        size: {w: 2, h: 2, ox: 0, oy: 0},  // 2x2 square from (x,y)
 
-    // New scoring fields
-    priority_score: castle.priority_score ?? null,
+        // New scoring fields
+        priority_score: castle.priority_score ?? null,
 
-    priority_rank_100: castle.priority_rank_100 ?? null,
+        priority_rank_100: castle.priority_rank_100 ?? null,
 
-    priority_index: castle.priority_index ?? null,
+        priority_index: castle.priority_index ?? null,
 
-    priority_debug: castle.priority_debug ?? {},
+        priority_debug: castle.priority_debug ?? {},
 
-    ideal_x: castle.ideal_x ?? null,
+        ideal_x: castle.ideal_x ?? null,
 
-    ideal_y: castle.ideal_y ?? null,
+        ideal_y: castle.ideal_y ?? null,
 
-    ideal_travel_time: castle.ideal_travel_time ?? null,
+        ideal_travel_time: castle.ideal_travel_time ?? null,
 
-    actual_travel_time: castle.actual_travel_time ?? null,
+        actual_travel_time: castle.actual_travel_time ?? null,
 
-    regret: castle.regret ?? null,
+        regret: castle.regret ?? null,
 
-    block_penalty_raw: castle.block_penalty_raw ?? null,
+        block_penalty_raw: castle.block_penalty_raw ?? null,
 
-    efficiency_score: castle.efficiency_score ?? null,
+        efficiency_score: castle.efficiency_score ?? null,
 
-    // Map score fields
-    map_score_900: castle.map_score_900 ?? null,
+        // Map score fields
+        map_score_900: castle.map_score_900 ?? null,
 
-    map_score_percent: castle.map_score_percent ?? null,
+        map_score_percent: castle.map_score_percent ?? null,
 
-    empty_score_100: castle.empty_score_100 ?? null,
+        empty_score_100: castle.empty_score_100 ?? null,
 
-    efficiency_avg: castle.efficiency_avg ?? null,
-  };
+        efficiency_avg: castle.efficiency_avg ?? null,
+    };
 }
 
 /**
@@ -260,75 +261,75 @@ function normaliseCastle(castle, index) {
  * @returns {Object} Normalized banner object
  */
 function normaliseBanner(banner, index) {
-  return {
-    id: banner.id ?? `B${index + 1}`,
-    x: typeof banner.x === "number" ? banner.x : null,
-    y: typeof banner.y === "number" ? banner.y : null,
-    locked: !!banner.locked,
-    size: { w: 1, h: 1, ox: 0, oy: 0 }  // 1x1 square from (x,y)
-  };
+    return {
+        id: banner.id ?? `B${index + 1}`,
+        x: typeof banner.x === "number" ? banner.x : null,
+        y: typeof banner.y === "number" ? banner.y : null,
+        locked: !!banner.locked,
+        size: {w: 1, h: 1, ox: 0, oy: 0}  // 1x1 square from (x,y)
+    };
 }
 
 // ==========================
 // Fetch Map Data from Server
 // ==========================
 async function loadMapData() {
-  try {
-    const res = await fetch("/api/map");
+    try {
+        const res = await fetch("/api/map");
 
-    if (!res.ok) {
-      throw new Error(`API /api/map failed: ${res.status}`);
+        if (!res.ok) {
+            throw new Error(`API /api/map failed: ${res.status}`);
+        }
+
+        const raw = await res.json();
+
+        // ---- efficiency scale (server preferred, fallback safe) ----
+        const efficiencyScale =
+            Array.isArray(raw.efficiency_scale) &&
+            raw.efficiency_scale.every(
+                e => typeof e.max === "number" && typeof e.color === "string"
+            )
+                ? raw.efficiency_scale
+                : FALLBACK_EFFICIENCY_SCALE;
+
+        // ---- normalised authoritative state ----
+        const config = {
+            grid_size: Number(raw.grid_size) || 0,
+
+            efficiency_scale: efficiencyScale,
+
+            bear_traps: Array.isArray(raw.bear_traps)
+                ? raw.bear_traps.map(normaliseBear)
+                : [],
+
+            castles: Array.isArray(raw.castles)
+                ? raw.castles.map(normaliseCastle)
+                : [],
+
+            banners: Array.isArray(raw.banners)
+                ? raw.banners.map(normaliseBanner)
+                : [],
+
+            // Map score fields
+            map_score_900: raw.map_score_900 ?? null,
+            map_score_percent: raw.map_score_percent ?? null,
+            empty_score_100: raw.empty_score_100 ?? null,
+            efficiency_avg: raw.efficiency_avg ?? null,
+            avg_round_trip: raw.avg_round_trip ?? null,
+            avg_rallies: raw.avg_rallies ?? null,
+        };
+
+        mapData = config;
+        window.mapData = mapData;
+
+        updateMapScoreDisplay();
+
+        return true;
+    } catch (err) {
+        console.error(err);
+        alert("Failed to load map data from server");
+        return false;
     }
-
-    const raw = await res.json();
-
-    // ---- efficiency scale (server preferred, fallback safe) ----
-    const efficiencyScale =
-      Array.isArray(raw.efficiency_scale) &&
-      raw.efficiency_scale.every(
-        e => typeof e.max === "number" && typeof e.color === "string"
-      )
-        ? raw.efficiency_scale
-        : FALLBACK_EFFICIENCY_SCALE;
-
-    // ---- normalised authoritative state ----
-    const config = {
-      grid_size: Number(raw.grid_size) || 0,
-
-      efficiency_scale: efficiencyScale,
-
-      bear_traps: Array.isArray(raw.bear_traps)
-        ? raw.bear_traps.map(normaliseBear)
-        : [],
-
-      castles: Array.isArray(raw.castles)
-        ? raw.castles.map(normaliseCastle)
-        : [],
-
-      banners: Array.isArray(raw.banners)
-        ? raw.banners.map(normaliseBanner)
-        : [],
-
-      // Map score fields
-      map_score_900: raw.map_score_900 ?? null,
-      map_score_percent: raw.map_score_percent ?? null,
-      empty_score_100: raw.empty_score_100 ?? null,
-      efficiency_avg: raw.efficiency_avg ?? null,
-      avg_round_trip: raw.avg_round_trip ?? null,
-      avg_rallies: raw.avg_rallies ?? null,
-    };
-
-    mapData = config;
-    window.mapData = mapData;
-
-    updateMapScoreDisplay();
-
-    return true;
-  } catch (err) {
-    console.error(err);
-    alert("Failed to load map data from server");
-    return false;
-  }
 }
 
 // ==========================
@@ -341,7 +342,7 @@ async function loadMapData() {
  * @returns {string} Escaped string safe for use in RegExp
  */
 function escapeRegex(str) {
-  return str.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    return str.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
 
 /**
@@ -351,27 +352,27 @@ function escapeRegex(str) {
  * @returns {DocumentFragment} Document fragment with highlighted text
  */
 function highlightText(text, query) {
-  if (!query) return document.createTextNode(text);
+    if (!query) return document.createTextNode(text);
 
-  const regex = new RegExp(`(${escapeRegex(query)})`, "ig");
-  const frag = document.createDocumentFragment();
+    const regex = new RegExp(`(${escapeRegex(query)})`, "ig");
+    const frag = document.createDocumentFragment();
 
-  let lastIndex = 0;
-  text.replace(regex, (match, _g, index) => {
-    if (index > lastIndex) {
-      frag.appendChild(document.createTextNode(text.slice(lastIndex, index)));
+    let lastIndex = 0;
+    text.replace(regex, (match, _g, index) => {
+        if (index > lastIndex) {
+            frag.appendChild(document.createTextNode(text.slice(lastIndex, index)));
+        }
+        const mark = document.createElement("mark");
+        mark.textContent = match;
+        frag.appendChild(mark);
+        lastIndex = index + match.length;
+    });
+
+    if (lastIndex < text.length) {
+        frag.appendChild(document.createTextNode(text.slice(lastIndex)));
     }
-    const mark = document.createElement("mark");
-    mark.textContent = match;
-    frag.appendChild(mark);
-    lastIndex = index + match.length;
-  });
 
-  if (lastIndex < text.length) {
-    frag.appendChild(document.createTextNode(text.slice(lastIndex)));
-  }
-
-  return frag;
+    return frag;
 }
 
 /**
@@ -381,26 +382,26 @@ function highlightText(text, query) {
  * @returns {Function} debounced function
  */
 function debounce(fn, delayMs) {
-  let tId;
-  return (...args) => {
-    clearTimeout(tId);
-    tId = setTimeout(() => fn.apply(null, args), delayMs);
-  };
+    let tId;
+    return (...args) => {
+        clearTimeout(tId);
+        tId = setTimeout(() => fn.apply(null, args), delayMs);
+    };
 }
 
 // ==========================
 // Tooltip Functions
 // ==========================
 function showCastleTooltip(castle, mouseX, mouseY) {
-  // Use cached tooltip element for performance
-  if (!tooltipElement || !castle) return;
+    // Use cached tooltip element for performance
+    if (!tooltipElement || !castle) return;
 
-  // Format the tooltip content
-  const lastUpdated = castle.last_updated 
-    ? castle.last_updated.toLocaleString() 
-    : "Never";
+    // Format the tooltip content
+    const lastUpdated = castle.last_updated
+        ? castle.last_updated.toLocaleString()
+        : "Never";
 
-  tooltipElement.innerHTML = `
+    tooltipElement.innerHTML = `
     <div class="tooltip-title">${castle.player || "Unknown"}</div>
     <div class="tooltip-row">
       <span class="tooltip-label">Power:</span>
@@ -452,113 +453,113 @@ function showCastleTooltip(castle, mouseX, mouseY) {
     </div>
   `;
 
-  // Position the tooltip over the castle
-  tooltipElement.style.display = "block";
-  
-  // If castle has grid coordinates, position tooltip over the castle
-  if (castle.x != null && castle.y != null) {
-    const screenPos = gridToScreen(castle.x, castle.y);
-    tooltipElement.style.left = `${screenPos.x}px`;
-    tooltipElement.style.top = `${screenPos.y}px`;
-  } else {
-    // Fallback to mouse position for castles not on the map
-    tooltipElement.style.left = `${mouseX + 15}px`;
-    tooltipElement.style.top = `${mouseY + 15}px`;
-  }
+    // Position the tooltip over the castle
+    tooltipElement.style.display = "block";
 
-  // Adjust position if tooltip goes off-screen
-  const rect = tooltipElement.getBoundingClientRect();
-  const offsetX = 10;
-  const offsetY = 10;
-  
-  // Check if tooltip goes off right edge
-  if (rect.right > window.innerWidth) {
-    tooltipElement.style.left = `${window.innerWidth - rect.width - offsetX}px`;
-  }
-  // Check if tooltip goes off bottom edge
-  if (rect.bottom > window.innerHeight) {
-    tooltipElement.style.top = `${window.innerHeight - rect.height - offsetY}px`;
-  }
-  // Check if tooltip goes off left edge
-  if (rect.left < 0) {
-    tooltipElement.style.left = `${offsetX}px`;
-  }
-  // Check if tooltip goes off top edge
-  if (rect.top < 0) {
-    tooltipElement.style.top = `${offsetY}px`;
-  }
-  
-  // Trigger animation after positioning
-  setTimeout(() => tooltipElement.classList.add("visible"), 10);
+    // If castle has grid coordinates, position tooltip over the castle
+    if (castle.x != null && castle.y != null) {
+        const screenPos = gridToScreen(castle.x, castle.y);
+        tooltipElement.style.left = `${screenPos.x}px`;
+        tooltipElement.style.top = `${screenPos.y}px`;
+    } else {
+        // Fallback to mouse position for castles not on the map
+        tooltipElement.style.left = `${mouseX + 15}px`;
+        tooltipElement.style.top = `${mouseY + 15}px`;
+    }
+
+    // Adjust position if tooltip goes off-screen
+    const rect = tooltipElement.getBoundingClientRect();
+    const offsetX = 10;
+    const offsetY = 10;
+
+    // Check if tooltip goes off right edge
+    if (rect.right > window.innerWidth) {
+        tooltipElement.style.left = `${window.innerWidth - rect.width - offsetX}px`;
+    }
+    // Check if tooltip goes off bottom edge
+    if (rect.bottom > window.innerHeight) {
+        tooltipElement.style.top = `${window.innerHeight - rect.height - offsetY}px`;
+    }
+    // Check if tooltip goes off left edge
+    if (rect.left < 0) {
+        tooltipElement.style.left = `${offsetX}px`;
+    }
+    // Check if tooltip goes off top edge
+    if (rect.top < 0) {
+        tooltipElement.style.top = `${offsetY}px`;
+    }
+
+    // Trigger animation after positioning
+    setTimeout(() => tooltipElement.classList.add("visible"), 10);
 }
 
 function hideCastleTooltip() {
-  // Use cached tooltip element for performance
-  if (tooltipElement) {
-    tooltipElement.classList.remove("visible");
-    // Hide after animation completes
-    setTimeout(() => {
-      tooltipElement.style.display = "none";
-    }, 150);
-  }
+    // Use cached tooltip element for performance
+    if (tooltipElement) {
+        tooltipElement.classList.remove("visible");
+        // Hide after animation completes
+        setTimeout(() => {
+            tooltipElement.style.display = "none";
+        }, 150);
+    }
 }
 
 // ==========================
 // Input Builders
 // ==========================
 function createTextInput(value, onCommit) {
-  const input = document.createElement("input");
-  input.type = "text";
-  input.value = value ?? "";
-  input.size = Math.max(input.value.length, 4);
-
-  let originalValue = input.value;
-
-  input.addEventListener("focus", () => {
-    isEditingCell = true;
-  });
-
-  input.addEventListener("input", () => {
-    // Only resize input while typing; do not commit yet
+    const input = document.createElement("input");
+    input.type = "text";
+    input.value = value ?? "";
     input.size = Math.max(input.value.length, 4);
-  });
 
-  function commitIfChanged() {
-    const newVal = input.value;
-    if (typeof onCommit === 'function' && newVal !== originalValue) {
-      onCommit(newVal);
-      originalValue = newVal; // update base
+    let originalValue = input.value;
+
+    input.addEventListener("focus", () => {
+        isEditingCell = true;
+    });
+
+    input.addEventListener("input", () => {
+        // Only resize input while typing; do not commit yet
+        input.size = Math.max(input.value.length, 4);
+    });
+
+    function commitIfChanged() {
+        const newVal = input.value;
+        if (typeof onCommit === 'function' && newVal !== originalValue) {
+            onCommit(newVal);
+            originalValue = newVal; // update base
+        }
     }
-  }
 
-  input.addEventListener("keydown", e => {
-    if (e.key === 'Enter') {
-      e.preventDefault();
-      commitIfChanged();
-      input.blur();
-    } else if (e.key === 'Escape') {
-      // Revert and blur
-      input.value = originalValue;
-      input.blur();
-    }
-  });
+    input.addEventListener("keydown", e => {
+        if (e.key === 'Enter') {
+            e.preventDefault();
+            commitIfChanged();
+            input.blur();
+        } else if (e.key === 'Escape') {
+            // Revert and blur
+            input.value = originalValue;
+            input.blur();
+        }
+    });
 
-  input.addEventListener("blur", async () => {
-    // Commit on blur
-    commitIfChanged();
-    isEditingCell = false;
-    // If a server update was deferred during editing, apply it now
-    if (pendingSSERefresh) {
-      pendingSSERefresh = false;
-      const ok = await loadMapData();
-      if (ok) {
-        renderCastleTable();
-        drawMap(mapData);
-      }
-    }
-  });
+    input.addEventListener("blur", async () => {
+        // Commit on blur
+        commitIfChanged();
+        isEditingCell = false;
+        // If a server update was deferred during editing, apply it now
+        if (pendingSSERefresh) {
+            pendingSSERefresh = false;
+            const ok = await loadMapData();
+            if (ok) {
+                renderCastleTable();
+                drawMap(mapData);
+            }
+        }
+    });
 
-  return input;
+    return input;
 }
 
 // ==========================
@@ -566,54 +567,54 @@ function createTextInput(value, onCommit) {
 // ==========================
 
 function tdSelect(field, obj, options) {
-  const td = document.createElement("td");
-  const select = document.createElement("select");
+    const td = document.createElement("td");
+    const select = document.createElement("select");
 
-  options.forEach(o => {
-    const opt = document.createElement("option");
-    opt.value = o;
-    opt.textContent = o;
-    select.appendChild(opt);
-  });
+    options.forEach(o => {
+        const opt = document.createElement("option");
+        opt.value = o;
+        opt.textContent = o;
+        select.appendChild(opt);
+    });
 
-  select.value = obj[field];
+    select.value = obj[field];
 
-  select.onchange = async () => {
-    obj[field] = select.value;
+    select.onchange = async () => {
+        obj[field] = select.value;
 
-    // Send the updated field to the server
-    await updateCastleField(obj.id, field, obj[field]);
-  };
+        // Send the updated field to the server
+        await updateCastleField(obj.id, field, obj[field]);
+    };
 
-  td.appendChild(select);
-  return td;
+    td.appendChild(select);
+    return td;
 }
 
 function tdText(value) {
-  const td = document.createElement("td");
-  td.textContent = value ?? "—";
-  return td;
+    const td = document.createElement("td");
+    td.textContent = value ?? "—";
+    return td;
 }
 
 function tdReadonly(value) {
-  const td = document.createElement("td");
-  if (typeof value === "number" && value >= 60) {
-    // Format round trip time
-    const minutes = Math.floor(value / 60);
-    const seconds = value % 60;
-    td.textContent = `${minutes}m ${seconds}s`;
-  } else {
-    td.textContent = value ?? "—";
-  }
-  td.style.opacity = 0.6;
-  return td;
+    const td = document.createElement("td");
+    if (typeof value === "number" && value >= 60) {
+        // Format round trip time
+        const minutes = Math.floor(value / 60);
+        const seconds = value % 60;
+        td.textContent = `${minutes}m ${seconds}s`;
+    } else {
+        td.textContent = value ?? "—";
+    }
+    td.style.opacity = 0.6;
+    return td;
 }
 
 function tdReadonlyNumber(value) {
-  const td = document.createElement("td");
-  td.textContent = value ?? "—";
-  td.style.opacity = 0.6;
-  return td;
+    const td = document.createElement("td");
+    td.textContent = value ?? "—";
+    td.style.opacity = 0.6;
+    return td;
 }
 
 /**
@@ -622,234 +623,235 @@ function tdReadonlyNumber(value) {
  * @returns {HTMLTableCellElement} The table cell element.
  */
 function tdAttendance(castle) {
-  const td = document.createElement("td");
-  td.classList.add("attendance-cell");
+    const td = document.createElement("td");
+    td.classList.add("attendance-cell");
 
-  const container = document.createElement("div");
-  container.classList.add("attendance-controls");
+    const container = document.createElement("div");
+    container.classList.add("attendance-controls");
 
-  // Decrement button
-  const minusBtn = document.createElement("button");
-  minusBtn.type = "button";
-  minusBtn.classList.add("attendance-btn", "attendance-minus");
-  minusBtn.textContent = "−";
-  minusBtn.title = "Decrease attendance";
+    // Decrement button
+    const minusBtn = document.createElement("button");
+    minusBtn.type = "button";
+    minusBtn.classList.add("attendance-btn", "attendance-minus");
+    minusBtn.textContent = "−";
+    minusBtn.title = "Decrease attendance";
 
-  // Value display
-  const valueSpan = document.createElement("span");
-  valueSpan.classList.add("attendance-value");
-  valueSpan.textContent = castle.attendance ?? 0;
+    // Value display
+    const valueSpan = document.createElement("span");
+    valueSpan.classList.add("attendance-value");
+    valueSpan.textContent = castle.attendance ?? 0;
 
-  // Increment button
-  const plusBtn = document.createElement("button");
-  plusBtn.type = "button";
-  plusBtn.classList.add("attendance-btn", "attendance-plus");
-  plusBtn.textContent = "+";
-  plusBtn.title = "Increase attendance";
+    // Increment button
+    const plusBtn = document.createElement("button");
+    plusBtn.type = "button";
+    plusBtn.classList.add("attendance-btn", "attendance-plus");
+    plusBtn.textContent = "+";
+    plusBtn.title = "Increase attendance";
 
-  // Track in-flight state to prevent spam
-  let inFlight = false;
+    // Track in-flight state to prevent spam
+    let inFlight = false;
 
-  async function adjustAttendance(delta) {
-    if (inFlight) return;
+    async function adjustAttendance(delta) {
+        if (inFlight) return;
 
-    inFlight = true;
-    minusBtn.disabled = true;
-    plusBtn.disabled = true;
+        inFlight = true;
+        minusBtn.disabled = true;
+        plusBtn.disabled = true;
 
-    try {
-      const response = await fetch('/api/intent/adjust_attendance', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ castle_id: castle.id, delta: delta })
-      });
+        try {
+            const response = await fetch('/api/intent/adjust_attendance', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({castle_id: castle.id, delta: delta})
+            });
 
-      if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.detail || 'Failed to adjust attendance');
-      }
+            if (!response.ok) {
+                const error = await response.json();
+                throw new Error(error.detail || 'Failed to adjust attendance');
+            }
 
-      const result = await response.json();
+            const result = await response.json();
 
-      // Update local data
-      castle.attendance = result.attendance;
-      valueSpan.textContent = result.attendance;
+            // Update local data
+            castle.attendance = result.attendance;
+            valueSpan.textContent = result.attendance;
 
-      // Update mapData to keep in sync
-      const mapCastle = mapData?.castles?.find(c => c.id === castle.id);
-      if (mapCastle) {
-        mapCastle.attendance = result.attendance;
-      }
+            // Update mapData to keep in sync
+            const mapCastle = mapData?.castles?.find(c => c.id === castle.id);
+            if (mapCastle) {
+                mapCastle.attendance = result.attendance;
+            }
 
-    } catch (error) {
-      console.error('Error adjusting attendance:', error);
-      showToast('Failed to adjust attendance: ' + error.message, 'error');
-    } finally {
-      inFlight = false;
-      minusBtn.disabled = false;
-      plusBtn.disabled = false;
+        } catch (error) {
+            console.error('Error adjusting attendance:', error);
+            showToast('Failed to adjust attendance: ' + error.message, 'error');
+        } finally {
+            inFlight = false;
+            minusBtn.disabled = false;
+            plusBtn.disabled = false;
+        }
     }
-  }
 
-  minusBtn.addEventListener('click', (e) => {
-    e.stopPropagation();
-    adjustAttendance(-1);
-  });
+    minusBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        adjustAttendance(-1);
+    });
 
-  plusBtn.addEventListener('click', (e) => {
-    e.stopPropagation();
-    adjustAttendance(1);
-  });
+    plusBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        adjustAttendance(1);
+    });
 
-  container.appendChild(minusBtn);
-  container.appendChild(valueSpan);
-  container.appendChild(plusBtn);
-  td.appendChild(container);
+    container.appendChild(minusBtn);
+    container.appendChild(valueSpan);
+    container.appendChild(plusBtn);
+    td.appendChild(container);
 
-  return td;
+    return td;
 }
 
 function tdInput(field, obj) {
-  const td = document.createElement("td");
+    const td = document.createElement("td");
 
-  const input = createTextInput(obj[field], async value => {
-    obj[field] = value;
-    // Commit changes to server only on blur/Enter via onCommit
-    await updateCastleField(obj.id, field, value);
-  });
+    const input = createTextInput(obj[field], async value => {
+        obj[field] = value;
+        // Commit changes to server only on blur/Enter via onCommit
+        await updateCastleField(obj.id, field, value);
+    });
 
-  td.appendChild(input);
-  return td;
+    td.appendChild(input);
+    return td;
 }
 
 function tdNumber(field, obj) {
-  const td = document.createElement("td");
-  const input = document.createElement("input");
+    const td = document.createElement("td");
+    const input = document.createElement("input");
 
-  input.type = "number";
-  input.value = obj[field] ?? 0;
+    input.type = "number";
+    input.value = obj[field] ?? 0;
 
-  let originalValue = String(input.value);
+    let originalValue = String(input.value);
 
-  input.addEventListener('focus', () => {
-    isEditingCell = true;
-  });
+    input.addEventListener('focus', () => {
+        isEditingCell = true;
+    });
 
-  function commitNumber() {
-    const value = Number(input.value);
-    if (String(value) !== originalValue) {
-      originalValue = String(value);
-      obj[field] = value;
-      updateCastleField(obj.id, field, value);
+    function commitNumber() {
+        const value = Number(input.value);
+        if (String(value) !== originalValue) {
+            originalValue = String(value);
+            obj[field] = value;
+            updateCastleField(obj.id, field, value);
+        }
     }
-  }
 
-  input.addEventListener('keydown', e => {
-    if (e.key === 'Enter') {
-      e.preventDefault();
-      commitNumber();
-      input.blur();
-    } else if (e.key === 'Escape') {
-      input.value = originalValue;
-      input.blur();
-    }
-  });
+    input.addEventListener('keydown', e => {
+        if (e.key === 'Enter') {
+            e.preventDefault();
+            commitNumber();
+            input.blur();
+        } else if (e.key === 'Escape') {
+            input.value = originalValue;
+            input.blur();
+        }
+    });
 
-  input.addEventListener('blur', async () => {
-    commitNumber();
-    isEditingCell = false;
-    if (pendingSSERefresh) {
-      pendingSSERefresh = false;
-      const ok = await loadMapData();
-      if (ok) {
-        renderCastleTable();
-        drawMap(mapData);
-      }
-    }
-  });
+    input.addEventListener('blur', async () => {
+        commitNumber();
+        isEditingCell = false;
+        if (pendingSSERefresh) {
+            pendingSSERefresh = false;
+            const ok = await loadMapData();
+            if (ok) {
+                renderCastleTable();
+                drawMap(mapData);
+            }
+        }
+    });
 
-  td.appendChild(input);
-  return td;
+    td.appendChild(input);
+    return td;
 }
 
 function tdCheckbox(field, obj) {
-const td = document.createElement("td");
-td.classList.add("checkbox");
-  const input = document.createElement("input");
+    const td = document.createElement("td");
+    td.classList.add("checkbox");
+    const input = document.createElement("input");
 
-  input.type = "checkbox";
-  input.checked = !!obj[field];
+    input.type = "checkbox";
+    input.checked = !!obj[field];
 
-  input.onchange = async () => {
-    obj[field] = input.checked;
+    input.onchange = async () => {
+        obj[field] = input.checked;
 
-    // Send the updated field to the server
-    await updateCastleField(obj.id, field, obj[field]);
-  };
+        // Send the updated field to the server
+        await updateCastleField(obj.id, field, obj[field]);
+    };
 
-  td.appendChild(input);
-  return td;
+    td.appendChild(input);
+    return td;
 }
 
 function tdDelete(c) {
-  const td = document.createElement("td");
-  const btn = document.createElement("button");
-  btn.classList.add("delete-btn");
-  btn.innerHTML = "🗑️";
-  btn.onclick = () => {
-    const modal = document.getElementById("deleteModal");
-    document.getElementById("deleteTitle").textContent = `Delete Player ${c.player}`;
-    modal.dataset.castleId = c.id;  // Store ID
-    modal.style.display = "block";
-    document.getElementById("deleteReason").value = "";
-    document.getElementById("deleteOther").style.display = "none";
-    document.getElementById("deleteOther").value = "";
-    // Trigger animation after display
-    setTimeout(() => modal.classList.add("visible"), 10);
-  };
-  td.appendChild(btn);
-  return td;
+    const td = document.createElement("td");
+    const btn = document.createElement("button");
+    btn.classList.add("delete-btn");
+    btn.innerHTML = "🗑️";
+    btn.onclick = () => {
+        const modal = document.getElementById("deleteModal");
+        document.getElementById("deleteTitle").textContent = `Delete Player ${c.player}`;
+        modal.dataset.castleId = c.id;  // Store ID
+        modal.style.display = "block";
+        document.getElementById("deleteReason").value = "";
+        document.getElementById("deleteOther").style.display = "none";
+        document.getElementById("deleteOther").value = "";
+        // Trigger animation after display
+        setTimeout(() => modal.classList.add("visible"), 10);
+    };
+    td.appendChild(btn);
+    return td;
 }
+
 // ==========================
 // Helper Functions
 // ==========================
 async function updateCastleField(castleId, field, value) {
-  try {
-    const response = await fetch("/api/castles/update", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        id: castleId,
-        [field]: value,
-      }),
-    });
+    try {
+        const response = await fetch("/api/castles/update", {
+            method: "POST",
+            headers: {"Content-Type": "application/json"},
+            body: JSON.stringify({
+                id: castleId,
+                [field]: value,
+            }),
+        });
 
-    const result = await response.json();
+        const result = await response.json();
 
-    if (!response.ok) {
-      throw new Error(result.message || "Error updating castle");
+        if (!response.ok) {
+            throw new Error(result.message || "Error updating castle");
+        }
+
+        // Inform user of successful update if needed
+        console.log("Update Successful:", result);
+
+    } catch (error) {
+        console.error("Failed to update castle:", error);
+        alert(`Failed to update: ${error.message}`);
     }
-
-    // Inform user of successful update if needed
-    console.log("Update Successful:", result);
-
-  } catch (error) {
-    console.error("Failed to update castle:", error);
-    alert(`Failed to update: ${error.message}`);
-  }
 }
 
 // ==========================
 // Unified Entity Hit Detection
 // ==========================
 function isPointInEntity(gx, gy, entity) {
-  const size = entity.size;
-  return (
-    gx >= entity.x - size.ox &&
-    gx < entity.x - size.ox + size.w &&
-    gy >= entity.y - size.oy &&
-    gy < entity.y - size.oy + size.h
-  );
+    const size = entity.size;
+    return (
+        gx >= entity.x - size.ox &&
+        gx < entity.x - size.ox + size.w &&
+        gy >= entity.y - size.oy &&
+        gy < entity.y - size.oy + size.h
+    );
 }
 
 // ==========================
@@ -927,214 +929,215 @@ function isPointInEntity(gx, gy, entity) {
 // }
 
 function renderCastleTable() {
-  const tbody = document.getElementById("castleTableBody");
-  const query = document.getElementById("castleSearch")?.value
-    .trim()
-    .toLowerCase();
+    const tbody = document.getElementById("castleTableBody");
+    const query = document.getElementById("castleSearch")?.value
+        .trim()
+        .toLowerCase();
 
-  // Always use the latest mapData.castles (updated by SSE)
-  let castles = [...mapData.castles];  // Shallow copy
+    // Always use the latest mapData.castles (updated by SSE)
+    let castles = [...mapData.castles];  // Shallow copy
 
-  // Apply limit based on priority (top N highest priority)
-  const limit = document.getElementById("castleLimit").value;
-  if (limit !== "all") {
-    castles.sort((a, b) => (b.priority || 0) - (a.priority || 0));  // Highest priority first
-    castles = castles.slice(0, parseInt(limit));
-  }
-
-  // Apply search filter to the (possibly limited) castles
-  if (query) {
-    castles = castles.filter(c => {
-      const haystack = [c.id, c.player, c.preference].join(" ").toLowerCase();
-      return haystack.includes(query);
-    });
-  }
-
-  // Apply current sort to the (possibly limited and searched) castles
-  if (castleSort.key) {
-    castles.sort((a, b) => {
-      let va = a[castleSort.key];
-      let vb = b[castleSort.key];
-
-      if (va == null && vb == null) return 0;
-      if (va == null) return 1;
-      if (vb == null) return -1;
-
-      if (va instanceof Date && vb instanceof Date) return (va.getTime() - vb.getTime()) * (castleSort.asc ? 1 : -1);
-      if (typeof va === "boolean") return (va === vb ? 0 : va ? 1 : -1) * (castleSort.asc ? 1 : -1);
-      if (typeof va === "number") return (va - vb) * (castleSort.asc ? 1 : -1);
-      return va.toString().localeCompare(vb.toString()) * (castleSort.asc ? 1 : -1);
-    });
-  }
-
-  // Check if filters are active (for fading)
-  const limitActive = limit !== "all";
-  const searchActive = query.length > 0;
-  const filterActive = limitActive || searchActive;
-
-  if (filterActive) {
-    visibleCastleIds = new Set(castles.map(c => c.id));
-  } else {
-    visibleCastleIds = new Set();
-  }
-
-  // Redraw map to apply fading/highlights
-  drawMap(mapData);
-
-  tbody.innerHTML = "";
-
-  castles.forEach(c => {
-    const tr = document.createElement("tr");
-    tr.dataset.castleId = c.id; // Track castle ID for animations
-    tr.classList.add("fade-in"); // Add fade-in animation for new rows
-
-    tr.addEventListener("mouseenter", (e) => {
-      hoveredCastleId = c.id;
-      // Show tooltip immediately on table hover for better UX
-      // Table context: User intentionally hovering over specific row to read data
-      // Canvas context: 1500ms delay prevents accidental triggers during map navigation
-      showCastleTooltip(c, e.clientX, e.clientY);
-    });
-    tr.addEventListener("mouseleave", () => {
-      hoveredCastleId = null;
-      hideCastleTooltip();
-    });
-    tr.addEventListener("mousemove", (e) => {
-      // Update tooltip position as mouse moves over table row
-      if (hoveredCastleId === c.id) {
-        showCastleTooltip(c, e.clientX, e.clientY);
-      }
-    });
-tr.addEventListener("click", (e) => {
-  // Don't pan if clicking on checkbox or input elements
-  if (e.target.type === 'checkbox' || e.target.tagName === 'INPUT' || e.target.tagName === 'SELECT' || e.target.tagName === 'BUTTON') {
-    return;
-  }
-  
-  // Pan to center of castle in rotated view
-  const castleCenterX = c.x * TILE_SIZE + TILE_SIZE;
-  const castleCenterY = c.y * TILE_SIZE + TILE_SIZE;
-  const rad = (ISO_DEG * Math.PI) / 180;
-  const cos = Math.cos(rad);
-  const sin = Math.sin(rad);
-  const rx = castleCenterX * cos - castleCenterY * sin;
-  const ry = castleCenterX * sin + castleCenterY * cos;
-  viewOffsetX = rx;
-  viewOffsetY = ry;
-  drawMap(mapData);
-});
-
-    /* Checkbox for bulk selection */
-    const checkboxTd = document.createElement("td");
-    checkboxTd.classList.add("checkbox-col");
-    const checkbox = document.createElement("input");
-    checkbox.type = "checkbox";
-    checkbox.dataset.castleId = c.id;
-    checkbox.checked = selectedCastleIds.has(c.id);
-    checkbox.addEventListener('change', (e) => {
-      e.stopPropagation();
-      toggleCastleSelection(c.id, checkbox.checked);
-    });
-    checkboxTd.appendChild(checkbox);
-    tr.appendChild(checkboxTd);
-
-    /* ID */
-    const idTd = document.createElement("td");
-    idTd.appendChild(highlightText(c.id, query));
-    tr.appendChild(idTd);
-
-    /* Player */
-    const playerTd = tdInput("player", c);
-    if (query && c.player?.toLowerCase().includes(query)) {
-      playerTd.querySelector("input")?.classList.add("match-input");
+    // Apply limit based on priority (top N highest priority)
+    const limit = document.getElementById("castleLimit").value;
+    if (limit !== "all") {
+        castles.sort((a, b) => (b.priority || 0) - (a.priority || 0));  // Highest priority first
+        castles = castles.slice(0, parseInt(limit));
     }
-    tr.appendChild(playerTd);
 
-    tr.appendChild(tdNumber("power", c));
-    tr.appendChild(tdNumber("player_level", c));
-    tr.appendChild(tdNumber("command_centre_level", c));
-    tr.appendChild(tdSelect("preference", c, ["BT1", "BT2", "BT1/2", "BT2/1"]));
-    tr.appendChild(tdCheckbox("locked", c));
-    tr.appendChild(tdAttendance(c));  // Attendance with +/- buttons
-    tr.appendChild(tdReadonly(c.rallies_30min));  // Read-only Rallies/Session
-    tr.appendChild(tdReadonly(c.round_trip || "NA"));  // New read-only Round Trip Time (s)
-    tr.appendChild(tdReadonlyNumber(c.priority_rank_100));
-    tr.appendChild(tdReadonlyNumber(c.efficiency_score));
-    tr.appendChild(tdReadonly(c.last_updated ? c.last_updated.toLocaleString() : "Never"));  // Last Updated
-    tr.appendChild(tdDelete(c));  // Delete
+    // Apply search filter to the (possibly limited) castles
+    if (query) {
+        castles = castles.filter(c => {
+            const haystack = [c.id, c.player, c.preference].join(" ").toLowerCase();
+            return haystack.includes(query);
+        });
+    }
 
-    tbody.appendChild(tr);
-  });
+    // Apply current sort to the (possibly limited and searched) castles
+    if (castleSort.key) {
+        castles.sort((a, b) => {
+            let va = a[castleSort.key];
+            let vb = b[castleSort.key];
 
-  enableTableSorting();
-  updateSortIndicators();
+            if (va == null && vb == null) return 0;
+            if (va == null) return 1;
+            if (vb == null) return -1;
+
+            if (va instanceof Date && vb instanceof Date) return (va.getTime() - vb.getTime()) * (castleSort.asc ? 1 : -1);
+            if (typeof va === "boolean") return (va === vb ? 0 : va ? 1 : -1) * (castleSort.asc ? 1 : -1);
+            if (typeof va === "number") return (va - vb) * (castleSort.asc ? 1 : -1);
+            return va.toString().localeCompare(vb.toString()) * (castleSort.asc ? 1 : -1);
+        });
+    }
+
+    // Check if filters are active (for fading)
+    const limitActive = limit !== "all";
+    const searchActive = query.length > 0;
+    const filterActive = limitActive || searchActive;
+
+    if (filterActive) {
+        visibleCastleIds = new Set(castles.map(c => c.id));
+    } else {
+        visibleCastleIds = new Set();
+    }
+
+    // Redraw map to apply fading/highlights
+    drawMap(mapData);
+
+    tbody.innerHTML = "";
+
+    castles.forEach(c => {
+        const tr = document.createElement("tr");
+        tr.dataset.castleId = c.id; // Track castle ID for animations
+        tr.classList.add("fade-in"); // Add fade-in animation for new rows
+
+        tr.addEventListener("mouseenter", (e) => {
+            hoveredCastleId = c.id;
+            // Show tooltip immediately on table hover for better UX
+            // Table context: User intentionally hovering over specific row to read data
+            // Canvas context: 1500ms delay prevents accidental triggers during map navigation
+            showCastleTooltip(c, e.clientX, e.clientY);
+        });
+        tr.addEventListener("mouseleave", () => {
+            hoveredCastleId = null;
+            hideCastleTooltip();
+        });
+        tr.addEventListener("mousemove", (e) => {
+            // Update tooltip position as mouse moves over table row
+            if (hoveredCastleId === c.id) {
+                showCastleTooltip(c, e.clientX, e.clientY);
+            }
+        });
+        tr.addEventListener("click", (e) => {
+            // Don't pan if clicking on checkbox or input elements
+            if (e.target.type === 'checkbox' || e.target.tagName === 'INPUT' || e.target.tagName === 'SELECT' || e.target.tagName === 'BUTTON') {
+                return;
+            }
+
+            // Pan to center of castle in rotated view
+            const castleCenterX = c.x * TILE_SIZE + TILE_SIZE;
+            const castleCenterY = c.y * TILE_SIZE + TILE_SIZE;
+            const rad = (ISO_DEG * Math.PI) / 180;
+            const cos = Math.cos(rad);
+            const sin = Math.sin(rad);
+            const rx = castleCenterX * cos - castleCenterY * sin;
+            const ry = castleCenterX * sin + castleCenterY * cos;
+            viewOffsetX = rx;
+            viewOffsetY = ry;
+            drawMap(mapData);
+        });
+
+        /* Checkbox for bulk selection */
+        const checkboxTd = document.createElement("td");
+        checkboxTd.classList.add("checkbox-col");
+        const checkbox = document.createElement("input");
+        checkbox.type = "checkbox";
+        checkbox.dataset.castleId = c.id;
+        checkbox.checked = selectedCastleIds.has(c.id);
+        checkbox.addEventListener('change', (e) => {
+            e.stopPropagation();
+            toggleCastleSelection(c.id, checkbox.checked);
+        });
+        checkboxTd.appendChild(checkbox);
+        tr.appendChild(checkboxTd);
+
+        /* ID */
+        const idTd = document.createElement("td");
+        idTd.appendChild(highlightText(c.id, query));
+        tr.appendChild(idTd);
+
+        /* Player */
+        const playerTd = tdInput("player", c);
+        if (query && c.player?.toLowerCase().includes(query)) {
+            playerTd.querySelector("input")?.classList.add("match-input");
+        }
+        tr.appendChild(playerTd);
+
+        tr.appendChild(tdNumber("power", c));
+        tr.appendChild(tdNumber("player_level", c));
+        tr.appendChild(tdNumber("command_centre_level", c));
+        tr.appendChild(tdSelect("preference", c, ["BT1", "BT2", "BT1/2", "BT2/1"]));
+        tr.appendChild(tdCheckbox("locked", c));
+        tr.appendChild(tdAttendance(c));  // Attendance with +/- buttons
+        tr.appendChild(tdReadonly(c.rallies_30min));  // Read-only Rallies/Session
+        tr.appendChild(tdReadonly(c.round_trip || "NA"));  // New read-only Round Trip Time (s)
+        tr.appendChild(tdReadonlyNumber(c.priority_rank_100));
+        tr.appendChild(tdReadonlyNumber(c.efficiency_score));
+        tr.appendChild(tdReadonly(c.last_updated ? c.last_updated.toLocaleString() : "Never"));  // Last Updated
+        tr.appendChild(tdDelete(c));  // Delete
+
+        tbody.appendChild(tr);
+    });
+
+    enableTableSorting();
+    updateSortIndicators();
 }
+
 // Function to update sort indicators (arrows) on the table header
 function updateSortIndicators() {
-  document.querySelectorAll("#castleTable th[data-sort]").forEach(th => {
-    if (!th.dataset.label) {
-      th.dataset.label = th.textContent.trim(); // Store the original header text
-    }
+    document.querySelectorAll("#castleTable th[data-sort]").forEach(th => {
+        if (!th.dataset.label) {
+            th.dataset.label = th.textContent.trim(); // Store the original header text
+        }
 
-    th.textContent = th.dataset.label; // Reset to the original label
+        th.textContent = th.dataset.label; // Reset to the original label
 
-    // Apply sort indicator (▲ or ▼)
-    if (th.dataset.sort === castleSort.key) {
-      th.textContent += castleSort.asc ? " ▲" : " ▼";
-    }
-  });
+        // Apply sort indicator (▲ or ▼)
+        if (th.dataset.sort === castleSort.key) {
+            th.textContent += castleSort.asc ? " ▲" : " ▼";
+        }
+    });
 }
 
 // Function to sort castles by the selected key (column)
 function sortCastles(key) {
-  if (!mapData?.castles) return; // Ensure mapData and castles are available
+    if (!mapData?.castles) return; // Ensure mapData and castles are available
 
-  // Toggle sorting direction if the same column is clicked
-  if (castleSort.key === key) {
-    castleSort.asc = !castleSort.asc;
-  } else {
-    castleSort.key = key;
-    castleSort.asc = true; // Default to ascending if a new column is clicked
-  }
+    // Toggle sorting direction if the same column is clicked
+    if (castleSort.key === key) {
+        castleSort.asc = !castleSort.asc;
+    } else {
+        castleSort.key = key;
+        castleSort.asc = true; // Default to ascending if a new column is clicked
+    }
 
-  const dir = castleSort.asc ? 1 : -1; // 1 for ascending, -1 for descending
+    const dir = castleSort.asc ? 1 : -1; // 1 for ascending, -1 for descending
 
-  // Sort the castles array based on the selected column
-  mapData.castles.sort((a, b) => {
-    let va = a[key];
-    let vb = b[key];
+    // Sort the castles array based on the selected column
+    mapData.castles.sort((a, b) => {
+        let va = a[key];
+        let vb = b[key];
 
-    // Null values should come last
-    if (va == null && vb == null) return 0;
-    if (va == null) return 1;
-    if (vb == null) return -1;
+        // Null values should come last
+        if (va == null && vb == null) return 0;
+        if (va == null) return 1;
+        if (vb == null) return -1;
 
-    // For boolean values, true > false
-    if (typeof va === "boolean") return (va === vb ? 0 : va ? 1 : -1) * dir;
+        // For boolean values, true > false
+        if (typeof va === "boolean") return (va === vb ? 0 : va ? 1 : -1) * dir;
 
-    // For numeric values
-    if (typeof va === "number") return (va - vb) * dir;
+        // For numeric values
+        if (typeof va === "number") return (va - vb) * dir;
 
-    // For string comparison
-    return va.toString().localeCompare(vb.toString()) * dir;
-  });
+        // For string comparison
+        return va.toString().localeCompare(vb.toString()) * dir;
+    });
 
-  // Re-render table and update sort indicators
-  renderCastleTable();
-  updateSortIndicators();
+    // Re-render table and update sort indicators
+    renderCastleTable();
+    updateSortIndicators();
 }
 
 // Function to enable sorting by clicking on table headers
 function enableTableSorting() {
-  document
-    .querySelectorAll("#castleTable th[data-sort]")
-    .forEach(th => {
-      th.style.cursor = "pointer";
-      th.onclick = () => {
-        console.log("Sorting by:", th.dataset.sort);  // Debug log
-        sortCastles(th.dataset.sort);
-      };
-    });
+    document
+        .querySelectorAll("#castleTable th[data-sort]")
+        .forEach(th => {
+            th.style.cursor = "pointer";
+            th.onclick = () => {
+                console.log("Sorting by:", th.dataset.sort);  // Debug log
+                sortCastles(th.dataset.sort);
+            };
+        });
 }
 
 // Enable table sorting functionality and apply initial sort indicators
@@ -1147,338 +1150,338 @@ updateSortIndicators();
 const ISO_DEG = 45;
 
 function clamp(v, min, max) {
-  return Math.max(min, Math.min(max, v));
+    return Math.max(min, Math.min(max, v));
 }
 
 function getViewMatrix() {
-  const centerX = canvas.width / 2;
-  const centerY = canvas.height / 2;
+    const centerX = canvas.width / 2;
+    const centerY = canvas.height / 2;
 
-  // Same order as drawMap:
-  // translate(center) -> scale(zoom) -> translate(-offset) -> rotate(45deg)
-  return new DOMMatrix()
-    .translateSelf(centerX, centerY)
-    .scaleSelf(viewZoom, viewZoom)
-    .translateSelf(-viewOffsetX, -viewOffsetY)
-    .rotateSelf(ISO_DEG);
+    // Same order as drawMap:
+    // translate(center) -> scale(zoom) -> translate(-offset) -> rotate(45deg)
+    return new DOMMatrix()
+        .translateSelf(centerX, centerY)
+        .scaleSelf(viewZoom, viewZoom)
+        .translateSelf(-viewOffsetX, -viewOffsetY)
+        .rotateSelf(ISO_DEG);
 }
 
 function screenToGrid(mouseX, mouseY) {
-  if (!mapData) return { x: 0, y: 0 };
+    if (!mapData) return {x: 0, y: 0};
 
-  const size = mapData.grid_size;
-  const inv = getViewMatrix().inverse();
-  const p = new DOMPoint(mouseX, mouseY).matrixTransform(inv);
+    const size = mapData.grid_size;
+    const inv = getViewMatrix().inverse();
+    const p = new DOMPoint(mouseX, mouseY).matrixTransform(inv);
 
-  const gridX = Math.floor(p.x / TILE_SIZE);
-  const gridY = Math.floor(p.y / TILE_SIZE);
+    const gridX = Math.floor(p.x / TILE_SIZE);
+    const gridY = Math.floor(p.y / TILE_SIZE);
 
-  return {
-    x: clamp(gridX, 0, size - 1),
-    y: clamp(gridY, 0, size - 1)
-  };
+    return {
+        x: clamp(gridX, 0, size - 1),
+        y: clamp(gridY, 0, size - 1)
+    };
 }
 
 function gridToScreen(gridX, gridY) {
-  if (!mapData) return { x: 0, y: 0 };
+    if (!mapData) return {x: 0, y: 0};
 
-  const rect = canvas.getBoundingClientRect();
-  // Convert grid coordinates to pixel coordinates on the canvas
-  const px = (gridX + 0.5) * TILE_SIZE; // Center of the tile
-  const py = (gridY + 0.5) * TILE_SIZE; // Center of the tile
-  
-  // Apply the view matrix transformation
-  const p = new DOMPoint(px, py).matrixTransform(getViewMatrix());
-  
-  return {
-    x: p.x + rect.left,
-    y: p.y + rect.top
-  };
+    const rect = canvas.getBoundingClientRect();
+    // Convert grid coordinates to pixel coordinates on the canvas
+    const px = (gridX + 0.5) * TILE_SIZE; // Center of the tile
+    const py = (gridY + 0.5) * TILE_SIZE; // Center of the tile
+
+    // Apply the view matrix transformation
+    const p = new DOMPoint(px, py).matrixTransform(getViewMatrix());
+
+    return {
+        x: p.x + rect.left,
+        y: p.y + rect.top
+    };
 }
 
 // ==========================
 // Animation helpers
 // ==========================
 function startAnimation(entityId, fromX, fromY, toX, toY) {
-  if (fromX === toX && fromY === toY) return; // No movement needed
-  
-  animationState.set(entityId, {
-    fromX,
-    fromY,
-    toX,
-    toY,
-    startTime: performance.now()
-  });
-  
-  if (!animationFrameId) {
-    animationFrameId = requestAnimationFrame(animationLoop);
-  }
+    if (fromX === toX && fromY === toY) return; // No movement needed
+
+    animationState.set(entityId, {
+        fromX,
+        fromY,
+        toX,
+        toY,
+        startTime: performance.now()
+    });
+
+    if (!animationFrameId) {
+        animationFrameId = requestAnimationFrame(animationLoop);
+    }
 }
 
 function animationLoop(currentTime) {
-  let hasActiveAnimations = false;
-  
-  for (const [entityId, anim] of animationState.entries()) {
-    const elapsed = currentTime - anim.startTime;
-    const progress = Math.min(elapsed / ANIMATION_DURATION, 1);
-    
-    if (progress >= 1) {
-      animationState.delete(entityId);
-    } else {
-      hasActiveAnimations = true;
+    let hasActiveAnimations = false;
+
+    for (const [entityId, anim] of animationState.entries()) {
+        const elapsed = currentTime - anim.startTime;
+        const progress = Math.min(elapsed / ANIMATION_DURATION, 1);
+
+        if (progress >= 1) {
+            animationState.delete(entityId);
+        } else {
+            hasActiveAnimations = true;
+        }
     }
-  }
-  
-  // Redraw with interpolated positions
-  drawMap(mapData);
-  
-  if (hasActiveAnimations) {
-    animationFrameId = requestAnimationFrame(animationLoop);
-  } else {
-    animationFrameId = null;
-  }
+
+    // Redraw with interpolated positions
+    drawMap(mapData);
+
+    if (hasActiveAnimations) {
+        animationFrameId = requestAnimationFrame(animationLoop);
+    } else {
+        animationFrameId = null;
+    }
 }
 
 function getAnimatedPosition(entity) {
-  if (!entity || entity.x == null || entity.y == null) {
-    return { x: entity?.x, y: entity?.y };
-  }
-  
-  const anim = animationState.get(entity.id);
-  if (!anim) {
-    return { x: entity.x, y: entity.y };
-  }
-  
-  const elapsed = performance.now() - anim.startTime;
-  const progress = Math.min(elapsed / ANIMATION_DURATION, 1);
-  
-  // Ease-out cubic for smooth deceleration
-  const eased = 1 - Math.pow(1 - progress, 3);
-  
-  return {
-    x: anim.fromX + (anim.toX - anim.fromX) * eased,
-    y: anim.fromY + (anim.toY - anim.fromY) * eased
-  };
+    if (!entity || entity.x == null || entity.y == null) {
+        return {x: entity?.x, y: entity?.y};
+    }
+
+    const anim = animationState.get(entity.id);
+    if (!anim) {
+        return {x: entity.x, y: entity.y};
+    }
+
+    const elapsed = performance.now() - anim.startTime;
+    const progress = Math.min(elapsed / ANIMATION_DURATION, 1);
+
+    // Ease-out cubic for smooth deceleration
+    const eased = 1 - Math.pow(1 - progress, 3);
+
+    return {
+        x: anim.fromX + (anim.toX - anim.fromX) * eased,
+        y: anim.fromY + (anim.toY - anim.fromY) * eased
+    };
 }
 
 function drawMap(data) {
-  if (!data || !canvas || !ctx) return;
+    if (!data || !canvas || !ctx) return;
 
-  const size = data.grid_size ?? 0;
-  if (size <= 0) return;
+    const size = data.grid_size ?? 0;
+    if (size <= 0) return;
 
-  const container = canvas.parentElement;
-  canvas.width = container.clientWidth;
-  canvas.height = container.clientHeight;
+    const container = canvas.parentElement;
+    canvas.width = container.clientWidth;
+    canvas.height = container.clientHeight;
 
-  ctx.clearRect(0, 0, canvas.width, canvas.height);
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-  ctx.save();
+    ctx.save();
 
-  // Apply the shared matrix
-  ctx.setTransform(getViewMatrix());
+    // Apply the shared matrix
+    ctx.setTransform(getViewMatrix());
 
-  // Grid (conditionally rendered based on showGrid state)
-  if (showGrid) {
-    ctx.strokeStyle = "#ccc";
-    ctx.lineWidth = 1 / viewZoom;
-    for (let x = 0; x < size; x++) {
-      for (let y = 0; y < size; y++) {
-        ctx.strokeRect(x * TILE_SIZE, y * TILE_SIZE, TILE_SIZE, TILE_SIZE);
-      }
+    // Grid (conditionally rendered based on showGrid state)
+    if (showGrid) {
+        ctx.strokeStyle = "#ccc";
+        ctx.lineWidth = 1 / viewZoom;
+        for (let x = 0; x < size; x++) {
+            for (let y = 0; y < size; y++) {
+                ctx.strokeRect(x * TILE_SIZE, y * TILE_SIZE, TILE_SIZE, TILE_SIZE);
+            }
+        }
     }
-  }
 
-  data.banners.forEach(drawBanner);
-  data.bear_traps.forEach(drawBearTrap);
-  data.castles.forEach(drawCastle);
+    data.banners.forEach(drawBanner);
+    data.bear_traps.forEach(drawBearTrap);
+    data.castles.forEach(drawCastle);
 
-  ctx.restore();
-  renderEfficiencyLegend();
+    ctx.restore();
+    renderEfficiencyLegend();
 }
 
 
 function drawBanner(banner) {
-  if (!banner || banner.x == null || banner.y == null || !mapData) return;
+    if (!banner || banner.x == null || banner.y == null || !mapData) return;
 
-  const gridSize = mapData.grid_size;
-  // Use animated position if available
-  const pos = getAnimatedPosition(banner);
-  const px = pos.x * TILE_SIZE;
-  const py = pos.y * TILE_SIZE;
-  const cx = Math.round(pos.x);
-  const cy = Math.round(pos.y);
+    const gridSize = mapData.grid_size;
+    // Use animated position if available
+    const pos = getAnimatedPosition(banner);
+    const px = pos.x * TILE_SIZE;
+    const py = pos.y * TILE_SIZE;
+    const cx = Math.round(pos.x);
+    const cy = Math.round(pos.y);
 
-  const isRemoteBusy =
-    window.remoteBusy?.has(banner.id) &&
-    draggingBanner?.id !== banner.id;
+    const isRemoteBusy =
+        window.remoteBusy?.has(banner.id) &&
+        draggingBanner?.id !== banner.id;
 
-  // -------- Influence area (7x7, light green fill only) --------
-  // Only show when any banner is being moved (global overlay for all banners)
-  if (draggingBanner) {
-    ctx.fillStyle = "rgba(34, 197, 94, 0.35)";  // Light green fill
-    for (let x = cx - 3; x <= cx + 3; x++) {
-      for (let y = cy - 3; y <= cy + 3; y++) {
-        if (x < 0 || y < 0 || x >= gridSize || y >= gridSize) continue;
-        const tilePx = x * TILE_SIZE;
-        const tilePy = y * TILE_SIZE;
-        ctx.fillRect(tilePx, tilePy, TILE_SIZE, TILE_SIZE);
-      }
+    // -------- Influence area (7x7, light green fill only) --------
+    // Only show when any banner is being moved (global overlay for all banners)
+    if (draggingBanner) {
+        ctx.fillStyle = "rgba(34, 197, 94, 0.35)";  // Light green fill
+        for (let x = cx - 3; x <= cx + 3; x++) {
+            for (let y = cy - 3; y <= cy + 3; y++) {
+                if (x < 0 || y < 0 || x >= gridSize || y >= gridSize) continue;
+                const tilePx = x * TILE_SIZE;
+                const tilePy = y * TILE_SIZE;
+                ctx.fillRect(tilePx, tilePy, TILE_SIZE, TILE_SIZE);
+            }
+        }
     }
-  }
 
-  // -------- Banner rectangle --------
-  ctx.fillStyle = "#1e3a8a";
-  ctx.fillRect(px, py, TILE_SIZE, TILE_SIZE);
+    // -------- Banner rectangle --------
+    ctx.fillStyle = "#1e3a8a";
+    ctx.fillRect(px, py, TILE_SIZE, TILE_SIZE);
 
-  ctx.strokeStyle = "#ffffff";
-  ctx.lineWidth = 1 / viewZoom;  // Scale line width
-  ctx.strokeRect(px, py, TILE_SIZE, TILE_SIZE);
+    ctx.strokeStyle = "#ffffff";
+    ctx.lineWidth = 1 / viewZoom;  // Scale line width
+    ctx.strokeRect(px, py, TILE_SIZE, TILE_SIZE);
 
-  // -------- Banner label --------
-  ctx.save();
-  ctx.translate(px + TILE_SIZE / 2, py + TILE_SIZE / 2);
-  ctx.rotate(-Math.PI / 4);
-
-  const scale = Math.min(1 + (viewZoom - 1) * 0.1, 1.2);  // Smoother, smaller max scaling
-  ctx.fillStyle = "#ffffff";
-  ctx.font = `bold ${Math.max(12, TILE_SIZE * 0.35) * scale}px sans-serif`;
-  ctx.textAlign = "center";
-  ctx.textBaseline = "middle";
-
-  ctx.fillText(String(banner.id ?? ""), 0, 0);
-  ctx.restore();
-
-  // -------- IN USE label --------
-  if (isRemoteBusy) {
-    ctx.save();
-    ctx.translate(px + TILE_SIZE / 2, py + TILE_SIZE / 2);
-    ctx.rotate(-Math.PI / 4);
-    ctx.translate(0, -TILE_SIZE / 2 + 10);  // Position above center
-
-    ctx.fillStyle = "#dc2626";
-    ctx.font = `bold ${11 * scale}px sans-serif`;
-    ctx.textAlign = "center";
-    ctx.textBaseline = "middle";
-
-    ctx.fillText("IN USE", 0, 0);
-    ctx.restore();
-  }
-
-  // -------- Locked indicator --------
-  if (banner.locked) {
+    // -------- Banner label --------
     ctx.save();
     ctx.translate(px + TILE_SIZE / 2, py + TILE_SIZE / 2);
     ctx.rotate(-Math.PI / 4);
 
+    const scale = Math.min(1 + (viewZoom - 1) * 0.1, 1.2);  // Smoother, smaller max scaling
     ctx.fillStyle = "#ffffff";
-    ctx.font = `${14 * scale}px sans-serif`;
+    ctx.font = `bold ${Math.max(12, TILE_SIZE * 0.35) * scale}px sans-serif`;
     ctx.textAlign = "center";
     ctx.textBaseline = "middle";
 
-    ctx.fillText("🔒", 0, TILE_SIZE * 0.45);  // Below center
+    ctx.fillText(String(banner.id ?? ""), 0, 0);
     ctx.restore();
-  }
+
+    // -------- IN USE label --------
+    if (isRemoteBusy) {
+        ctx.save();
+        ctx.translate(px + TILE_SIZE / 2, py + TILE_SIZE / 2);
+        ctx.rotate(-Math.PI / 4);
+        ctx.translate(0, -TILE_SIZE / 2 + 10);  // Position above center
+
+        ctx.fillStyle = "#dc2626";
+        ctx.font = `bold ${11 * scale}px sans-serif`;
+        ctx.textAlign = "center";
+        ctx.textBaseline = "middle";
+
+        ctx.fillText("IN USE", 0, 0);
+        ctx.restore();
+    }
+
+    // -------- Locked indicator --------
+    if (banner.locked) {
+        ctx.save();
+        ctx.translate(px + TILE_SIZE / 2, py + TILE_SIZE / 2);
+        ctx.rotate(-Math.PI / 4);
+
+        ctx.fillStyle = "#ffffff";
+        ctx.font = `${14 * scale}px sans-serif`;
+        ctx.textAlign = "center";
+        ctx.textBaseline = "middle";
+
+        ctx.fillText("🔒", 0, TILE_SIZE * 0.45);  // Below center
+        ctx.restore();
+    }
 }
 
 function drawBearTrap(bear) {
-  if (!bear || bear.x == null || bear.y == null || !mapData) return;
+    if (!bear || bear.x == null || bear.y == null || !mapData) return;
 
-  const gridSize = mapData.grid_size;
-  // Use animated position if available
-  const pos = getAnimatedPosition(bear);
-  const cx = Math.round(pos.x);
-  const cy = Math.round(pos.y);
+    const gridSize = mapData.grid_size;
+    // Use animated position if available
+    const pos = getAnimatedPosition(bear);
+    const cx = Math.round(pos.x);
+    const cy = Math.round(pos.y);
 
-  const isRemoteBusy =
-    window.remoteBusy?.has(bear.id) &&
-    draggingBear?.id !== bear.id;
+    const isRemoteBusy =
+        window.remoteBusy?.has(bear.id) &&
+        draggingBear?.id !== bear.id;
 
-  /* ===============================
-     Influence tiles (3x3)
-  =============================== */
-  ctx.fillStyle = "rgba(120,120,120,0.35)";
-  for (let x = cx - 1; x <= cx + 1; x++) {
-    for (let y = cy - 1; y <= cy + 1; y++) {
-      if (x < 0 || y < 0 || x >= gridSize || y >= gridSize) continue;
-      ctx.fillRect(
-        x * TILE_SIZE,
-        y * TILE_SIZE,
-        TILE_SIZE,
-        TILE_SIZE
-      );
+    /* ===============================
+       Influence tiles (3x3)
+    =============================== */
+    ctx.fillStyle = "rgba(120,120,120,0.35)";
+    for (let x = cx - 1; x <= cx + 1; x++) {
+        for (let y = cy - 1; y <= cy + 1; y++) {
+            if (x < 0 || y < 0 || x >= gridSize || y >= gridSize) continue;
+            ctx.fillRect(
+                x * TILE_SIZE,
+                y * TILE_SIZE,
+                TILE_SIZE,
+                TILE_SIZE
+            );
+        }
     }
-  }
 
-  /* ===============================
-     Bear circle
-  =============================== */
-  const px = pos.x * TILE_SIZE + TILE_SIZE / 2;
-  const py = pos.y * TILE_SIZE + TILE_SIZE / 2;
+    /* ===============================
+       Bear circle
+    =============================== */
+    const px = pos.x * TILE_SIZE + TILE_SIZE / 2;
+    const py = pos.y * TILE_SIZE + TILE_SIZE / 2;
 
-  // slightly smaller than 3x3 influence
-  const radius = TILE_SIZE * 1.35;
+    // slightly smaller than 3x3 influence
+    const radius = TILE_SIZE * 1.35;
 
-  ctx.beginPath();
-  ctx.arc(px, py, radius, 0, Math.PI * 2);
+    ctx.beginPath();
+    ctx.arc(px, py, radius, 0, Math.PI * 2);
 
-  // fill NEVER changes due to remote busy
-  ctx.fillStyle = bear.locked ? "#1e293b" : "#0a1f44";
-  ctx.fill();
+    // fill NEVER changes due to remote busy
+    ctx.fillStyle = bear.locked ? "#1e293b" : "#0a1f44";
+    ctx.fill();
 
-  // stroke ONLY shows busy
-  if (isRemoteBusy) {
-    ctx.strokeStyle = "#dc2626";
-    ctx.lineWidth = 3 / viewZoom;  // Scale line width
-    ctx.stroke();
-  }
+    // stroke ONLY shows busy
+    if (isRemoteBusy) {
+        ctx.strokeStyle = "#dc2626";
+        ctx.lineWidth = 3 / viewZoom;  // Scale line width
+        ctx.stroke();
+    }
 
-  /* ===============================
-     Bear label
-  =============================== */
-  ctx.save();
-  ctx.translate(px, py);
-  ctx.rotate(-Math.PI / 4);
-  const scale = Math.min(1 + (viewZoom - 1) * 0.1, 1.2);  // Smoother, smaller max scaling
-  ctx.fillStyle = "#ffffff";
-  ctx.font = `bold ${Math.max(12, TILE_SIZE * 0.35) * scale}px sans-serif`;
-  ctx.textAlign = "center";
-  ctx.textBaseline = "middle";
-  ctx.fillText(String(bear.id ?? ""), 0, 0);
-  ctx.restore();
-
-  /* ===============================
-     IN USE label (centred)
-  =============================== */
-  if (isRemoteBusy) {
+    /* ===============================
+       Bear label
+    =============================== */
     ctx.save();
     ctx.translate(px, py);
     ctx.rotate(-Math.PI / 4);
-    ctx.translate(0, -radius + 10);
-
-    ctx.fillStyle = "#dc2626";
-    ctx.font = `bold ${11 * scale}px sans-serif`;
-    ctx.textAlign = "center";
-    ctx.textBaseline = "middle";
-
-    ctx.fillText("IN USE", 0, 20);
-    ctx.restore();
-  }
-
-  // -------- Locked indicator --------
-  if (bear.locked) {
-    ctx.save();
-    ctx.translate(px, py);
-    ctx.rotate(-Math.PI / 4);
-
-    ctx.font = `${12 * scale}px sans-serif`;
-    ctx.textAlign = "center";
-    ctx.textBaseline = "middle";
+    const scale = Math.min(1 + (viewZoom - 1) * 0.1, 1.2);  // Smoother, smaller max scaling
     ctx.fillStyle = "#ffffff";
-
-    ctx.fillText("🔒", 0, TILE_SIZE * 0.45);
+    ctx.font = `bold ${Math.max(12, TILE_SIZE * 0.35) * scale}px sans-serif`;
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.fillText(String(bear.id ?? ""), 0, 0);
     ctx.restore();
-  }
+
+    /* ===============================
+       IN USE label (centred)
+    =============================== */
+    if (isRemoteBusy) {
+        ctx.save();
+        ctx.translate(px, py);
+        ctx.rotate(-Math.PI / 4);
+        ctx.translate(0, -radius + 10);
+
+        ctx.fillStyle = "#dc2626";
+        ctx.font = `bold ${11 * scale}px sans-serif`;
+        ctx.textAlign = "center";
+        ctx.textBaseline = "middle";
+
+        ctx.fillText("IN USE", 0, 20);
+        ctx.restore();
+    }
+
+    // -------- Locked indicator --------
+    if (bear.locked) {
+        ctx.save();
+        ctx.translate(px, py);
+        ctx.rotate(-Math.PI / 4);
+
+        ctx.font = `${12 * scale}px sans-serif`;
+        ctx.textAlign = "center";
+        ctx.textBaseline = "middle";
+        ctx.fillStyle = "#ffffff";
+
+        ctx.fillText("🔒", 0, TILE_SIZE * 0.45);
+        ctx.restore();
+    }
 }
 
 // function drawCastle(castle) {
@@ -1542,73 +1545,73 @@ function drawBearTrap(bear) {
 // }
 
 function drawCastle(castle) {
-  if (!castle || castle.x == null || castle.y == null) return;
+    if (!castle || castle.x == null || castle.y == null) return;
 
-  // Use animated position if available
-  const pos = getAnimatedPosition(castle);
-  const px = pos.x * TILE_SIZE;
-  const py = pos.y * TILE_SIZE;
-  const size = TILE_SIZE * 2;
+    // Use animated position if available
+    const pos = getAnimatedPosition(castle);
+    const px = pos.x * TILE_SIZE;
+    const py = pos.y * TILE_SIZE;
+    const size = TILE_SIZE * 2;
 
-  const isRemoteBusy =
-    window.remoteBusy?.has(castle.id) &&
-    draggingCastle?.id !== castle.id;
+    const isRemoteBusy =
+        window.remoteBusy?.has(castle.id) &&
+        draggingCastle?.id !== castle.id;
 
-  const isVisible = visibleCastleIds.size === 0 || visibleCastleIds.has(castle.id);
-  if (!isVisible) {
-    ctx.globalAlpha = 0.3;  // Fade non-filtered
-  }
+    const isVisible = visibleCastleIds.size === 0 || visibleCastleIds.has(castle.id);
+    if (!isVisible) {
+        ctx.globalAlpha = 0.3;  // Fade non-filtered
+    }
 
-  // -------- body --------
-  ctx.fillStyle = efficiencyColor(castle.efficiency_score ?? 99);
-  ctx.fillRect(px + 2, py + 2, size - 4, size - 4);
+    // -------- body --------
+    ctx.fillStyle = efficiencyColor(castle.efficiency_score ?? 99);
+    ctx.fillRect(px + 2, py + 2, size - 4, size - 4);
 
-  // -------- border --------
-  ctx.save();
-  ctx.strokeStyle = isRemoteBusy ? "#dc2626" : "#e5e7eb";
-  ctx.lineWidth = (isRemoteBusy ? 3 : 1) / viewZoom;  // Scale line width
-  ctx.strokeRect(px + 2, py + 2, size - 4, size - 4);
-  ctx.restore();
-
-  // -------- text --------
-  ctx.save();
-  ctx.translate(px + size / 2, py + size / 2);
-  ctx.rotate(-Math.PI / 4);
-
-  const scale = Math.min(1 + (viewZoom - 1) * 0.1, 1.2);  // Smoother, smaller max scaling
-  ctx.fillStyle = "white";
-  ctx.textAlign = "center";
-
-  ctx.font = `bold ${10 * scale}px sans-serif`;  // Player name
-  ctx.fillText(String(castle.player ?? ""), 0, -6);
-
-  ctx.font = `${12 * scale}px sans-serif`;  // Level
-  ctx.fillText(`Lv ${castle.player_level ?? "-"}`, 0, 10);
-
-  ctx.font = `${11 * scale}px sans-serif`;  // Preference
-  ctx.fillText(String(castle.preference ?? ""), 0, 24);
-
-  if (isRemoteBusy) {
-    ctx.fillStyle = "#d90000";
-    ctx.font = `bold ${11 * scale}px sans-serif`;  // IN USE
-    ctx.fillText("IN USE", 0, -20);
-  }
-  ctx.restore();
-
-  // -------- lock icon --------
-  if (castle.locked) {
+    // -------- border --------
     ctx.save();
-    ctx.translate(px + size / 2, py + size + 8);
-    ctx.rotate(-Math.PI / 4);
-    ctx.font = `${12 * scale}px sans-serif`;
-    ctx.textAlign = "center";
-    ctx.fillStyle = "white";
-    ctx.fillText("🔒", 35, 5);
+    ctx.strokeStyle = isRemoteBusy ? "#dc2626" : "#e5e7eb";
+    ctx.lineWidth = (isRemoteBusy ? 3 : 1) / viewZoom;  // Scale line width
+    ctx.strokeRect(px + 2, py + 2, size - 4, size - 4);
     ctx.restore();
-  }
 
-  // Reset alpha
-  ctx.globalAlpha = 1;
+    // -------- text --------
+    ctx.save();
+    ctx.translate(px + size / 2, py + size / 2);
+    ctx.rotate(-Math.PI / 4);
+
+    const scale = Math.min(1 + (viewZoom - 1) * 0.1, 1.2);  // Smoother, smaller max scaling
+    ctx.fillStyle = "white";
+    ctx.textAlign = "center";
+
+    ctx.font = `bold ${10 * scale}px sans-serif`;  // Player name
+    ctx.fillText(String(castle.player ?? ""), 0, -6);
+
+    ctx.font = `${12 * scale}px sans-serif`;  // Level
+    ctx.fillText(`Lv ${castle.player_level ?? "-"}`, 0, 10);
+
+    ctx.font = `${11 * scale}px sans-serif`;  // Preference
+    ctx.fillText(String(castle.preference ?? ""), 0, 24);
+
+    if (isRemoteBusy) {
+        ctx.fillStyle = "#d90000";
+        ctx.font = `bold ${11 * scale}px sans-serif`;  // IN USE
+        ctx.fillText("IN USE", 0, -20);
+    }
+    ctx.restore();
+
+    // -------- lock icon --------
+    if (castle.locked) {
+        ctx.save();
+        ctx.translate(px + size / 2, py + size + 8);
+        ctx.rotate(-Math.PI / 4);
+        ctx.font = `${12 * scale}px sans-serif`;
+        ctx.textAlign = "center";
+        ctx.fillStyle = "white";
+        ctx.fillText("🔒", 35, 5);
+        ctx.restore();
+    }
+
+    // Reset alpha
+    ctx.globalAlpha = 1;
 }
 
 function efficiencyColor(value) {
@@ -1655,161 +1658,161 @@ function renderEfficiencyLegend() {
 renderEfficiencyLegend();
 
 function onMouseDown(e) {
-  if (!mapData) return;
-  if (draggingCastle || draggingBear || draggingBanner) return;
+    if (!mapData) return;
+    if (draggingCastle || draggingBear || draggingBanner) return;
 
-  const rect = canvas.getBoundingClientRect();
-  const mouseCanvasX = e.clientX - rect.left;
-  const mouseCanvasY = e.clientY - rect.top;
-  const { x, y } = screenToGrid(mouseCanvasX, mouseCanvasY);
+    const rect = canvas.getBoundingClientRect();
+    const mouseCanvasX = e.clientX - rect.left;
+    const mouseCanvasY = e.clientY - rect.top;
+    const {x, y} = screenToGrid(mouseCanvasX, mouseCanvasY);
 
-  // Simple debug log
-  console.log(`Mouse: (${mouseCanvasX}, ${mouseCanvasY}), Grid: (${x}, ${y}), Zoom: ${viewZoom}`);
+    // Simple debug log
+    console.log(`Mouse: (${mouseCanvasX}, ${mouseCanvasY}), Grid: (${x}, ${y}), Zoom: ${viewZoom}`);
 
-  // ---- CASTLES FIRST ----
-  for (let castle of mapData.castles || []) {
-    if (castle.x == null || castle.y == null) continue;
-    if (isPointInEntity(x, y, castle)) {
-      if (castle.locked) return;
-      if (window.remoteBusy?.has(castle.id)) return;
+    // ---- CASTLES FIRST ----
+    for (let castle of mapData.castles || []) {
+        if (castle.x == null || castle.y == null) continue;
+        if (isPointInEntity(x, y, castle)) {
+            if (castle.locked) return;
+            if (window.remoteBusy?.has(castle.id)) return;
 
-      draggingCastle = castle;
-Sync.markBusy(castle.id)
+            draggingCastle = castle;
+            Sync.markBusy(castle.id)
 
-      castle._original = { x: castle.x, y: castle.y };
-      castle._grab = { dx: x - castle.x, dy: y - castle.y };
+            castle._original = {x: castle.x, y: castle.y};
+            castle._grab = {dx: x - castle.x, dy: y - castle.y};
 
-      drawMap(mapData);
-      return;
+            drawMap(mapData);
+            return;
+        }
     }
-  }
 
-  // ---- THEN BANNERS ----
-  for (let banner of mapData.banners || []) {
-    if (isPointInEntity(x, y, banner)) {
-      if (banner.locked) return;
-      if (window.remoteBusy?.has(banner.id)) return;
+    // ---- THEN BANNERS ----
+    for (let banner of mapData.banners || []) {
+        if (isPointInEntity(x, y, banner)) {
+            if (banner.locked) return;
+            if (window.remoteBusy?.has(banner.id)) return;
 
-      draggingBanner = banner;
-      Sync.markBusy(banner.id)
-      banner._original = { x: banner.x, y: banner.y };
+            draggingBanner = banner;
+            Sync.markBusy(banner.id)
+            banner._original = {x: banner.x, y: banner.y};
 
-      drawMap(mapData);
-      return;
+            drawMap(mapData);
+            return;
+        }
     }
-  }
 
-  // ---- THEN BEARS ----
-  for (let bear of mapData.bear_traps || []) {
-    if (isPointInEntity(x, y, bear)) {
-      if (bear.locked) return;
-      if (window.remoteBusy?.has(bear.id)) return;
+    // ---- THEN BEARS ----
+    for (let bear of mapData.bear_traps || []) {
+        if (isPointInEntity(x, y, bear)) {
+            if (bear.locked) return;
+            if (window.remoteBusy?.has(bear.id)) return;
 
-      draggingBear = bear;
-      Sync.markBusy(bear.id)
-      bear._original = { x: bear.x, y: bear.y };
+            draggingBear = bear;
+            Sync.markBusy(bear.id)
+            bear._original = {x: bear.x, y: bear.y};
 
-      drawMap(mapData);
-      return;
+            drawMap(mapData);
+            return;
+        }
     }
-  }
 
-  // If no entity hit, start panning
-  isPanning = true;
-  lastPanX = e.clientX;
-  lastPanY = e.clientY;
-  canvas.style.cursor = 'grabbing';
+    // If no entity hit, start panning
+    isPanning = true;
+    lastPanX = e.clientX;
+    lastPanY = e.clientY;
+    canvas.style.cursor = 'grabbing';
 }
 
 function onMouseUp() {
-  if (draggingCastle) {
-    const c = draggingCastle;
-    draggingCastle = null;
+    if (draggingCastle) {
+        const c = draggingCastle;
+        draggingCastle = null;
 
-    // snap to integers ONLY for visuals
-    const x = Math.round(c.x);
-    const y = Math.round(c.y);
+        // snap to integers ONLY for visuals
+        const x = Math.round(c.x);
+        const y = Math.round(c.y);
 
-    fetch("/api/intent/move_castle", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ id: c.id, x, y })
-    })
-    .then(response => response.json())
-    .then(data => {
-      console.log("Castle move response:", data);
-      if (!data.success) {
-        ToastManager.show(data.message || data.error || "Move failed", null, "error", "error");
-      } else {
-        ToastManager.show("Castle moved successfully", null, "success", "success");
-      }
-    })
-    .catch(err => {
-      console.error("Move castle failed:", err);
-      ToastManager.show("Move failed due to network error", null, "error", "error");
-    });
+        fetch("/api/intent/move_castle", {
+            method: "POST",
+            headers: {"Content-Type": "application/json"},
+            body: JSON.stringify({id: c.id, x, y})
+        })
+            .then(response => response.json())
+            .then(data => {
+                console.log("Castle move response:", data);
+                if (!data.success) {
+                    ToastManager.show(data.message || data.error || "Move failed", null, "error", "error");
+                } else {
+                    ToastManager.show("Castle moved successfully", null, "success", "success");
+                }
+            })
+            .catch(err => {
+                console.error("Move castle failed:", err);
+                ToastManager.show("Move failed due to network error", null, "error", "error");
+            });
 
-    Sync.unmarkBusy(c.id);
-    return;
-  }
+        Sync.unmarkBusy(c.id);
+        return;
+    }
 
-  if (draggingBanner) {
-    const b = draggingBanner;
-    draggingBanner = null;
+    if (draggingBanner) {
+        const b = draggingBanner;
+        draggingBanner = null;
 
-    const x = Math.round(b.x);
-    const y = Math.round(b.y);
+        const x = Math.round(b.x);
+        const y = Math.round(b.y);
 
-    fetch("/api/intent/move_banner", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ id: b.id, x, y })
-    })
-    .then(response => response.json())
-    .then(data => {
-      if (!data.success) {
-        ToastManager.show(data.message || data.error || "Move failed", null, "error", "error");
-      } else {
-        ToastManager.show("Banner moved successfully", null, "success", "success");
-      }
-    })
-    .catch(err => {
-      console.error("Move banner failed:", err);
-      ToastManager.show("Move failed due to network error", null, "error", "error");
-    });
+        fetch("/api/intent/move_banner", {
+            method: "POST",
+            headers: {"Content-Type": "application/json"},
+            body: JSON.stringify({id: b.id, x, y})
+        })
+            .then(response => response.json())
+            .then(data => {
+                if (!data.success) {
+                    ToastManager.show(data.message || data.error || "Move failed", null, "error", "error");
+                } else {
+                    ToastManager.show("Banner moved successfully", null, "success", "success");
+                }
+            })
+            .catch(err => {
+                console.error("Move banner failed:", err);
+                ToastManager.show("Move failed due to network error", null, "error", "error");
+            });
 
-    Sync.unmarkBusy(b.id);
-    return;
-  }
+        Sync.unmarkBusy(b.id);
+        return;
+    }
 
-  if (draggingBear) {
-    const bear = draggingBear;
-    draggingBear = null;
+    if (draggingBear) {
+        const bear = draggingBear;
+        draggingBear = null;
 
-    const x = Math.round(bear.x);
-    const y = Math.round(bear.y);
+        const x = Math.round(bear.x);
+        const y = Math.round(bear.y);
 
-    fetch("/api/intent/move_bear_trap", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ id: bear.id, x: x, y: y })
-    })
-    .then(response => response.json())
-    .then(data => {
-      if (!data.success) {
-        ToastManager.show(data.message || data.error || "Placement failed", null, "error");
-      } else {
-        ToastManager.show("Bear trap placed successfully", null, "success", "success");
-      }
-    })
-    .catch(err => {
-      console.error("Move bear trap failed:", err);
-      ToastManager.show("Placement failed due to network error", null, "error");
-    });
+        fetch("/api/intent/move_bear_trap", {
+            method: "POST",
+            headers: {"Content-Type": "application/json"},
+            body: JSON.stringify({id: bear.id, x: x, y: y})
+        })
+            .then(response => response.json())
+            .then(data => {
+                if (!data.success) {
+                    ToastManager.show(data.message || data.error || "Placement failed", null, "error");
+                } else {
+                    ToastManager.show("Bear trap placed successfully", null, "success", "success");
+                }
+            })
+            .catch(err => {
+                console.error("Move bear trap failed:", err);
+                ToastManager.show("Placement failed due to network error", null, "error");
+            });
 
-    Sync.unmarkBusy(bear.id);
-    return;
-  }
+        Sync.unmarkBusy(bear.id);
+        return;
+    }
 }
 
 function onMouseMove(e) {
@@ -1881,7 +1884,7 @@ function onCanvasContextMenu(e) {
     const rect = canvas.getBoundingClientRect();
     const mouseX = e.clientX;
     const mouseY = e.clientY;
-    const { x, y } = screenToGrid(
+    const {x, y} = screenToGrid(
         e.clientX - rect.left,
         e.clientY - rect.top
     );
@@ -1954,8 +1957,8 @@ function showContextMenu(x, y, entity, type) {
         try {
             const response = await fetch(`/api/intent/toggle_lock_${type}`, {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ id: entity.id })
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({id: entity.id})
             });
             if (!response.ok) throw new Error('Failed to toggle lock');
             // Server will broadcast update and redraw
@@ -1978,8 +1981,8 @@ function showContextMenu(x, y, entity, type) {
             try {
                 const response = await fetch('/api/intent/move_castle_away', {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ id: entity.id })
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({id: entity.id})
                 });
                 if (!response.ok) throw new Error('Failed to move away');
                 // Server will choose edge position, update, and redraw
@@ -2012,6 +2015,7 @@ function showContextMenu(x, y, entity, type) {
     };
     setTimeout(() => document.addEventListener('click', removeMenu), 0);
 }
+
 // ==========================
 // Event Listeners
 // ==========================
@@ -2020,218 +2024,219 @@ canvas.addEventListener("mousemove", onMouseMove);
 canvas.addEventListener("mouseup", onMouseUp);
 canvas.addEventListener("mouseleave", onMouseUp);
 canvas.addEventListener("contextmenu", onCanvasContextMenu);
+
 // Zoom with mouse wheel
 function onWheel(e) {
-  e.preventDefault();
-  const zoomFactor = e.deltaY > 0 ? 0.9 : 1.1;
-  const newZoom = Math.max(MIN_ZOOM, Math.min(MAX_ZOOM, viewZoom * zoomFactor));
+    e.preventDefault();
+    const zoomFactor = e.deltaY > 0 ? 0.9 : 1.1;
+    const newZoom = Math.max(MIN_ZOOM, Math.min(MAX_ZOOM, viewZoom * zoomFactor));
 
-  // Zoom at cursor
-  const rect = canvas.getBoundingClientRect();
-  const mouseX = e.clientX - rect.left;
-  const mouseY = e.clientY - rect.top;
-  const worldX = (mouseX - canvas.width / 2) / viewZoom + viewOffsetX;
-  const worldY = (mouseY - canvas.height / 2) / viewZoom + viewOffsetY;
+    // Zoom at cursor
+    const rect = canvas.getBoundingClientRect();
+    const mouseX = e.clientX - rect.left;
+    const mouseY = e.clientY - rect.top;
+    const worldX = (mouseX - canvas.width / 2) / viewZoom + viewOffsetX;
+    const worldY = (mouseY - canvas.height / 2) / viewZoom + viewOffsetY;
 
-  viewOffsetX = worldX - (mouseX - canvas.width / 2) / newZoom;
-  viewOffsetY = worldY - (mouseY - canvas.height / 2) / newZoom;
-  viewZoom = newZoom;
+    viewOffsetX = worldX - (mouseX - canvas.width / 2) / newZoom;
+    viewOffsetY = worldY - (mouseY - canvas.height / 2) / newZoom;
+    viewZoom = newZoom;
 
-  drawMap(mapData);
+    drawMap(mapData);
 }
 
 // Pan with middle mouse
 function onMouseDownPan(e) {
-  if (e.button === 1 || e.altKey) {  // Middle click or Alt+click
-    e.preventDefault();
-    isPanning = true;
-    lastPanX = e.clientX;
-    lastPanY = e.clientY;
-    canvas.style.cursor = 'grabbing';
-  }
+    if (e.button === 1 || e.altKey) {  // Middle click or Alt+click
+        e.preventDefault();
+        isPanning = true;
+        lastPanX = e.clientX;
+        lastPanY = e.clientY;
+        canvas.style.cursor = 'grabbing';
+    }
 }
 
 function onMouseMovePan(e) {
-  if (isPanning) {
-    const dx = e.clientX - lastPanX;
-    const dy = e.clientY - lastPanY;
-    viewOffsetX -= dx / viewZoom;
-    viewOffsetY -= dy / viewZoom;
-    lastPanX = e.clientX;
-    lastPanY = e.clientY;
-    drawMap(mapData);
-    // Hide tooltip while panning and clear any pending timer
-    clearTimeout(tooltipTimer);
-    tooltipTimer = null;
-    hideCastleTooltip();
-    // While panning, cursor stays grabbing
-    canvas.style.cursor = 'grabbing';
-  } else if (!draggingCastle && !draggingBear && !draggingBanner) {
-    // Detect hover over castles when not dragging or panning
-    const rect = canvas.getBoundingClientRect();
-    const mouseCanvasX = e.clientX - rect.left;
-    const mouseCanvasY = e.clientY - rect.top;
-    const { x, y } = screenToGrid(mouseCanvasX, mouseCanvasY);
+    if (isPanning) {
+        const dx = e.clientX - lastPanX;
+        const dy = e.clientY - lastPanY;
+        viewOffsetX -= dx / viewZoom;
+        viewOffsetY -= dy / viewZoom;
+        lastPanX = e.clientX;
+        lastPanY = e.clientY;
+        drawMap(mapData);
+        // Hide tooltip while panning and clear any pending timer
+        clearTimeout(tooltipTimer);
+        tooltipTimer = null;
+        hideCastleTooltip();
+        // While panning, cursor stays grabbing
+        canvas.style.cursor = 'grabbing';
+    } else if (!draggingCastle && !draggingBear && !draggingBanner) {
+        // Detect hover over castles when not dragging or panning
+        const rect = canvas.getBoundingClientRect();
+        const mouseCanvasX = e.clientX - rect.left;
+        const mouseCanvasY = e.clientY - rect.top;
+        const {x, y} = screenToGrid(mouseCanvasX, mouseCanvasY);
 
-    let hoveredEntity = null;
+        let hoveredEntity = null;
 
-    // Check castles
-    for (let castle of mapData?.castles || []) {
-      if (castle.x == null || castle.y == null) continue;
-      if (isPointInEntity(x, y, castle)) {
-        hoveredEntity = { type: 'castle', entity: castle };
-        break;
-      }
-    }
-
-    // Check bears if nothing yet
-    if (!hoveredEntity) {
-      for (let bear of mapData?.bear_traps || []) {
-        if (bear.x == null || bear.y == null) continue;
-        if (isPointInEntity(x, y, bear)) {
-          hoveredEntity = { type: 'bear', entity: bear };
-          break;
+        // Check castles
+        for (let castle of mapData?.castles || []) {
+            if (castle.x == null || castle.y == null) continue;
+            if (isPointInEntity(x, y, castle)) {
+                hoveredEntity = {type: 'castle', entity: castle};
+                break;
+            }
         }
-      }
-    }
 
-    // Check banners if still nothing
-    if (!hoveredEntity) {
-      for (let banner of mapData?.banners || []) {
-        if (banner.x == null || banner.y == null) continue;
-        if (isPointInEntity(x, y, banner)) {
-          hoveredEntity = { type: 'banner', entity: banner };
-          break;
+        // Check bears if nothing yet
+        if (!hoveredEntity) {
+            for (let bear of mapData?.bear_traps || []) {
+                if (bear.x == null || bear.y == null) continue;
+                if (isPointInEntity(x, y, bear)) {
+                    hoveredEntity = {type: 'bear', entity: bear};
+                    break;
+                }
+            }
         }
-      }
-    }
 
-    // Update cursor based on hover state
-    if (hoveredEntity) {
-      const ent = hoveredEntity.entity;
-      const isLocked = !!ent.locked;
-      const isBusy = window.remoteBusy?.has(ent.id);
-      if (isLocked || isBusy) {
-        canvas.style.cursor = 'not-allowed';
-      } else {
-        // Castles show a grab cursor; other entities get a pointer
-        if (hoveredEntity.type === 'castle') {
-          canvas.style.cursor = 'grab';
+        // Check banners if still nothing
+        if (!hoveredEntity) {
+            for (let banner of mapData?.banners || []) {
+                if (banner.x == null || banner.y == null) continue;
+                if (isPointInEntity(x, y, banner)) {
+                    hoveredEntity = {type: 'banner', entity: banner};
+                    break;
+                }
+            }
+        }
+
+        // Update cursor based on hover state
+        if (hoveredEntity) {
+            const ent = hoveredEntity.entity;
+            const isLocked = !!ent.locked;
+            const isBusy = window.remoteBusy?.has(ent.id);
+            if (isLocked || isBusy) {
+                canvas.style.cursor = 'not-allowed';
+            } else {
+                // Castles show a grab cursor; other entities get a pointer
+                if (hoveredEntity.type === 'castle') {
+                    canvas.style.cursor = 'grab';
+                } else {
+                    canvas.style.cursor = 'pointer';
+                }
+            }
         } else {
-          canvas.style.cursor = 'pointer';
+            canvas.style.cursor = 'default';
         }
-      }
-    } else {
-      canvas.style.cursor = 'default';
-    }
 
-    // Existing tooltip handling for castles
-    let hoveredCastle = hoveredEntity?.type === 'castle' ? hoveredEntity.entity : null;
-    if (hoveredCastle) {
-      const isTooltipVisible = tooltipElement && tooltipElement.classList.contains("visible");
-      if (hoveredCastleOnCanvas !== hoveredCastle) {
-        clearTimeout(tooltipTimer);
-        tooltipTimer = null;
-        hoveredCastleOnCanvas = hoveredCastle;
-        hideCastleTooltip();
-        tooltipTimer = setTimeout(() => {
-          showCastleTooltip(hoveredCastle, e.clientX, e.clientY);
-          tooltipTimer = null;
-        }, TOOLTIP_DELAY_MS);
-      } else if (isTooltipVisible) {
-        showCastleTooltip(hoveredCastle, e.clientX, e.clientY);
-      }
+        // Existing tooltip handling for castles
+        let hoveredCastle = hoveredEntity?.type === 'castle' ? hoveredEntity.entity : null;
+        if (hoveredCastle) {
+            const isTooltipVisible = tooltipElement && tooltipElement.classList.contains("visible");
+            if (hoveredCastleOnCanvas !== hoveredCastle) {
+                clearTimeout(tooltipTimer);
+                tooltipTimer = null;
+                hoveredCastleOnCanvas = hoveredCastle;
+                hideCastleTooltip();
+                tooltipTimer = setTimeout(() => {
+                    showCastleTooltip(hoveredCastle, e.clientX, e.clientY);
+                    tooltipTimer = null;
+                }, TOOLTIP_DELAY_MS);
+            } else if (isTooltipVisible) {
+                showCastleTooltip(hoveredCastle, e.clientX, e.clientY);
+            }
+        } else {
+            if (hoveredCastleOnCanvas) {
+                hoveredCastleOnCanvas = null;
+                clearTimeout(tooltipTimer);
+                tooltipTimer = null;
+                hideCastleTooltip();
+            }
+        }
     } else {
-      if (hoveredCastleOnCanvas) {
-        hoveredCastleOnCanvas = null;
+        // Hide tooltip while dragging and clear any pending timer
         clearTimeout(tooltipTimer);
         tooltipTimer = null;
         hideCastleTooltip();
-      }
     }
-  } else {
-    // Hide tooltip while dragging and clear any pending timer
-    clearTimeout(tooltipTimer);
-    tooltipTimer = null;
-    hideCastleTooltip();
-  }
 }
 
 function onMouseUpPan(e) {
-  if (isPanning) {
-    isPanning = false;
-    canvas.style.cursor = 'default';
-  }
+    if (isPanning) {
+        isPanning = false;
+        canvas.style.cursor = 'default';
+    }
 }
 
 // Resize on window change
 function onResize() {
-  drawMap(mapData);
+    drawMap(mapData);
 }
 
 // Update existing listeners
 
 // Delete Modal Events
 document.getElementById("deleteReason").addEventListener("change", (e) => {
-  const otherInput = document.getElementById("deleteOther");
-  if (e.target.value === "Other") {
-    otherInput.style.display = "block";
-  } else {
-    otherInput.style.display = "none";
-    otherInput.value = "";
-  }
+    const otherInput = document.getElementById("deleteOther");
+    if (e.target.value === "Other") {
+        otherInput.style.display = "block";
+    } else {
+        otherInput.style.display = "none";
+        otherInput.value = "";
+    }
 });
 
 document.getElementById("confirmDelete").addEventListener("click", async () => {
-  const modal = document.getElementById("deleteModal");
-  const castleId = modal.dataset.castleId;
-  const reasonSelect = document.getElementById("deleteReason").value;
-  let reason = reasonSelect;
-  if (reasonSelect === "Other") {
-    reason = document.getElementById("deleteOther").value.trim();
-    if (!reason) {
-      alert("Please provide an explanation for 'Other'.");
-      return;
+    const modal = document.getElementById("deleteModal");
+    const castleId = modal.dataset.castleId;
+    const reasonSelect = document.getElementById("deleteReason").value;
+    let reason = reasonSelect;
+    if (reasonSelect === "Other") {
+        reason = document.getElementById("deleteOther").value.trim();
+        if (!reason) {
+            alert("Please provide an explanation for 'Other'.");
+            return;
+        }
     }
-  }
-  if (!reason) {
-    alert("Please select or enter a reason.");
-    return;
-  }
+    if (!reason) {
+        alert("Please select or enter a reason.");
+        return;
+    }
 
-  modal.classList.remove("visible");
-  setTimeout(() => {
-    modal.style.display = "none";
-  }, 200);
-  
-  try {
-    await fetch("/api/castles/delete", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ id: castleId, reason })
-    });
-    // SSE will update
-  } catch (error) {
-    alert("Failed to delete castle: " + error.message);
-  }
+    modal.classList.remove("visible");
+    setTimeout(() => {
+        modal.style.display = "none";
+    }, 200);
+
+    try {
+        await fetch("/api/castles/delete", {
+            method: "POST",
+            headers: {"Content-Type": "application/json"},
+            body: JSON.stringify({id: castleId, reason})
+        });
+        // SSE will update
+    } catch (error) {
+        alert("Failed to delete castle: " + error.message);
+    }
 });
 
 document.getElementById("cancelDelete").addEventListener("click", () => {
-  const modal = document.getElementById("deleteModal");
-  modal.classList.remove("visible");
-  setTimeout(() => {
-    modal.style.display = "none";
-  }, 200);
+    const modal = document.getElementById("deleteModal");
+    modal.classList.remove("visible");
+    setTimeout(() => {
+        modal.style.display = "none";
+    }, 200);
 });
-canvas.addEventListener("wheel", onWheel, { passive: false });
+canvas.addEventListener("wheel", onWheel, {passive: false});
 canvas.addEventListener("mousedown", onMouseDownPan);
 canvas.addEventListener("mousemove", onMouseMovePan);
 canvas.addEventListener("mouseup", onMouseUpPan);
 canvas.addEventListener("mouseleave", () => {
-  hoveredCastleOnCanvas = null;
-  clearTimeout(tooltipTimer);
-  tooltipTimer = null;
-  hideCastleTooltip();
+    hoveredCastleOnCanvas = null;
+    clearTimeout(tooltipTimer);
+    tooltipTimer = null;
+    hideCastleTooltip();
 });
 window.addEventListener("resize", onResize);
 document
@@ -2290,8 +2295,8 @@ document
         try {
             const response = await fetch('/api/send_map_to_discord', {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ channel: 'r4', message: 'Please review updated map' })
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({channel: 'r4', message: 'Please review updated map'})
             });
             if (!response.ok) throw new Error('Send failed');
             showToast('Map sent to R4 on Discord! ✅', 'success');
@@ -2307,8 +2312,11 @@ document
         try {
             const response = await fetch('/api/send_map_to_discord', {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ channel: 'announcements', message: 'New map available! Please carefully review the updated positions and make your way to your designated location when able.' })
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({
+                    channel: 'announcements',
+                    message: 'New map available! Please carefully review the updated positions and make your way to your designated location when able.'
+                })
             });
             if (!response.ok) throw new Error('Send failed');
             showToast('Map published to Announcements! ✅', 'success');
@@ -2324,41 +2332,41 @@ const cancelPublishBtn = document.getElementById('cancelPublish');
 const confirmPublishBtn = document.getElementById('confirmPublish');
 
 function openPublishModal() {
-  if (publishModal) publishModal.style.display = 'block';
+    if (publishModal) publishModal.style.display = 'block';
 }
 
 function closePublishModal() {
-  if (publishModal) publishModal.style.display = 'none';
+    if (publishModal) publishModal.style.display = 'none';
 }
 
 cancelPublishBtn?.addEventListener('click', () => {
-  closePublishModal();
+    closePublishModal();
 });
 
 confirmPublishBtn?.addEventListener('click', async () => {
-  closePublishModal();
-  try {
-    const response = await fetch('/api/send_map_to_discord', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        channel: 'announcements',
-        message: 'New map available! Please carefully review the updated positions and make your way to your designated location when able.'
-      }),
-    });
-    if (!response.ok) throw new Error('Send failed');
-    showToast('Map published to Announcements! ✅', 'success');
-  } catch (error) {
-    console.error('Error publishing map to Discord:', error);
-    showToast('Failed to publish map to Discord', 'error');
-  }
+    closePublishModal();
+    try {
+        const response = await fetch('/api/send_map_to_discord', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({
+                channel: 'announcements',
+                message: 'New map available! Please carefully review the updated positions and make your way to your designated location when able.'
+            }),
+        });
+        if (!response.ok) throw new Error('Send failed');
+        showToast('Map published to Announcements! ✅', 'success');
+    } catch (error) {
+        console.error('Error publishing map to Discord:', error);
+        showToast('Failed to publish map to Discord', 'error');
+    }
 });
 
 // Override publish button to open confirmation modal
 const publishBtn = document.getElementById('sendToAnnouncementsBtn');
 publishBtn?.addEventListener('click', (e) => {
-  e.preventDefault();
-  openPublishModal();
+    e.preventDefault();
+    openPublishModal();
 });
 
 // ==========================
@@ -2373,61 +2381,61 @@ let pendingBulkOperation = null;
  * @param {string} message - Modal message
  */
 function showBulkOperationModal(operationType, title, message) {
-  pendingBulkOperation = operationType;
-  document.getElementById('bulkOperationTitle').textContent = title;
-  document.getElementById('bulkOperationMessage').textContent = message;
-  document.getElementById('bulkOperationModal').style.display = 'block';
+    pendingBulkOperation = operationType;
+    document.getElementById('bulkOperationTitle').textContent = title;
+    document.getElementById('bulkOperationMessage').textContent = message;
+    document.getElementById('bulkOperationModal').style.display = 'block';
 }
 
 /**
  * Close bulk operation modal and reset pending operation
  */
 function closeBulkOperationModal() {
-  document.getElementById('bulkOperationModal').style.display = 'none';
-  pendingBulkOperation = null;
+    document.getElementById('bulkOperationModal').style.display = 'none';
+    pendingBulkOperation = null;
 }
 
 // Modal button event listeners
 document.getElementById('cancelBulkOperation')?.addEventListener('click', closeBulkOperationModal);
 
 document.getElementById('confirmBulkOperation')?.addEventListener('click', async () => {
-  // Save the operation type before closing modal (which clears pendingBulkOperation)
-  const operationType = pendingBulkOperation;
-  closeBulkOperationModal();
+    // Save the operation type before closing modal (which clears pendingBulkOperation)
+    const operationType = pendingBulkOperation;
+    closeBulkOperationModal();
 
-  try {
-    if (operationType === 'autoplace') {
-      showToast('Auto-placing castles... 🚀', 'info');
-      const response = await fetch('/api/auto_place_castles', { method: 'POST' });
-      if (!response.ok) throw new Error('Auto-place failed');
-      showToast('Castles placed successfully! ✅', 'success');
-    } else if (operationType === 'moveaway') {
-      showToast('Moving castles out of the way... 🚀', 'info');
-      const response = await fetch('/api/move_all_out_of_way', { method: 'POST' });
-      if (!response.ok) throw new Error('Move all out of way failed');
-      showToast('Castles moved successfully! ✅', 'success');
+    try {
+        if (operationType === 'autoplace') {
+            showToast('Auto-placing castles... 🚀', 'info');
+            const response = await fetch('/api/auto_place_castles', {method: 'POST'});
+            if (!response.ok) throw new Error('Auto-place failed');
+            showToast('Castles placed successfully! ✅', 'success');
+        } else if (operationType === 'moveaway') {
+            showToast('Moving castles out of the way... 🚀', 'info');
+            const response = await fetch('/api/move_all_out_of_way', {method: 'POST'});
+            if (!response.ok) throw new Error('Move all out of way failed');
+            showToast('Castles moved successfully! ✅', 'success');
+        }
+    } catch (error) {
+        console.error('Error performing bulk operation:', error);
+        showToast('Operation failed: ' + error.message, 'error');
     }
-  } catch (error) {
-    console.error('Error performing bulk operation:', error);
-    showToast('Operation failed: ' + error.message, 'error');
-  }
 });
 
 document.getElementById("autoPlaceBtn")
     ?.addEventListener("click", async () => {
         showBulkOperationModal(
-          'autoplace',
-          'Auto-Place Castles',
-          'This will automatically place all unlocked castles in optimal positions based on priority and efficiency.'
+            'autoplace',
+            'Auto-Place Castles',
+            'This will automatically place all unlocked castles in optimal positions based on priority and efficiency.'
         );
     });
 
 document.getElementById("moveAllOutOfWayBtn")
     ?.addEventListener("click", async () => {
         showBulkOperationModal(
-          'moveaway',
-          'Move All Out of Way',
-          'This will move all unlocked castles to the edge of the map to clear space for other placements.'
+            'moveaway',
+            'Move All Out of Way',
+            'This will move all unlocked castles to the edge of the map to clear space for other placements.'
         );
     });
 
@@ -2466,90 +2474,90 @@ document
 // Sync → App hooks
 // ==========================
 window.applyRemoteUpdate = function (update) {
-  if (!mapData || !update?.id) return;
+    if (!mapData || !update?.id) return;
 
-  // 1️⃣ Try castles first
-  let entity = mapData.castles?.find(c => c.id === update.id);
-  let isCastle = !!entity;
-  
-  // 2️⃣ Then bears
-  if (!entity) {
-    entity = mapData.bear_traps?.find(b => b.id === update.id);
-  }
-  
-  //  // 3️⃣ Try banners
-  if (!entity) {
-    entity = mapData.banners?.find(b => b.id === update.id);
-  }
+    // 1️⃣ Try castles first
+    let entity = mapData.castles?.find(c => c.id === update.id);
+    let isCastle = !!entity;
 
-  // 4️⃣ Unknown entity → ignore safely
-  if (!entity) return;
+    // 2️⃣ Then bears
+    if (!entity) {
+        entity = mapData.bear_traps?.find(b => b.id === update.id);
+    }
 
-  // 5️⃣ Check for position changes and start animation
-  const hasPositionChange = 
-    update.x != null && update.y != null &&
-    (entity.x != null && entity.y != null) &&
-    (update.x !== entity.x || update.y !== entity.y);
-  
-  if (hasPositionChange) {
-    startAnimation(entity.id, entity.x, entity.y, update.x, update.y);
-  }
+    //  // 3️⃣ Try banners
+    if (!entity) {
+        entity = mapData.banners?.find(b => b.id === update.id);
+    }
 
-  // 6️⃣ Apply update (efficiency comes from server)
-  Object.assign(entity, update);
+    // 4️⃣ Unknown entity → ignore safely
+    if (!entity) return;
 
-  // 7️⃣ Redraw (no local recompute)
-  drawMap(mapData);
-  renderCastleTable?.();
+    // 5️⃣ Check for position changes and start animation
+    const hasPositionChange =
+        update.x != null && update.y != null &&
+        (entity.x != null && entity.y != null) &&
+        (update.x !== entity.x || update.y !== entity.y);
+
+    if (hasPositionChange) {
+        startAnimation(entity.id, entity.x, entity.y, update.x, update.y);
+    }
+
+    // 6️⃣ Apply update (efficiency comes from server)
+    Object.assign(entity, update);
+
+    // 7️⃣ Redraw (no local recompute)
+    drawMap(mapData);
+    renderCastleTable?.();
 };
 
 
 function applyStateToEntities(localList, remoteMap) {
-  if (!localList || !remoteMap) return;
+    if (!localList || !remoteMap) return;
 
-  localList.forEach(entity => {
-    const remote = remoteMap[entity.id];
-    if (remote) {
-      Object.assign(entity, remote);
-    }
-  });
+    localList.forEach(entity => {
+        const remote = remoteMap[entity.id];
+        if (remote) {
+            Object.assign(entity, remote);
+        }
+    });
 }
 
 
 window.loadFullState = function (state) {
-  if (!mapData || !state) return;
+    if (!mapData || !state) return;
 
-  // ---- CASTLES ----
-  if (state.castles) {
-    mapData.castles.forEach(c => {
-      const remote = state.castles[c.id];
-      if (remote) Object.assign(c, remote);
-    });
-  }
+    // ---- CASTLES ----
+    if (state.castles) {
+        mapData.castles.forEach(c => {
+            const remote = state.castles[c.id];
+            if (remote) Object.assign(c, remote);
+        });
+    }
 
-  // ---- BEARS ----
-  if (state.bears) {
-    mapData.bear_traps.forEach(b => {
-      const remote = state.bears[b.id];
-      if (remote) Object.assign(b, remote);
-    });
-  }
+    // ---- BEARS ----
+    if (state.bears) {
+        mapData.bear_traps.forEach(b => {
+            const remote = state.bears[b.id];
+            if (remote) Object.assign(b, remote);
+        });
+    }
 
-  drawMap(mapData);
-  renderCastleTable?.();
+    drawMap(mapData);
+    renderCastleTable?.();
 };
 
 const searchInput = document.getElementById("castleSearch");
 
 if (searchInput) {
-  const debouncedRender = debounce(() => {
-    renderCastleTable();
-  }, 300);
-  searchInput.addEventListener("input", debouncedRender);
+    const debouncedRender = debounce(() => {
+        renderCastleTable();
+    }, 300);
+    searchInput.addEventListener("input", debouncedRender);
 }
 
 document.getElementById("howToBtn").addEventListener("click", () => {
-  alert(`
+    alert(`
 BEAR PLANNER — HOW TO USE
 
 PLACEMENT
@@ -2592,137 +2600,137 @@ TIP
  * Open the Add Castle modal
  */
 function openAddCastleModal() {
-  // Clear previous inputs
-  document.getElementById('addCastleName').value = '';
-  document.getElementById('addCastlePower').value = '';
-  document.getElementById('addCastleLevel').value = '25';
-  document.getElementById('addCastlePreference').value = 'Both';
+    // Clear previous inputs
+    document.getElementById('addCastleName').value = '';
+    document.getElementById('addCastlePower').value = '';
+    document.getElementById('addCastleLevel').value = '25';
+    document.getElementById('addCastlePreference').value = 'Both';
 
-  // Show modal
-  document.getElementById('addCastleModal').style.display = 'block';
+    // Show modal
+    document.getElementById('addCastleModal').style.display = 'block';
 
-  // Focus on name input
-  document.getElementById('addCastleName').focus();
+    // Focus on name input
+    document.getElementById('addCastleName').focus();
 }
 
 /**
  * Close the Add Castle modal
  */
 function closeAddCastleModal() {
-  document.getElementById('addCastleModal').style.display = 'none';
+    document.getElementById('addCastleModal').style.display = 'none';
 }
 
 /**
  * Submit the Add Castle form
  */
 async function submitAddCastle() {
-  const playerName = document.getElementById('addCastleName').value.trim();
-  const powerStr = document.getElementById('addCastlePower').value.trim();
-  const levelStr = document.getElementById('addCastleLevel').value;
-  const preference = document.getElementById('addCastlePreference').value;
-
-  // Validate inputs
-  if (!playerName) {
-    showToast('Player name is required', 'error');
-    return;
-  }
-
-  if (!powerStr) {
-    showToast('Power is required', 'error');
-    return;
-  }
-
-  try {
-    // Parse power (handle M/K suffix)
-    let power = 0;
-    const powerTrimmed = powerStr.toUpperCase();
-    if (powerTrimmed.endsWith('M')) {
-      power = Math.floor(parseFloat(powerTrimmed) * 1000000);
-    } else if (powerTrimmed.endsWith('K')) {
-      power = Math.floor(parseFloat(powerTrimmed) * 1000);
-    } else {
-      power = parseInt(powerTrimmed);
-    }
-
-    const level = parseInt(levelStr);
+    const playerName = document.getElementById('addCastleName').value.trim();
+    const powerStr = document.getElementById('addCastlePower').value.trim();
+    const levelStr = document.getElementById('addCastleLevel').value;
+    const preference = document.getElementById('addCastlePreference').value;
 
     // Validate inputs
-    if (isNaN(power) || power < 0) {
-      showToast('Invalid power value', 'error');
-      return;
-    }
-    if (isNaN(level) || level < 1 || level > 50) {
-      showToast('Invalid level (must be 1-50)', 'error');
-      return;
+    if (!playerName) {
+        showToast('Player name is required', 'error');
+        return;
     }
 
-    // Call API to create castle
-    const response = await fetch('/api/castles', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        player: playerName,
-        power: power,
-        player_level: level,
-        preference: preference
-      })
-    });
-
-    if (!response.ok) {
-      throw new Error('Failed to create castle');
+    if (!powerStr) {
+        showToast('Power is required', 'error');
+        return;
     }
 
-    const result = await response.json();
-    showToast(`Castle added for ${playerName}! ✅`, 'success');
+    try {
+        // Parse power (handle M/K suffix)
+        let power = 0;
+        const powerTrimmed = powerStr.toUpperCase();
+        if (powerTrimmed.endsWith('M')) {
+            power = Math.floor(parseFloat(powerTrimmed) * 1000000);
+        } else if (powerTrimmed.endsWith('K')) {
+            power = Math.floor(parseFloat(powerTrimmed) * 1000);
+        } else {
+            power = parseInt(powerTrimmed);
+        }
 
-    // Close modal
-    closeAddCastleModal();
+        const level = parseInt(levelStr);
 
-    // Reload map data to show new castle
-    await loadMapData();
-    renderCastleTable();
+        // Validate inputs
+        if (isNaN(power) || power < 0) {
+            showToast('Invalid power value', 'error');
+            return;
+        }
+        if (isNaN(level) || level < 1 || level > 50) {
+            showToast('Invalid level (must be 1-50)', 'error');
+            return;
+        }
 
-  } catch (error) {
-    console.error('Error adding castle:', error);
-    showToast('Failed to add castle', 'error');
-  }
+        // Call API to create castle
+        const response = await fetch('/api/castles', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({
+                player: playerName,
+                power: power,
+                player_level: level,
+                preference: preference
+            })
+        });
+
+        if (!response.ok) {
+            throw new Error('Failed to create castle');
+        }
+
+        const result = await response.json();
+        showToast(`Castle added for ${playerName}! ✅`, 'success');
+
+        // Close modal
+        closeAddCastleModal();
+
+        // Reload map data to show new castle
+        await loadMapData();
+        renderCastleTable();
+
+    } catch (error) {
+        console.error('Error adding castle:', error);
+        showToast('Failed to add castle', 'error');
+    }
 }
 
 // Add Castle button - open modal
 document.getElementById("addCastleBtn")?.addEventListener("click", () => {
-  openAddCastleModal();
+    openAddCastleModal();
 });
 
 // Cancel button - close modal
 document.getElementById("cancelAddCastle")?.addEventListener("click", () => {
-  closeAddCastleModal();
+    closeAddCastleModal();
 });
 
 // Confirm button - submit form
 document.getElementById("confirmAddCastle")?.addEventListener("click", async () => {
-  await submitAddCastle();
+    await submitAddCastle();
 });
 
 // Enter key support in modal inputs
 document.getElementById("addCastleName")?.addEventListener("keypress", (e) => {
-  if (e.key === 'Enter') {
-    e.preventDefault();
-    document.getElementById('addCastlePower').focus();
-  }
+    if (e.key === 'Enter') {
+        e.preventDefault();
+        document.getElementById('addCastlePower').focus();
+    }
 });
 
 document.getElementById("addCastlePower")?.addEventListener("keypress", (e) => {
-  if (e.key === 'Enter') {
-    e.preventDefault();
-    document.getElementById('addCastleLevel').focus();
-  }
+    if (e.key === 'Enter') {
+        e.preventDefault();
+        document.getElementById('addCastleLevel').focus();
+    }
 });
 
 document.getElementById("addCastleLevel")?.addEventListener("keypress", async (e) => {
-  if (e.key === 'Enter') {
-    e.preventDefault();
-    await submitAddCastle();
-  }
+    if (e.key === 'Enter') {
+        e.preventDefault();
+        await submitAddCastle();
+    }
 });
 
 document.getElementById("castleLimit").addEventListener("change", renderCastleTable);
@@ -2733,20 +2741,20 @@ document.getElementById("castleLimit").addEventListener("change", renderCastleTa
 // Load grid preference from localStorage
 const savedGridPreference = localStorage.getItem('showGrid');
 if (savedGridPreference !== null) {
-  showGrid = savedGridPreference === 'true';
+    showGrid = savedGridPreference === 'true';
 }
 
 // Update checkbox state to match loaded preference
 const gridToggleCheckbox = document.getElementById('gridToggle');
 if (gridToggleCheckbox) {
-  gridToggleCheckbox.checked = showGrid;
+    gridToggleCheckbox.checked = showGrid;
 
-  // Add event listener for grid toggle
-  gridToggleCheckbox.addEventListener('change', (e) => {
-    showGrid = e.target.checked;
-    localStorage.setItem('showGrid', showGrid);
-    drawMap(mapData);
-  });
+    // Add event listener for grid toggle
+    gridToggleCheckbox.addEventListener('change', (e) => {
+        showGrid = e.target.checked;
+        localStorage.setItem('showGrid', showGrid);
+        drawMap(mapData);
+    });
 }
 
 // document
@@ -2761,193 +2769,193 @@ if (gridToggleCheckbox) {
 // Lock All / Unlock All
 // ==========================
 document.getElementById("lockAllBtn").addEventListener("click", async () => {
-  try {
-    const response = await fetch('/api/intent/lock_all_placed', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' }
-    });
-    if (!response.ok) {
-      throw new Error(`Failed to lock castles: ${response.statusText}`);
+    try {
+        const response = await fetch('/api/intent/lock_all_placed', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'}
+        });
+        if (!response.ok) {
+            throw new Error(`Failed to lock castles: ${response.statusText}`);
+        }
+        const result = await response.json();
+        showToast(`Locked ${result.locked_count} placed castle(s)`, 'success');
+    } catch (error) {
+        console.error('Error locking castles:', error);
+        showToast('Failed to lock castles. See console for details.', 'error');
     }
-    const result = await response.json();
-    showToast(`Locked ${result.locked_count} placed castle(s)`, 'success');
-  } catch (error) {
-    console.error('Error locking castles:', error);
-    showToast('Failed to lock castles. See console for details.', 'error');
-  }
 });
 
 document.getElementById("unlockAllBtn").addEventListener("click", async () => {
-  try {
-    const response = await fetch('/api/intent/unlock_all', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' }
-    });
-    if (!response.ok) {
-      throw new Error(`Failed to unlock castles: ${response.statusText}`);
+    try {
+        const response = await fetch('/api/intent/unlock_all', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'}
+        });
+        if (!response.ok) {
+            throw new Error(`Failed to unlock castles: ${response.statusText}`);
+        }
+        const result = await response.json();
+        // Inform user
+        showToast(`Unlocked ${result.unlocked_castles} castle(s)`, 'success');
+    } catch (error) {
+        console.error('Error unlocking castles:', error);
+        showToast('Failed to unlock castles. See console for details.', 'error');
     }
-    const result = await response.json();
-    // Inform user
-    showToast(`Unlocked ${result.unlocked_castles} castle(s)`, 'success');
-  } catch (error) {
-    console.error('Error unlocking castles:', error);
-    showToast('Failed to unlock castles. See console for details.', 'error');
-  }
 });
 
 // ==========================
 // Version Display
 // ==========================
 async function fetchAndDisplayVersion() {
-  try {
-    const response = await fetch('/api/version');
-    const data = await response.json();
-    const versionElement = document.getElementById('appVersion');
-    if (versionElement && data.version) {
-      versionElement.textContent = `v${data.version}`;
+    try {
+        const response = await fetch('/api/version');
+        const data = await response.json();
+        const versionElement = document.getElementById('appVersion');
+        if (versionElement && data.version) {
+            versionElement.textContent = `v${data.version}`;
+        }
+    } catch (error) {
+        console.error('Failed to fetch version:', error);
+        const versionElement = document.getElementById('appVersion');
+        if (versionElement) {
+            versionElement.textContent = 'Version unavailable';
+        }
     }
-  } catch (error) {
-    console.error('Failed to fetch version:', error);
-    const versionElement = document.getElementById('appVersion');
-    if (versionElement) {
-      versionElement.textContent = 'Version unavailable';
-    }
-  }
 }
 
 // ==========================
 // Bulk Operations
 // ==========================
 function updateBulkSelectionUI() {
-  const toolbar = document.getElementById('bulkOpsToolbar');
-  const count = document.getElementById('bulkSelectionCount');
-  const selectAllCheckbox = document.getElementById('selectAllCheckbox');
+    const toolbar = document.getElementById('bulkOpsToolbar');
+    const count = document.getElementById('bulkSelectionCount');
+    const selectAllCheckbox = document.getElementById('selectAllCheckbox');
 
-  if (selectedCastleIds.size > 0) {
-    toolbar.style.display = 'flex';
-    count.textContent = `${selectedCastleIds.size} selected`;
-  } else {
-    toolbar.style.display = 'none';
-  }
+    if (selectedCastleIds.size > 0) {
+        toolbar.style.display = 'flex';
+        count.textContent = `${selectedCastleIds.size} selected`;
+    } else {
+        toolbar.style.display = 'none';
+    }
 
-  // Update select all checkbox state
-  if (selectAllCheckbox) {
-    const visibleCheckboxes = document.querySelectorAll('#castleTableBody input[type="checkbox"]');
-    const checkedCount = Array.from(visibleCheckboxes).filter(cb => cb.checked).length;
-    selectAllCheckbox.checked = visibleCheckboxes.length > 0 && checkedCount === visibleCheckboxes.length;
-    selectAllCheckbox.indeterminate = checkedCount > 0 && checkedCount < visibleCheckboxes.length;
-  }
+    // Update select all checkbox state
+    if (selectAllCheckbox) {
+        const visibleCheckboxes = document.querySelectorAll('#castleTableBody input[type="checkbox"]');
+        const checkedCount = Array.from(visibleCheckboxes).filter(cb => cb.checked).length;
+        selectAllCheckbox.checked = visibleCheckboxes.length > 0 && checkedCount === visibleCheckboxes.length;
+        selectAllCheckbox.indeterminate = checkedCount > 0 && checkedCount < visibleCheckboxes.length;
+    }
 }
 
 function toggleCastleSelection(castleId, checked) {
-  if (checked) {
-    selectedCastleIds.add(castleId);
-  } else {
-    selectedCastleIds.delete(castleId);
-  }
-  updateBulkSelectionUI();
+    if (checked) {
+        selectedCastleIds.add(castleId);
+    } else {
+        selectedCastleIds.delete(castleId);
+    }
+    updateBulkSelectionUI();
 }
 
 function toggleSelectAll() {
-  const selectAllCheckbox = document.getElementById('selectAllCheckbox');
-  const checkboxes = document.querySelectorAll('#castleTableBody input[type="checkbox"]');
-  
-  checkboxes.forEach(cb => {
-    cb.checked = selectAllCheckbox.checked;
-    const castleId = cb.dataset.castleId;
-    if (selectAllCheckbox.checked) {
-      selectedCastleIds.add(castleId);
-    } else {
-      selectedCastleIds.delete(castleId);
-    }
-  });
-  
-  updateBulkSelectionUI();
+    const selectAllCheckbox = document.getElementById('selectAllCheckbox');
+    const checkboxes = document.querySelectorAll('#castleTableBody input[type="checkbox"]');
+
+    checkboxes.forEach(cb => {
+        cb.checked = selectAllCheckbox.checked;
+        const castleId = cb.dataset.castleId;
+        if (selectAllCheckbox.checked) {
+            selectedCastleIds.add(castleId);
+        } else {
+            selectedCastleIds.delete(castleId);
+        }
+    });
+
+    updateBulkSelectionUI();
 }
 
 function clearSelection() {
-  selectedCastleIds.clear();
-  document.querySelectorAll('#castleTableBody input[type="checkbox"]').forEach(cb => {
-    cb.checked = false;
-  });
-  updateBulkSelectionUI();
+    selectedCastleIds.clear();
+    document.querySelectorAll('#castleTableBody input[type="checkbox"]').forEach(cb => {
+        cb.checked = false;
+    });
+    updateBulkSelectionUI();
 }
 
 async function applyBulkUpdate() {
-  if (selectedCastleIds.size === 0) {
-    alert('No castles selected');
-    return;
-  }
-
-  const field = document.getElementById('bulkField').value;
-  if (!field) {
-    alert('Please select a field to update');
-    return;
-  }
-
-  let value;
-  if (field === 'player_level' || field === 'command_centre_level') {
-    value = parseInt(document.getElementById('bulkLevelValue').value);
-    if (isNaN(value) || value < 0) {
-      alert('Please enter a valid level');
-      return;
-    }
-  } else if (field === 'preference') {
-    value = document.getElementById('bulkPreferenceValue').value;
-  } else if (field === 'locked') {
-    value = document.getElementById('bulkLockedValue').value === 'true';
-  }
-
-  try {
-    const response = await fetch('/api/castles/bulk_update', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        ids: Array.from(selectedCastleIds),
-        updates: { [field]: value }
-      })
-    });
-
-    const result = await response.json();
-
-    if (!response.ok) {
-      throw new Error(result.detail || 'Failed to update castles');
+    if (selectedCastleIds.size === 0) {
+        alert('No castles selected');
+        return;
     }
 
-    console.log('Bulk update successful:', result);
-    
-    // Clear selection after successful update
-    clearSelection();
-    
-    // Reset field selector
-    document.getElementById('bulkField').value = '';
-    updateBulkFieldVisibility();
-    
-    // Show success message
-    alert(`Successfully updated ${result.updated_count} castle(s)`);
-    
-  } catch (error) {
-    console.error('Bulk update failed:', error);
-    alert(`Failed to update castles: ${error.message}`);
-  }
+    const field = document.getElementById('bulkField').value;
+    if (!field) {
+        alert('Please select a field to update');
+        return;
+    }
+
+    let value;
+    if (field === 'player_level' || field === 'command_centre_level') {
+        value = parseInt(document.getElementById('bulkLevelValue').value);
+        if (isNaN(value) || value < 0) {
+            alert('Please enter a valid level');
+            return;
+        }
+    } else if (field === 'preference') {
+        value = document.getElementById('bulkPreferenceValue').value;
+    } else if (field === 'locked') {
+        value = document.getElementById('bulkLockedValue').value === 'true';
+    }
+
+    try {
+        const response = await fetch('/api/castles/bulk_update', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({
+                ids: Array.from(selectedCastleIds),
+                updates: {[field]: value}
+            })
+        });
+
+        const result = await response.json();
+
+        if (!response.ok) {
+            throw new Error(result.detail || 'Failed to update castles');
+        }
+
+        console.log('Bulk update successful:', result);
+
+        // Clear selection after successful update
+        clearSelection();
+
+        // Reset field selector
+        document.getElementById('bulkField').value = '';
+        updateBulkFieldVisibility();
+
+        // Show success message
+        alert(`Successfully updated ${result.updated_count} castle(s)`);
+
+    } catch (error) {
+        console.error('Bulk update failed:', error);
+        alert(`Failed to update castles: ${error.message}`);
+    }
 }
 
 function updateBulkFieldVisibility() {
-  const field = document.getElementById('bulkField').value;
-  
-  // Hide all value inputs
-  document.getElementById('bulkLevelValue').style.display = 'none';
-  document.getElementById('bulkPreferenceValue').style.display = 'none';
-  document.getElementById('bulkLockedValue').style.display = 'none';
-  
-  // Show relevant input based on field
-  if (field === 'player_level' || field === 'command_centre_level') {
-    document.getElementById('bulkLevelValue').style.display = 'inline-block';
-  } else if (field === 'preference') {
-    document.getElementById('bulkPreferenceValue').style.display = 'inline-block';
-  } else if (field === 'locked') {
-    document.getElementById('bulkLockedValue').style.display = 'inline-block';
-  }
+    const field = document.getElementById('bulkField').value;
+
+    // Hide all value inputs
+    document.getElementById('bulkLevelValue').style.display = 'none';
+    document.getElementById('bulkPreferenceValue').style.display = 'none';
+    document.getElementById('bulkLockedValue').style.display = 'none';
+
+    // Show relevant input based on field
+    if (field === 'player_level' || field === 'command_centre_level') {
+        document.getElementById('bulkLevelValue').style.display = 'inline-block';
+    } else if (field === 'preference') {
+        document.getElementById('bulkPreferenceValue').style.display = 'inline-block';
+    } else if (field === 'locked') {
+        document.getElementById('bulkLockedValue').style.display = 'inline-block';
+    }
 }
 
 // Set up bulk operations event listeners
@@ -2965,47 +2973,47 @@ window.Sync = Sync;
 // Map Score Display
 // ==========================
 function updateMapScoreDisplay() {
-  const display = document.getElementById('mapScoreDisplay');
-  if (!display || !mapData) return;
+    const display = document.getElementById('mapScoreDisplay');
+    if (!display || !mapData) return;
 
-  const score = mapData.map_score_900;
-  const percent = mapData.map_score_percent;
-  const empty = mapData.empty_score_100 ?? "—";
-  const avg = mapData.efficiency_avg ?? "—";
-  const avgRoundTrip = mapData.avg_round_trip ?? null;
-  const avgRallies = mapData.avg_rallies ?? "—";
+    const score = mapData.map_score_900;
+    const percent = mapData.map_score_percent;
+    const empty = mapData.empty_score_100 ?? "—";
+    const avg = mapData.efficiency_avg ?? "—";
+    const avgRoundTrip = mapData.avg_round_trip ?? null;
+    const avgRallies = mapData.avg_rallies ?? "—";
 
-  // Format round trip time as minutes and seconds
-  let roundTripDisplay = "—";
-  if (avgRoundTrip != null && avgRoundTrip > 0) {
-    const minutes = Math.floor(avgRoundTrip / 60);
-    const seconds = avgRoundTrip % 60;
-    roundTripDisplay = `${minutes}m ${seconds}s`;
-  }
+    // Format round trip time as minutes and seconds
+    let roundTripDisplay = "—";
+    if (avgRoundTrip != null && avgRoundTrip > 0) {
+        const minutes = Math.floor(avgRoundTrip / 60);
+        const seconds = avgRoundTrip % 60;
+        roundTripDisplay = `${minutes}m ${seconds}s`;
+    }
 
-  console.log(`Map Score: ${score} / 900 (${percent}%)<br>Empty Tiles: ${empty} / 100<br>Avg Efficiency: ${avg}`);
+    console.log(`Map Score: ${score} / 900 (${percent}%)<br>Empty Tiles: ${empty} / 100<br>Avg Efficiency: ${avg}`);
 
-  if (score != null && percent != null) {
-    display.innerHTML = `
+    if (score != null && percent != null) {
+        display.innerHTML = `
       Map Score: ${score} / 900 (${percent}%)<br>
       Tile Waste Efficiency: ${empty} / 100<br>
       Avg Efficiency Score: ${avg}<br>
       Avg Round Trip: ${roundTripDisplay}<br>
       Avg Rallies/Castle: ${avgRallies}
     `;
-    // Color
-    display.classList.remove('score-good', 'score-warn', 'score-bad');
-    if (percent >= 80) {
-      display.classList.add('score-good');
-    } else if (percent >= 60) {
-      display.classList.add('score-warn');
+        // Color
+        display.classList.remove('score-good', 'score-warn', 'score-bad');
+        if (percent >= 80) {
+            display.classList.add('score-good');
+        } else if (percent >= 60) {
+            display.classList.add('score-warn');
+        } else {
+            display.classList.add('score-bad');
+        }
     } else {
-      display.classList.add('score-bad');
+        display.innerHTML = 'Map Score: —';
+        display.classList.remove('score-good', 'score-warn', 'score-bad');
     }
-  } else {
-    display.innerHTML = 'Map Score: —';
-    display.classList.remove('score-good', 'score-warn', 'score-bad');
-  }
 }
 
 // ==========================
@@ -3014,37 +3022,37 @@ function updateMapScoreDisplay() {
 
 // CSV Download
 document.getElementById('downloadCsvBtn').addEventListener('click', () => {
-  window.open('/api/download_csv', '_blank');
+    window.open('/api/download_csv', '_blank');
 });
 
 // CSV Upload
 document.getElementById('uploadCsvBtn').addEventListener('click', () => {
-  document.getElementById('csvUpload').click();
+    document.getElementById('csvUpload').click();
 });
 
 document.getElementById('csvUpload').addEventListener('change', async (event) => {
-  const file = event.target.files[0];
-  if (!file) return;
+    const file = event.target.files[0];
+    if (!file) return;
 
-  const formData = new FormData();
-  formData.append('file', file);
+    const formData = new FormData();
+    formData.append('file', file);
 
-  try {
-    const response = await fetch('/api/upload_csv', {
-      method: 'POST',
-      body: formData
-    });
-    const result = await response.json();
-    if (result.success) {
-      showToast(result.message, 'success');
-      // Reload data
-      await loadMapData();
-    } else {
-      showToast('Upload failed', 'error');
+    try {
+        const response = await fetch('/api/upload_csv', {
+            method: 'POST',
+            body: formData
+        });
+        const result = await response.json();
+        if (result.success) {
+            showToast(result.message, 'success');
+            // Reload data
+            await loadMapData();
+        } else {
+            showToast('Upload failed', 'error');
+        }
+    } catch (error) {
+        showToast('Upload error', 'error');
     }
-  } catch (error) {
-    showToast('Upload error', 'error');
-  }
 });
 
 // ==========================
@@ -3063,310 +3071,310 @@ document.getElementById('csvUpload').addEventListener('change', async (event) =>
  * Each button only controls its own panel.
  */
 const PanelLayoutManager = {
-  STORAGE_KEY: 'layoutPanelState',
-  STATES: {
-    BOTH_OPEN: 'bothOpen',
-    MAP_COLLAPSED: 'mapCollapsed',
-    TABLE_COLLAPSED: 'tableCollapsed'
-  },
+    STORAGE_KEY: 'layoutPanelState',
+    STATES: {
+        BOTH_OPEN: 'bothOpen',
+        MAP_COLLAPSED: 'mapCollapsed',
+        TABLE_COLLAPSED: 'tableCollapsed'
+    },
 
-  currentState: 'bothOpen',
-  layoutRoot: null,
-  mapPanel: null,
-  tablePanel: null,
-  toggleMapBtn: null,
-  toggleTableBtn: null,
+    currentState: 'bothOpen',
+    layoutRoot: null,
+    mapPanel: null,
+    tablePanel: null,
+    toggleMapBtn: null,
+    toggleTableBtn: null,
 
-  /**
-   * Initialize the panel layout manager.
-   */
-  init() {
-    this.layoutRoot = document.getElementById('layoutRoot');
-    this.mapPanel = document.getElementById('mapPanel');
-    this.tablePanel = document.getElementById('tablePanel');
-    this.toggleMapBtn = document.getElementById('toggleMapBtn');
-    this.toggleTableBtn = document.getElementById('toggleTableBtn');
+    /**
+     * Initialize the panel layout manager.
+     */
+    init() {
+        this.layoutRoot = document.getElementById('layoutRoot');
+        this.mapPanel = document.getElementById('mapPanel');
+        this.tablePanel = document.getElementById('tablePanel');
+        this.toggleMapBtn = document.getElementById('toggleMapBtn');
+        this.toggleTableBtn = document.getElementById('toggleTableBtn');
 
-    if (!this.layoutRoot || !this.mapPanel || !this.tablePanel) {
-      console.warn('PanelLayoutManager: Required panel elements not found');
-      return;
-    }
+        if (!this.layoutRoot || !this.mapPanel || !this.tablePanel) {
+            console.warn('PanelLayoutManager: Required panel elements not found');
+            return;
+        }
 
-    if (!this.toggleMapBtn || !this.toggleTableBtn) {
-      console.warn('PanelLayoutManager: Toggle buttons not found');
-      return;
-    }
+        if (!this.toggleMapBtn || !this.toggleTableBtn) {
+            console.warn('PanelLayoutManager: Toggle buttons not found');
+            return;
+        }
 
-    // Load saved state or default to BOTH_OPEN
-    const saved = localStorage.getItem(this.STORAGE_KEY);
-    if (saved && Object.values(this.STATES).includes(saved)) {
-      this.currentState = saved;
-    } else {
-      this.currentState = this.STATES.BOTH_OPEN;
-    }
+        // Load saved state or default to BOTH_OPEN
+        const saved = localStorage.getItem(this.STORAGE_KEY);
+        if (saved && Object.values(this.STATES).includes(saved)) {
+            this.currentState = saved;
+        } else {
+            this.currentState = this.STATES.BOTH_OPEN;
+        }
 
-    // Apply initial state
-    this.applyLayoutState(this.currentState);
+        // Apply initial state
+        this.applyLayoutState(this.currentState);
 
-    // Attach event listeners
-    this.toggleMapBtn.addEventListener('click', () => this.handleMapToggle());
-    this.toggleTableBtn.addEventListener('click', () => this.handleTableToggle());
-  },
+        // Attach event listeners
+        this.toggleMapBtn.addEventListener('click', () => this.handleMapToggle());
+        this.toggleTableBtn.addEventListener('click', () => this.handleTableToggle());
+    },
 
-  /**
-   * Check if a panel can be collapsed given the current state.
-   * Prevents both panels from being collapsed simultaneously.
-   * @param {'map' | 'table'} panel - The panel to check
-   * @returns {boolean} True if the panel can be collapsed
-   */
-  canCollapse(panel) {
-    if (panel === 'map') {
-      // Can collapse map only if table is NOT already collapsed
-      return this.currentState !== this.STATES.TABLE_COLLAPSED;
-    } else if (panel === 'table') {
-      // Can collapse table only if map is NOT already collapsed
-      return this.currentState !== this.STATES.MAP_COLLAPSED;
-    }
-    return false;
-  },
+    /**
+     * Check if a panel can be collapsed given the current state.
+     * Prevents both panels from being collapsed simultaneously.
+     * @param {'map' | 'table'} panel - The panel to check
+     * @returns {boolean} True if the panel can be collapsed
+     */
+    canCollapse(panel) {
+        if (panel === 'map') {
+            // Can collapse map only if table is NOT already collapsed
+            return this.currentState !== this.STATES.TABLE_COLLAPSED;
+        } else if (panel === 'table') {
+            // Can collapse table only if map is NOT already collapsed
+            return this.currentState !== this.STATES.MAP_COLLAPSED;
+        }
+        return false;
+    },
 
-  /**
-   * Handle map toggle button click.
-   * - If map is open and can collapse: collapse map
-   * - If map is collapsed: expand map (return to BOTH_OPEN)
-   * - If table is collapsed (map must stay open): NO-OP
-   */
-  handleMapToggle() {
-    if (this.currentState === this.STATES.MAP_COLLAPSED) {
-      // Map is collapsed -> expand it (return to both open)
-      this.setState(this.STATES.BOTH_OPEN);
-    } else if (this.currentState === this.STATES.BOTH_OPEN) {
-      // Both open -> collapse map
-      this.setState(this.STATES.MAP_COLLAPSED);
-    } else {
-      // Table is collapsed -> cannot collapse map (would collapse both)
-      // NO-OP - optionally show hint
-      this.showBlockedHint('map');
-    }
-  },
+    /**
+     * Handle map toggle button click.
+     * - If map is open and can collapse: collapse map
+     * - If map is collapsed: expand map (return to BOTH_OPEN)
+     * - If table is collapsed (map must stay open): NO-OP
+     */
+    handleMapToggle() {
+        if (this.currentState === this.STATES.MAP_COLLAPSED) {
+            // Map is collapsed -> expand it (return to both open)
+            this.setState(this.STATES.BOTH_OPEN);
+        } else if (this.currentState === this.STATES.BOTH_OPEN) {
+            // Both open -> collapse map
+            this.setState(this.STATES.MAP_COLLAPSED);
+        } else {
+            // Table is collapsed -> cannot collapse map (would collapse both)
+            // NO-OP - optionally show hint
+            this.showBlockedHint('map');
+        }
+    },
 
-  /**
-   * Handle table toggle button click.
-   * - If table is open and can collapse: collapse table
-   * - If table is collapsed: expand table (return to BOTH_OPEN)
-   * - If map is collapsed (table must stay open): NO-OP
-   */
-  handleTableToggle() {
-    if (this.currentState === this.STATES.TABLE_COLLAPSED) {
-      // Table is collapsed -> expand it (return to both open)
-      this.setState(this.STATES.BOTH_OPEN);
-    } else if (this.currentState === this.STATES.BOTH_OPEN) {
-      // Both open -> collapse table
-      this.setState(this.STATES.TABLE_COLLAPSED);
-    } else {
-      // Map is collapsed -> cannot collapse table (would collapse both)
-      // NO-OP - optionally show hint
-      this.showBlockedHint('table');
-    }
-  },
+    /**
+     * Handle table toggle button click.
+     * - If table is open and can collapse: collapse table
+     * - If table is collapsed: expand table (return to BOTH_OPEN)
+     * - If map is collapsed (table must stay open): NO-OP
+     */
+    handleTableToggle() {
+        if (this.currentState === this.STATES.TABLE_COLLAPSED) {
+            // Table is collapsed -> expand it (return to both open)
+            this.setState(this.STATES.BOTH_OPEN);
+        } else if (this.currentState === this.STATES.BOTH_OPEN) {
+            // Both open -> collapse table
+            this.setState(this.STATES.TABLE_COLLAPSED);
+        } else {
+            // Map is collapsed -> cannot collapse table (would collapse both)
+            // NO-OP - optionally show hint
+            this.showBlockedHint('table');
+        }
+    },
 
-  /**
-   * Show a subtle hint when collapse action is blocked.
-   * @param {'map' | 'table'} panel - The panel that cannot be collapsed
-   */
-  showBlockedHint(panel) {
-    const otherPanel = panel === 'map' ? 'table' : 'map';
-    if (typeof showToast === 'function') {
-      showToast(`Cannot collapse ${panel} - expand ${otherPanel} first`, 'warning');
-    }
-  },
+    /**
+     * Show a subtle hint when collapse action is blocked.
+     * @param {'map' | 'table'} panel - The panel that cannot be collapsed
+     */
+    showBlockedHint(panel) {
+        const otherPanel = panel === 'map' ? 'table' : 'map';
+        if (typeof showToast === 'function') {
+            showToast(`Cannot collapse ${panel} - expand ${otherPanel} first`, 'warning');
+        }
+    },
 
-  /**
-   * Set the layout state and persist.
-   * @param {'bothOpen' | 'mapCollapsed' | 'tableCollapsed'} state
-   */
-  setState(state) {
-    if (!Object.values(this.STATES).includes(state)) return;
+    /**
+     * Set the layout state and persist.
+     * @param {'bothOpen' | 'mapCollapsed' | 'tableCollapsed'} state
+     */
+    setState(state) {
+        if (!Object.values(this.STATES).includes(state)) return;
 
-    this.currentState = state;
-    localStorage.setItem(this.STORAGE_KEY, state);
-    this.applyLayoutState(state);
+        this.currentState = state;
+        localStorage.setItem(this.STORAGE_KEY, state);
+        this.applyLayoutState(state);
 
-    // Redraw map if it becomes visible
-    if (state !== this.STATES.MAP_COLLAPSED) {
-      requestAnimationFrame(() => {
-        requestAnimationFrame(() => {
-          if (typeof drawMap === 'function' && mapData) {
-            drawMap(mapData);
-          }
+        // Redraw map if it becomes visible
+        if (state !== this.STATES.MAP_COLLAPSED) {
+            requestAnimationFrame(() => {
+                requestAnimationFrame(() => {
+                    if (typeof drawMap === 'function' && mapData) {
+                        drawMap(mapData);
+                    }
+                });
+            });
+        }
+    },
+
+    /**
+     * Apply the layout state to the DOM.
+     * Updates classes on layout root and button states.
+     * @param {'bothOpen' | 'mapCollapsed' | 'tableCollapsed'} state
+     */
+    applyLayoutState(state) {
+        if (!this.layoutRoot) return;
+
+        // Remove all state classes
+        this.layoutRoot.classList.remove('layout--map-collapsed', 'layout--table-collapsed');
+
+        // Apply the appropriate class
+        if (state === this.STATES.MAP_COLLAPSED) {
+            this.layoutRoot.classList.add('layout--map-collapsed');
+        } else if (state === this.STATES.TABLE_COLLAPSED) {
+            this.layoutRoot.classList.add('layout--table-collapsed');
+        }
+
+        // Update button states
+        this.updateButtonStates(state);
+    },
+
+    /**
+     * Update toggle button states (aria attributes, labels, disabled state).
+     * @param {'bothOpen' | 'mapCollapsed' | 'tableCollapsed'} state
+     */
+    updateButtonStates(state) {
+        const mapIsCollapsed = state === this.STATES.MAP_COLLAPSED;
+        const tableIsCollapsed = state === this.STATES.TABLE_COLLAPSED;
+
+        // Map button
+        if (this.toggleMapBtn) {
+            this.toggleMapBtn.setAttribute('aria-pressed', mapIsCollapsed.toString());
+            this.toggleMapBtn.setAttribute('aria-label', mapIsCollapsed ? 'Expand map panel' : 'Collapse map panel');
+
+            // Update label text
+            const label = this.toggleMapBtn.querySelector('.toggle-label');
+            if (label) {
+                label.textContent = mapIsCollapsed ? 'Expand Map' : 'Collapse Map';
+            }
+
+            // Disable if clicking would collapse both (table is already collapsed)
+            this.toggleMapBtn.disabled = tableIsCollapsed;
+        }
+
+        // Table button
+        if (this.toggleTableBtn) {
+            this.toggleTableBtn.setAttribute('aria-pressed', tableIsCollapsed.toString());
+            this.toggleTableBtn.setAttribute('aria-label', tableIsCollapsed ? 'Expand table panel' : 'Collapse table panel');
+
+            // Update label text
+            const label = this.toggleTableBtn.querySelector('.toggle-label');
+            if (label) {
+                label.textContent = tableIsCollapsed ? 'Expand Table' : 'Collapse Table';
+            }
+
+            // Disable if clicking would collapse both (map is already collapsed)
+            this.toggleTableBtn.disabled = mapIsCollapsed;
+        }
+
+        // Update mobile sticky bar buttons if they exist
+        this.updateMobileButtons(state);
+    },
+
+    /**
+     * Update mobile sticky bar button states for consistency.
+     * @param {'bothOpen' | 'mapCollapsed' | 'tableCollapsed'} state
+     */
+    updateMobileButtons(state) {
+        const layoutMapBtn = document.getElementById('layoutMapBtn');
+        const layoutTableBtn = document.getElementById('layoutTableBtn');
+        const layoutSplitBtn = document.getElementById('layoutSplitBtn');
+
+        [layoutMapBtn, layoutTableBtn, layoutSplitBtn].forEach(btn => {
+            if (btn) {
+                btn.classList.remove('active');
+                btn.setAttribute('aria-pressed', 'false');
+            }
         });
-      });
+
+        // Map active states to mobile buttons
+        const activeBtn = {
+            [this.STATES.BOTH_OPEN]: layoutSplitBtn,
+            [this.STATES.MAP_COLLAPSED]: layoutTableBtn,
+            [this.STATES.TABLE_COLLAPSED]: layoutMapBtn
+        }[state];
+
+        if (activeBtn) {
+            activeBtn.classList.add('active');
+            activeBtn.setAttribute('aria-pressed', 'true');
+        }
+    },
+
+    /**
+     * Get the current state.
+     * @returns {'bothOpen' | 'mapCollapsed' | 'tableCollapsed'}
+     */
+    getState() {
+        return this.currentState;
     }
-  },
-
-  /**
-   * Apply the layout state to the DOM.
-   * Updates classes on layout root and button states.
-   * @param {'bothOpen' | 'mapCollapsed' | 'tableCollapsed'} state
-   */
-  applyLayoutState(state) {
-    if (!this.layoutRoot) return;
-
-    // Remove all state classes
-    this.layoutRoot.classList.remove('layout--map-collapsed', 'layout--table-collapsed');
-
-    // Apply the appropriate class
-    if (state === this.STATES.MAP_COLLAPSED) {
-      this.layoutRoot.classList.add('layout--map-collapsed');
-    } else if (state === this.STATES.TABLE_COLLAPSED) {
-      this.layoutRoot.classList.add('layout--table-collapsed');
-    }
-
-    // Update button states
-    this.updateButtonStates(state);
-  },
-
-  /**
-   * Update toggle button states (aria attributes, labels, disabled state).
-   * @param {'bothOpen' | 'mapCollapsed' | 'tableCollapsed'} state
-   */
-  updateButtonStates(state) {
-    const mapIsCollapsed = state === this.STATES.MAP_COLLAPSED;
-    const tableIsCollapsed = state === this.STATES.TABLE_COLLAPSED;
-
-    // Map button
-    if (this.toggleMapBtn) {
-      this.toggleMapBtn.setAttribute('aria-pressed', mapIsCollapsed.toString());
-      this.toggleMapBtn.setAttribute('aria-label', mapIsCollapsed ? 'Expand map panel' : 'Collapse map panel');
-
-      // Update label text
-      const label = this.toggleMapBtn.querySelector('.toggle-label');
-      if (label) {
-        label.textContent = mapIsCollapsed ? 'Expand Map' : 'Collapse Map';
-      }
-
-      // Disable if clicking would collapse both (table is already collapsed)
-      this.toggleMapBtn.disabled = tableIsCollapsed;
-    }
-
-    // Table button
-    if (this.toggleTableBtn) {
-      this.toggleTableBtn.setAttribute('aria-pressed', tableIsCollapsed.toString());
-      this.toggleTableBtn.setAttribute('aria-label', tableIsCollapsed ? 'Expand table panel' : 'Collapse table panel');
-
-      // Update label text
-      const label = this.toggleTableBtn.querySelector('.toggle-label');
-      if (label) {
-        label.textContent = tableIsCollapsed ? 'Expand Table' : 'Collapse Table';
-      }
-
-      // Disable if clicking would collapse both (map is already collapsed)
-      this.toggleTableBtn.disabled = mapIsCollapsed;
-    }
-
-    // Update mobile sticky bar buttons if they exist
-    this.updateMobileButtons(state);
-  },
-
-  /**
-   * Update mobile sticky bar button states for consistency.
-   * @param {'bothOpen' | 'mapCollapsed' | 'tableCollapsed'} state
-   */
-  updateMobileButtons(state) {
-    const layoutMapBtn = document.getElementById('layoutMapBtn');
-    const layoutTableBtn = document.getElementById('layoutTableBtn');
-    const layoutSplitBtn = document.getElementById('layoutSplitBtn');
-
-    [layoutMapBtn, layoutTableBtn, layoutSplitBtn].forEach(btn => {
-      if (btn) {
-        btn.classList.remove('active');
-        btn.setAttribute('aria-pressed', 'false');
-      }
-    });
-
-    // Map active states to mobile buttons
-    const activeBtn = {
-      [this.STATES.BOTH_OPEN]: layoutSplitBtn,
-      [this.STATES.MAP_COLLAPSED]: layoutTableBtn,
-      [this.STATES.TABLE_COLLAPSED]: layoutMapBtn
-    }[state];
-
-    if (activeBtn) {
-      activeBtn.classList.add('active');
-      activeBtn.setAttribute('aria-pressed', 'true');
-    }
-  },
-
-  /**
-   * Get the current state.
-   * @returns {'bothOpen' | 'mapCollapsed' | 'tableCollapsed'}
-   */
-  getState() {
-    return this.currentState;
-  }
 };
 
 // Initialize panel layout manager
 (function initPanelLayout() {
-  PanelLayoutManager.init();
+    PanelLayoutManager.init();
 
-  // Mobile sticky bar event listeners (if present)
-  const layoutMapBtn = document.getElementById('layoutMapBtn');
-  const layoutTableBtn = document.getElementById('layoutTableBtn');
-  const layoutSplitBtn = document.getElementById('layoutSplitBtn');
-  const mobileSearchBtn = document.getElementById('mobileSearchBtn');
-  const mobileAutoPlaceBtn = document.getElementById('mobileAutoPlaceBtn');
+    // Mobile sticky bar event listeners (if present)
+    const layoutMapBtn = document.getElementById('layoutMapBtn');
+    const layoutTableBtn = document.getElementById('layoutTableBtn');
+    const layoutSplitBtn = document.getElementById('layoutSplitBtn');
+    const mobileSearchBtn = document.getElementById('mobileSearchBtn');
+    const mobileAutoPlaceBtn = document.getElementById('mobileAutoPlaceBtn');
 
-  if (layoutMapBtn) {
-    layoutMapBtn.addEventListener('click', () => {
-      if (PanelLayoutManager.canCollapse('table')) {
-        PanelLayoutManager.setState(PanelLayoutManager.STATES.TABLE_COLLAPSED);
-      }
-    });
-  }
-  if (layoutTableBtn) {
-    layoutTableBtn.addEventListener('click', () => {
-      if (PanelLayoutManager.canCollapse('map')) {
-        PanelLayoutManager.setState(PanelLayoutManager.STATES.MAP_COLLAPSED);
-      }
-    });
-  }
-  if (layoutSplitBtn) {
-    layoutSplitBtn.addEventListener('click', () => {
-      PanelLayoutManager.setState(PanelLayoutManager.STATES.BOTH_OPEN);
-    });
-  }
-  if (mobileSearchBtn) {
-    mobileSearchBtn.addEventListener('click', () => {
-      // Switch to table view and focus search
-      if (PanelLayoutManager.canCollapse('map')) {
-        PanelLayoutManager.setState(PanelLayoutManager.STATES.MAP_COLLAPSED);
-      }
-      setTimeout(() => {
-        const searchInput = document.getElementById('castleSearch');
-        if (searchInput) searchInput.focus();
-      }, 100);
-    });
-  }
-  if (mobileAutoPlaceBtn) {
-    mobileAutoPlaceBtn.addEventListener('click', () => {
-      const autoPlaceBtn = document.getElementById('autoPlaceBtn');
-      if (autoPlaceBtn) autoPlaceBtn.click();
-    });
-  }
+    if (layoutMapBtn) {
+        layoutMapBtn.addEventListener('click', () => {
+            if (PanelLayoutManager.canCollapse('table')) {
+                PanelLayoutManager.setState(PanelLayoutManager.STATES.TABLE_COLLAPSED);
+            }
+        });
+    }
+    if (layoutTableBtn) {
+        layoutTableBtn.addEventListener('click', () => {
+            if (PanelLayoutManager.canCollapse('map')) {
+                PanelLayoutManager.setState(PanelLayoutManager.STATES.MAP_COLLAPSED);
+            }
+        });
+    }
+    if (layoutSplitBtn) {
+        layoutSplitBtn.addEventListener('click', () => {
+            PanelLayoutManager.setState(PanelLayoutManager.STATES.BOTH_OPEN);
+        });
+    }
+    if (mobileSearchBtn) {
+        mobileSearchBtn.addEventListener('click', () => {
+            // Switch to table view and focus search
+            if (PanelLayoutManager.canCollapse('map')) {
+                PanelLayoutManager.setState(PanelLayoutManager.STATES.MAP_COLLAPSED);
+            }
+            setTimeout(() => {
+                const searchInput = document.getElementById('castleSearch');
+                if (searchInput) searchInput.focus();
+            }, 100);
+        });
+    }
+    if (mobileAutoPlaceBtn) {
+        mobileAutoPlaceBtn.addEventListener('click', () => {
+            const autoPlaceBtn = document.getElementById('autoPlaceBtn');
+            if (autoPlaceBtn) autoPlaceBtn.click();
+        });
+    }
 
-  // Handle window resize - redraw map if visible
-  let resizeTimer;
-  window.addEventListener('resize', () => {
-    clearTimeout(resizeTimer);
-    resizeTimer = setTimeout(() => {
-      if (PanelLayoutManager.getState() !== PanelLayoutManager.STATES.MAP_COLLAPSED) {
-        if (typeof drawMap === 'function' && mapData) {
-          drawMap(mapData);
-        }
-      }
-    }, 150);
-  });
+    // Handle window resize - redraw map if visible
+    let resizeTimer;
+    window.addEventListener('resize', () => {
+        clearTimeout(resizeTimer);
+        resizeTimer = setTimeout(() => {
+            if (PanelLayoutManager.getState() !== PanelLayoutManager.STATES.MAP_COLLAPSED) {
+                if (typeof drawMap === 'function' && mapData) {
+                    drawMap(mapData);
+                }
+            }
+        }, 150);
+    });
 })();
 
 // ==========================
@@ -3378,374 +3386,374 @@ const PanelLayoutManager = {
  * Handles tap, long-press, drag, pinch-zoom, and double-tap.
  */
 const TouchManager = {
-  // Touch state
-  touchStartTime: 0,
-  touchStartPos: null,
-  touchMoved: false,
-  longPressTimer: null,
-  lastTapTime: 0,
-  activeTouches: new Map(),
+    // Touch state
+    touchStartTime: 0,
+    touchStartPos: null,
+    touchMoved: false,
+    longPressTimer: null,
+    lastTapTime: 0,
+    activeTouches: new Map(),
 
-  // Configuration
-  LONG_PRESS_DELAY: 120,  // ms before drag starts
-  DOUBLE_TAP_DELAY: 300,  // ms between taps for double-tap
-  TAP_THRESHOLD: 10,      // px movement threshold for tap vs drag
+    // Configuration
+    LONG_PRESS_DELAY: 120,  // ms before drag starts
+    DOUBLE_TAP_DELAY: 300,  // ms between taps for double-tap
+    TAP_THRESHOLD: 10,      // px movement threshold for tap vs drag
 
-  // Pinch zoom state
-  initialPinchDist: 0,
-  initialZoom: 1,
+    // Pinch zoom state
+    initialPinchDist: 0,
+    initialZoom: 1,
 
-  /**
-   * Initialize touch event listeners on the canvas.
-   */
-  init() {
-    if (!canvas) return;
+    /**
+     * Initialize touch event listeners on the canvas.
+     */
+    init() {
+        if (!canvas) return;
 
-    canvas.addEventListener('touchstart', this.onTouchStart.bind(this), { passive: false });
-    canvas.addEventListener('touchmove', this.onTouchMove.bind(this), { passive: false });
-    canvas.addEventListener('touchend', this.onTouchEnd.bind(this), { passive: false });
-    canvas.addEventListener('touchcancel', this.onTouchEnd.bind(this), { passive: false });
-  },
+        canvas.addEventListener('touchstart', this.onTouchStart.bind(this), {passive: false});
+        canvas.addEventListener('touchmove', this.onTouchMove.bind(this), {passive: false});
+        canvas.addEventListener('touchend', this.onTouchEnd.bind(this), {passive: false});
+        canvas.addEventListener('touchcancel', this.onTouchEnd.bind(this), {passive: false});
+    },
 
-  /**
-   * Get touch position relative to canvas.
-   * @param {Touch} touch
-   * @returns {{x: number, y: number}}
-   */
-  getTouchPos(touch) {
-    const rect = canvas.getBoundingClientRect();
-    return {
-      x: touch.clientX - rect.left,
-      y: touch.clientY - rect.top
-    };
-  },
+    /**
+     * Get touch position relative to canvas.
+     * @param {Touch} touch
+     * @returns {{x: number, y: number}}
+     */
+    getTouchPos(touch) {
+        const rect = canvas.getBoundingClientRect();
+        return {
+            x: touch.clientX - rect.left,
+            y: touch.clientY - rect.top
+        };
+    },
 
-  /**
-   * Get distance between two touch points.
-   * @param {Touch} t1
-   * @param {Touch} t2
-   * @returns {number}
-   */
-  getPinchDist(t1, t2) {
-    const dx = t1.clientX - t2.clientX;
-    const dy = t1.clientY - t2.clientY;
-    return Math.sqrt(dx * dx + dy * dy);
-  },
+    /**
+     * Get distance between two touch points.
+     * @param {Touch} t1
+     * @param {Touch} t2
+     * @returns {number}
+     */
+    getPinchDist(t1, t2) {
+        const dx = t1.clientX - t2.clientX;
+        const dy = t1.clientY - t2.clientY;
+        return Math.sqrt(dx * dx + dy * dy);
+    },
 
-  /**
-   * Handle touch start event.
-   * @param {TouchEvent} e
-   */
-  onTouchStart(e) {
-    e.preventDefault();
+    /**
+     * Handle touch start event.
+     * @param {TouchEvent} e
+     */
+    onTouchStart(e) {
+        e.preventDefault();
 
-    const touches = e.touches;
+        const touches = e.touches;
 
-    // Store all active touches
-    for (let touch of touches) {
-      this.activeTouches.set(touch.identifier, this.getTouchPos(touch));
-    }
-
-    if (touches.length === 1) {
-      // Single touch - potential tap, long-press, or drag
-      const pos = this.getTouchPos(touches[0]);
-      this.touchStartTime = Date.now();
-      this.touchStartPos = pos;
-      this.touchMoved = false;
-
-      // Start long-press timer for drag
-      this.longPressTimer = setTimeout(() => {
-        if (!this.touchMoved) {
-          // Long press detected - start drag if on entity
-          this.tryStartDrag(pos);
+        // Store all active touches
+        for (let touch of touches) {
+            this.activeTouches.set(touch.identifier, this.getTouchPos(touch));
         }
-      }, this.LONG_PRESS_DELAY);
 
-    } else if (touches.length === 2) {
-      // Two touches - pinch zoom
-      clearTimeout(this.longPressTimer);
-      this.initialPinchDist = this.getPinchDist(touches[0], touches[1]);
-      this.initialZoom = viewZoom;
+        if (touches.length === 1) {
+            // Single touch - potential tap, long-press, or drag
+            const pos = this.getTouchPos(touches[0]);
+            this.touchStartTime = Date.now();
+            this.touchStartPos = pos;
+            this.touchMoved = false;
 
-      // Cancel any drag in progress
-      if (draggingCastle) {
-        this.cancelDrag(draggingCastle);
-        draggingCastle = null;
-      }
-      if (draggingBear) {
-        this.cancelDrag(draggingBear);
-        draggingBear = null;
-      }
-      if (draggingBanner) {
-        this.cancelDrag(draggingBanner);
-        draggingBanner = null;
-      }
-    }
-  },
+            // Start long-press timer for drag
+            this.longPressTimer = setTimeout(() => {
+                if (!this.touchMoved) {
+                    // Long press detected - start drag if on entity
+                    this.tryStartDrag(pos);
+                }
+            }, this.LONG_PRESS_DELAY);
 
-  /**
-   * Handle touch move event.
-   * @param {TouchEvent} e
-   */
-  onTouchMove(e) {
-    e.preventDefault();
+        } else if (touches.length === 2) {
+            // Two touches - pinch zoom
+            clearTimeout(this.longPressTimer);
+            this.initialPinchDist = this.getPinchDist(touches[0], touches[1]);
+            this.initialZoom = viewZoom;
 
-    const touches = e.touches;
-
-    if (touches.length === 1) {
-      const pos = this.getTouchPos(touches[0]);
-
-      // Check if moved past threshold
-      if (this.touchStartPos) {
-        const dx = pos.x - this.touchStartPos.x;
-        const dy = pos.y - this.touchStartPos.y;
-        if (Math.sqrt(dx * dx + dy * dy) > this.TAP_THRESHOLD) {
-          this.touchMoved = true;
+            // Cancel any drag in progress
+            if (draggingCastle) {
+                this.cancelDrag(draggingCastle);
+                draggingCastle = null;
+            }
+            if (draggingBear) {
+                this.cancelDrag(draggingBear);
+                draggingBear = null;
+            }
+            if (draggingBanner) {
+                this.cancelDrag(draggingBanner);
+                draggingBanner = null;
+            }
         }
-      }
+    },
 
-      // If dragging entity, update position
-      if (draggingCastle || draggingBear || draggingBanner) {
-        const { x, y } = screenToGrid(pos.x, pos.y);
+    /**
+     * Handle touch move event.
+     * @param {TouchEvent} e
+     */
+    onTouchMove(e) {
+        e.preventDefault();
 
+        const touches = e.touches;
+
+        if (touches.length === 1) {
+            const pos = this.getTouchPos(touches[0]);
+
+            // Check if moved past threshold
+            if (this.touchStartPos) {
+                const dx = pos.x - this.touchStartPos.x;
+                const dy = pos.y - this.touchStartPos.y;
+                if (Math.sqrt(dx * dx + dy * dy) > this.TAP_THRESHOLD) {
+                    this.touchMoved = true;
+                }
+            }
+
+            // If dragging entity, update position
+            if (draggingCastle || draggingBear || draggingBanner) {
+                const {x, y} = screenToGrid(pos.x, pos.y);
+
+                if (draggingCastle) {
+                    draggingCastle.x = x - (draggingCastle._grab?.dx || 0);
+                    draggingCastle.y = y - (draggingCastle._grab?.dy || 0);
+                } else if (draggingBear) {
+                    draggingBear.x = x - 1;
+                    draggingBear.y = y - 1;
+                } else if (draggingBanner) {
+                    draggingBanner.x = x;
+                    draggingBanner.y = y;
+                }
+
+                requestAnimationFrame(() => drawMap(mapData));
+            } else if (this.touchMoved) {
+                // Pan the map
+                const lastPos = this.activeTouches.get(touches[0].identifier);
+                if (lastPos) {
+                    const dx = pos.x - lastPos.x;
+                    const dy = pos.y - lastPos.y;
+                    viewOffsetX -= dx / viewZoom;
+                    viewOffsetY -= dy / viewZoom;
+                    requestAnimationFrame(() => drawMap(mapData));
+                }
+                this.activeTouches.set(touches[0].identifier, pos);
+            }
+
+        } else if (touches.length === 2) {
+            // Pinch zoom
+            const newDist = this.getPinchDist(touches[0], touches[1]);
+            const scale = newDist / this.initialPinchDist;
+            const newZoom = Math.max(MIN_ZOOM, Math.min(MAX_ZOOM, this.initialZoom * scale));
+
+            // Zoom towards center of pinch
+            const centerX = (touches[0].clientX + touches[1].clientX) / 2;
+            const centerY = (touches[0].clientY + touches[1].clientY) / 2;
+            const rect = canvas.getBoundingClientRect();
+            const canvasX = centerX - rect.left;
+            const canvasY = centerY - rect.top;
+
+            const worldX = (canvasX - canvas.width / 2) / viewZoom + viewOffsetX;
+            const worldY = (canvasY - canvas.height / 2) / viewZoom + viewOffsetY;
+
+            viewOffsetX = worldX - (canvasX - canvas.width / 2) / newZoom;
+            viewOffsetY = worldY - (canvasY - canvas.height / 2) / newZoom;
+            viewZoom = newZoom;
+
+            requestAnimationFrame(() => drawMap(mapData));
+        }
+    },
+
+    /**
+     * Handle touch end event.
+     * @param {TouchEvent} e
+     */
+    onTouchEnd(e) {
+        e.preventDefault();
+
+        clearTimeout(this.longPressTimer);
+
+        // Clear ended touches
+        for (let touch of e.changedTouches) {
+            this.activeTouches.delete(touch.identifier);
+        }
+
+        // Handle drag end
         if (draggingCastle) {
-          draggingCastle.x = x - (draggingCastle._grab?.dx || 0);
-          draggingCastle.y = y - (draggingCastle._grab?.dy || 0);
+            this.finishDrag('castle', draggingCastle);
+            draggingCastle = null;
         } else if (draggingBear) {
-          draggingBear.x = x - 1;
-          draggingBear.y = y - 1;
+            this.finishDrag('bear', draggingBear);
+            draggingBear = null;
         } else if (draggingBanner) {
-          draggingBanner.x = x;
-          draggingBanner.y = y;
+            this.finishDrag('banner', draggingBanner);
+            draggingBanner = null;
         }
+
+        // Check for tap or double-tap
+        if (!this.touchMoved && this.touchStartPos) {
+            const now = Date.now();
+            const tapDuration = now - this.touchStartTime;
+
+            if (tapDuration < 300) {
+                // Check for double-tap
+                if (now - this.lastTapTime < this.DOUBLE_TAP_DELAY) {
+                    this.onDoubleTap(this.touchStartPos);
+                    this.lastTapTime = 0;
+                } else {
+                    this.onTap(this.touchStartPos);
+                    this.lastTapTime = now;
+                }
+            }
+        }
+
+        this.touchStartPos = null;
+        canvas.classList.remove('touch-active');
+    },
+
+    /**
+     * Try to start dragging an entity at the given position.
+     * @param {{x: number, y: number}} pos
+     */
+    tryStartDrag(pos) {
+        if (!mapData) return;
+
+        const {x, y} = screenToGrid(pos.x, pos.y);
+
+        // Check castles
+        for (let castle of mapData.castles || []) {
+            if (castle.x == null || castle.y == null) continue;
+            if (castle.locked) continue;
+            if (window.remoteBusy?.has(castle.id)) continue;
+            if (isPointInEntity(x, y, castle)) {
+                draggingCastle = castle;
+                Sync.markBusy(castle.id);
+                castle._original = {x: castle.x, y: castle.y};
+                castle._grab = {dx: x - castle.x, dy: y - castle.y};
+                canvas.classList.add('touch-active');
+                drawMap(mapData);
+                return;
+            }
+        }
+
+        // Check banners
+        for (let banner of mapData.banners || []) {
+            if (banner.locked) continue;
+            if (window.remoteBusy?.has(banner.id)) continue;
+            if (isPointInEntity(x, y, banner)) {
+                draggingBanner = banner;
+                Sync.markBusy(banner.id);
+                banner._original = {x: banner.x, y: banner.y};
+                canvas.classList.add('touch-active');
+                drawMap(mapData);
+                return;
+            }
+        }
+
+        // Check bears
+        for (let bear of mapData.bear_traps || []) {
+            if (bear.locked) continue;
+            if (window.remoteBusy?.has(bear.id)) continue;
+            if (isPointInEntity(x, y, bear)) {
+                draggingBear = bear;
+                Sync.markBusy(bear.id);
+                bear._original = {x: bear.x, y: bear.y};
+                canvas.classList.add('touch-active');
+                drawMap(mapData);
+                return;
+            }
+        }
+    },
+
+    /**
+     * Cancel a drag operation and revert position.
+     * @param {Object} entity
+     */
+    cancelDrag(entity) {
+        if (entity._original) {
+            entity.x = entity._original.x;
+            entity.y = entity._original.y;
+        }
+        if (entity.id && Sync?.releaseBusy) {
+            Sync.releaseBusy(entity.id);
+        }
+        drawMap(mapData);
+    },
+
+    /**
+     * Finish a drag operation and send to server.
+     * @param {'castle' | 'bear' | 'banner'} type
+     * @param {Object} entity
+     */
+    finishDrag(type, entity) {
+        const x = Math.round(entity.x);
+        const y = Math.round(entity.y);
+
+        const endpoints = {
+            castle: '/api/intent/move_castle',
+            bear: '/api/intent/move_bear_trap',
+            banner: '/api/intent/move_banner'
+        };
+
+        fetch(endpoints[type], {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({id: entity.id, x, y})
+        })
+            .then(r => r.json())
+            .then(data => {
+                if (!data.success) {
+                    showToast(data.message || 'Move failed', 'error');
+                } else {
+                    showToast(`${type.charAt(0).toUpperCase() + type.slice(1)} moved`, 'success');
+                }
+            })
+            .catch(err => {
+                console.error(`Move ${type} failed:`, err);
+                showToast('Move failed', 'error');
+            });
+    },
+
+    /**
+     * Handle single tap - select entity.
+     * @param {{x: number, y: number}} pos
+     */
+    onTap(pos) {
+        if (!mapData) return;
+
+        const {x, y} = screenToGrid(pos.x, pos.y);
+
+        // Find tapped entity
+        for (let castle of mapData.castles || []) {
+            if (castle.x == null || castle.y == null) continue;
+            if (isPointInEntity(x, y, castle)) {
+                // Highlight in table
+                hoveredCastleId = castle.id;
+                renderCastleTable();
+                drawMap(mapData);
+                return;
+            }
+        }
+    },
+
+    /**
+     * Handle double-tap - zoom in.
+     * @param {{x: number, y: number}} pos
+     */
+    onDoubleTap(pos) {
+        const newZoom = Math.min(MAX_ZOOM, viewZoom * 1.5);
+
+        // Zoom towards tap position
+        const worldX = (pos.x - canvas.width / 2) / viewZoom + viewOffsetX;
+        const worldY = (pos.y - canvas.height / 2) / viewZoom + viewOffsetY;
+
+        viewOffsetX = worldX - (pos.x - canvas.width / 2) / newZoom;
+        viewOffsetY = worldY - (pos.y - canvas.height / 2) / newZoom;
+        viewZoom = newZoom;
 
         requestAnimationFrame(() => drawMap(mapData));
-      } else if (this.touchMoved) {
-        // Pan the map
-        const lastPos = this.activeTouches.get(touches[0].identifier);
-        if (lastPos) {
-          const dx = pos.x - lastPos.x;
-          const dy = pos.y - lastPos.y;
-          viewOffsetX -= dx / viewZoom;
-          viewOffsetY -= dy / viewZoom;
-          requestAnimationFrame(() => drawMap(mapData));
-        }
-        this.activeTouches.set(touches[0].identifier, pos);
-      }
-
-    } else if (touches.length === 2) {
-      // Pinch zoom
-      const newDist = this.getPinchDist(touches[0], touches[1]);
-      const scale = newDist / this.initialPinchDist;
-      const newZoom = Math.max(MIN_ZOOM, Math.min(MAX_ZOOM, this.initialZoom * scale));
-
-      // Zoom towards center of pinch
-      const centerX = (touches[0].clientX + touches[1].clientX) / 2;
-      const centerY = (touches[0].clientY + touches[1].clientY) / 2;
-      const rect = canvas.getBoundingClientRect();
-      const canvasX = centerX - rect.left;
-      const canvasY = centerY - rect.top;
-
-      const worldX = (canvasX - canvas.width / 2) / viewZoom + viewOffsetX;
-      const worldY = (canvasY - canvas.height / 2) / viewZoom + viewOffsetY;
-
-      viewOffsetX = worldX - (canvasX - canvas.width / 2) / newZoom;
-      viewOffsetY = worldY - (canvasY - canvas.height / 2) / newZoom;
-      viewZoom = newZoom;
-
-      requestAnimationFrame(() => drawMap(mapData));
     }
-  },
-
-  /**
-   * Handle touch end event.
-   * @param {TouchEvent} e
-   */
-  onTouchEnd(e) {
-    e.preventDefault();
-
-    clearTimeout(this.longPressTimer);
-
-    // Clear ended touches
-    for (let touch of e.changedTouches) {
-      this.activeTouches.delete(touch.identifier);
-    }
-
-    // Handle drag end
-    if (draggingCastle) {
-      this.finishDrag('castle', draggingCastle);
-      draggingCastle = null;
-    } else if (draggingBear) {
-      this.finishDrag('bear', draggingBear);
-      draggingBear = null;
-    } else if (draggingBanner) {
-      this.finishDrag('banner', draggingBanner);
-      draggingBanner = null;
-    }
-
-    // Check for tap or double-tap
-    if (!this.touchMoved && this.touchStartPos) {
-      const now = Date.now();
-      const tapDuration = now - this.touchStartTime;
-
-      if (tapDuration < 300) {
-        // Check for double-tap
-        if (now - this.lastTapTime < this.DOUBLE_TAP_DELAY) {
-          this.onDoubleTap(this.touchStartPos);
-          this.lastTapTime = 0;
-        } else {
-          this.onTap(this.touchStartPos);
-          this.lastTapTime = now;
-        }
-      }
-    }
-
-    this.touchStartPos = null;
-    canvas.classList.remove('touch-active');
-  },
-
-  /**
-   * Try to start dragging an entity at the given position.
-   * @param {{x: number, y: number}} pos
-   */
-  tryStartDrag(pos) {
-    if (!mapData) return;
-
-    const { x, y } = screenToGrid(pos.x, pos.y);
-
-    // Check castles
-    for (let castle of mapData.castles || []) {
-      if (castle.x == null || castle.y == null) continue;
-      if (castle.locked) continue;
-      if (window.remoteBusy?.has(castle.id)) continue;
-      if (isPointInEntity(x, y, castle)) {
-        draggingCastle = castle;
-        Sync.markBusy(castle.id);
-        castle._original = { x: castle.x, y: castle.y };
-        castle._grab = { dx: x - castle.x, dy: y - castle.y };
-        canvas.classList.add('touch-active');
-        drawMap(mapData);
-        return;
-      }
-    }
-
-    // Check banners
-    for (let banner of mapData.banners || []) {
-      if (banner.locked) continue;
-      if (window.remoteBusy?.has(banner.id)) continue;
-      if (isPointInEntity(x, y, banner)) {
-        draggingBanner = banner;
-        Sync.markBusy(banner.id);
-        banner._original = { x: banner.x, y: banner.y };
-        canvas.classList.add('touch-active');
-        drawMap(mapData);
-        return;
-      }
-    }
-
-    // Check bears
-    for (let bear of mapData.bear_traps || []) {
-      if (bear.locked) continue;
-      if (window.remoteBusy?.has(bear.id)) continue;
-      if (isPointInEntity(x, y, bear)) {
-        draggingBear = bear;
-        Sync.markBusy(bear.id);
-        bear._original = { x: bear.x, y: bear.y };
-        canvas.classList.add('touch-active');
-        drawMap(mapData);
-        return;
-      }
-    }
-  },
-
-  /**
-   * Cancel a drag operation and revert position.
-   * @param {Object} entity
-   */
-  cancelDrag(entity) {
-    if (entity._original) {
-      entity.x = entity._original.x;
-      entity.y = entity._original.y;
-    }
-    if (entity.id && Sync?.releaseBusy) {
-      Sync.releaseBusy(entity.id);
-    }
-    drawMap(mapData);
-  },
-
-  /**
-   * Finish a drag operation and send to server.
-   * @param {'castle' | 'bear' | 'banner'} type
-   * @param {Object} entity
-   */
-  finishDrag(type, entity) {
-    const x = Math.round(entity.x);
-    const y = Math.round(entity.y);
-
-    const endpoints = {
-      castle: '/api/intent/move_castle',
-      bear: '/api/intent/move_bear_trap',
-      banner: '/api/intent/move_banner'
-    };
-
-    fetch(endpoints[type], {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ id: entity.id, x, y })
-    })
-    .then(r => r.json())
-    .then(data => {
-      if (!data.success) {
-        showToast(data.message || 'Move failed', 'error');
-      } else {
-        showToast(`${type.charAt(0).toUpperCase() + type.slice(1)} moved`, 'success');
-      }
-    })
-    .catch(err => {
-      console.error(`Move ${type} failed:`, err);
-      showToast('Move failed', 'error');
-    });
-  },
-
-  /**
-   * Handle single tap - select entity.
-   * @param {{x: number, y: number}} pos
-   */
-  onTap(pos) {
-    if (!mapData) return;
-
-    const { x, y } = screenToGrid(pos.x, pos.y);
-
-    // Find tapped entity
-    for (let castle of mapData.castles || []) {
-      if (castle.x == null || castle.y == null) continue;
-      if (isPointInEntity(x, y, castle)) {
-        // Highlight in table
-        hoveredCastleId = castle.id;
-        renderCastleTable();
-        drawMap(mapData);
-        return;
-      }
-    }
-  },
-
-  /**
-   * Handle double-tap - zoom in.
-   * @param {{x: number, y: number}} pos
-   */
-  onDoubleTap(pos) {
-    const newZoom = Math.min(MAX_ZOOM, viewZoom * 1.5);
-
-    // Zoom towards tap position
-    const worldX = (pos.x - canvas.width / 2) / viewZoom + viewOffsetX;
-    const worldY = (pos.y - canvas.height / 2) / viewZoom + viewOffsetY;
-
-    viewOffsetX = worldX - (pos.x - canvas.width / 2) / newZoom;
-    viewOffsetY = worldY - (pos.y - canvas.height / 2) / newZoom;
-    viewZoom = newZoom;
-
-    requestAnimationFrame(() => drawMap(mapData));
-  }
 };
 
 // Initialize touch handlers

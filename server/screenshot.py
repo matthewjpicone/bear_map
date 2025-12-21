@@ -15,6 +15,7 @@ Date: 2025-12-18
 
 import asyncio
 from io import BytesIO
+
 from playwright.async_api import async_playwright
 
 

@@ -9,8 +9,8 @@ Date: 2025-12-17
 """
 
 import asyncio
-import hmac
 import hashlib
+import hmac
 import json
 import os
 import subprocess
@@ -20,7 +20,8 @@ from fastapi import APIRouter, Request, HTTPException, Header
 router = APIRouter()
 
 WEBHOOK_SECRET = os.getenv("GITHUB_WEBHOOK_SECRET")
-UPDATE_SCRIPT_PATH = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "scripts", "update_and_restart.sh")
+UPDATE_SCRIPT_PATH = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "scripts",
+                                  "update_and_restart.sh")
 
 
 def verify_webhook_signature(payload_body: bytes, signature_header: str) -> bool:
@@ -79,9 +80,9 @@ async def trigger_update():
 
 @router.post("/webhook/github")
 async def github_webhook(
-    request: Request,
-    x_hub_signature_256: str = Header(None),
-    x_github_event: str = Header(None),
+        request: Request,
+        x_hub_signature_256: str = Header(None),
+        x_github_event: str = Header(None),
 ):
     """Handle GitHub webhook events.
 

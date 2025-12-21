@@ -6,9 +6,4 @@ __pycache__/
 server/__pycache__/__init__.cpython-312.pyc
 /server/__pycache__
 /__pycache__
-*.pyc
 config.json
-*.pyc
-*.pyc
-/__pycache__
-.DS_Store

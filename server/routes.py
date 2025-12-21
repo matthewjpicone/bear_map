@@ -8,16 +8,16 @@ Author: Matthew Picone (mail@matthewpicone.com)
 Date: 2025-12-17
 """
 
+import csv
 import json
 import os
-import csv
-from io import StringIO, BytesIO
 from datetime import datetime
+from io import StringIO, BytesIO
 
+from PIL import Image, ImageDraw
 from fastapi import APIRouter, UploadFile, File
 from fastapi.responses import HTMLResponse, FileResponse, StreamingResponse
 from pydantic import BaseModel
-from PIL import Image, ImageDraw
 
 from logic.config import load_config, save_config
 from logic.scoring import compute_priority, compute_efficiency
@@ -381,7 +381,7 @@ def download_map_image():
         buf = get_map_screenshot_sync(base_url="http://localhost:3000")
 
         return StreamingResponse(buf, media_type="image/png",
-                               headers={"Content-Disposition": "attachment; filename=map.png"})
+                                 headers={"Content-Disposition": "attachment; filename=map.png"})
 
     except Exception as e:
         print(f"Error generating image: {e}")
@@ -396,7 +396,8 @@ def download_map_image():
         error_img.save(buf, format="PNG")
         buf.seek(0)
         return StreamingResponse(buf, media_type="image/png",
-                               headers={"Content-Disposition": "attachment; filename=error.png"})
+                                 headers={"Content-Disposition": "attachment; filename=error.png"})
+
 
 @router.post("/api/send_map_to_discord")
 def send_map_to_discord(request_data: DiscordMapRequest):

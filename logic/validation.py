@@ -12,7 +12,6 @@ from typing import Any, List, Dict, Tuple, Optional
 
 from fastapi import HTTPException
 
-
 ALLOWED_CASTLE_FIELDS = {
     "player": str,
     "power": int,
@@ -71,7 +70,7 @@ def sanitise_int(value: Any, *, allow_none: bool = False) -> Optional[int]:
 
 
 def is_within_bounds(
-    x: int, y: int, grid_size: int, width: int = 1, height: int = 1
+        x: int, y: int, grid_size: int, width: int = 1, height: int = 1
 ) -> bool:
     """Check if an entity at (x, y) with given dimensions is within grid bounds.
 
@@ -104,7 +103,7 @@ def rectangles_overlap(x1, y1, w1, h1, x2, y2, w2, h2):
 
 
 def check_castle_overlap(
-    x: int, y: int, castles: List[Dict], exclude_id: Optional[str] = None
+        x: int, y: int, castles: List[Dict], exclude_id: Optional[str] = None
 ) -> Tuple[bool, Optional[str]]:
     """Check if a 2x2 castle at (x, y) overlaps with any other castle.
 
@@ -130,7 +129,7 @@ def check_castle_overlap(
 
 
 def check_banner_overlap(
-    x: int, y: int, banners: List[Dict], exclude_id: Optional[str] = None
+        x: int, y: int, banners: List[Dict], exclude_id: Optional[str] = None
 ) -> Tuple[bool, Optional[str]]:
     """Check if a banner at (x, y) overlaps with another banner.
 
@@ -158,7 +157,7 @@ def check_banner_overlap(
 
 
 def check_bear_trap_overlap(
-    x: int, y: int, bear_traps: List[Dict], banners: List[Dict], exclude_id: Optional[str] = None
+        x: int, y: int, bear_traps: List[Dict], banners: List[Dict], exclude_id: Optional[str] = None
 ) -> Tuple[bool, Optional[str]]:
     """Check if a 3x3 bear trap at (x, y) overlaps with other bear traps or banners.
 
@@ -197,7 +196,7 @@ def check_bear_trap_overlap(
 
 
 def check_castle_overlap_with_entities(
-    x: int, y: int, bear_traps: List[Dict], banners: List[Dict]
+        x: int, y: int, bear_traps: List[Dict], banners: List[Dict]
 ) -> Tuple[bool, Optional[str]]:
     """Check if a 2x2 castle at (x, y) overlaps with any bear traps or banners.
 
@@ -230,7 +229,7 @@ def check_castle_overlap_with_entities(
 
 
 def check_bear_trap_overlap_with_entities(
-    x: int, y: int, bear_traps: List[Dict], banners: List[Dict], exclude_id: Optional[str] = None
+        x: int, y: int, bear_traps: List[Dict], banners: List[Dict], exclude_id: Optional[str] = None
 ) -> Tuple[bool, Optional[str]]:
     """Check if a 3x3 bear trap at (x, y) overlaps with any other bear traps or banners.
 
@@ -270,7 +269,8 @@ def check_bear_trap_overlap_with_entities(
     return False, None
 
 
-def is_tile_legal(x: int, y: int, grid_size: int, banners: List[Dict], bear_traps: List[Dict], occupied: set) -> Tuple[bool, str]:
+def is_tile_legal(x: int, y: int, grid_size: int, banners: List[Dict], bear_traps: List[Dict], occupied: set) -> Tuple[
+    bool, str]:
     """Check if a 2x2 castle tile at (x,y) is legal.
 
     Args:
@@ -310,4 +310,3 @@ def is_tile_legal(x: int, y: int, grid_size: int, banners: List[Dict], bear_trap
                 return False, "overlaps occupied tile"
 
     return True, ""
-

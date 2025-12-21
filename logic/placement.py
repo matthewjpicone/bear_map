@@ -19,18 +19,17 @@ import math
 from typing import List, Dict, Tuple, Optional, Set
 
 from .config import load_config, save_config
-from .validation import (
-    check_castle_overlap,
-    check_castle_overlap_with_entities,
-    rectangles_overlap,
-)
 from .scoring import (
     compute_priority,
     compute_efficiency,
     chebyshev_distance,
     compute_ideal_allocation,
 )
-
+from .validation import (
+    check_castle_overlap,
+    check_castle_overlap_with_entities,
+    rectangles_overlap,
+)
 
 # =========================
 # Module Constants
@@ -220,10 +219,10 @@ def preferred_parity(castles: List[Dict]) -> Tuple[int, int]:
 # =========================
 
 def build_bear_queue(
-    all_valid_tiles: List[Tuple[int, int]],
-    bear: Dict,
-    other_bear: Optional[Dict],
-    occupied: Set[Tuple[int, int]]
+        all_valid_tiles: List[Tuple[int, int]],
+        bear: Dict,
+        other_bear: Optional[Dict],
+        occupied: Set[Tuple[int, int]]
 ) -> List[Tuple[int, int]]:
     """Build a queue of tiles sorted by closeness to a bear (committed players).
 
@@ -245,11 +244,11 @@ def build_bear_queue(
 
 
 def build_midline_queue(
-    all_valid_tiles: List[Tuple[int, int]],
-    bear1: Optional[Dict],
-    bear2: Optional[Dict],
-    pref_norm: str,
-    occupied: Set[Tuple[int, int]]
+        all_valid_tiles: List[Tuple[int, int]],
+        bear1: Optional[Dict],
+        bear2: Optional[Dict],
+        pref_norm: str,
+        occupied: Set[Tuple[int, int]]
 ) -> List[Tuple[int, int]]:
     """Build a queue for hybrid players (BT1/2, BT2/1).
 
@@ -289,15 +288,15 @@ def build_midline_queue(
 # =========================
 
 def score_tile_v2(
-    tile_x: int,
-    tile_y: int,
-    castle: Dict,
-    bear1: Optional[Dict],
-    bear2: Optional[Dict],
-    pref_norm: str,
-    occupied: Set[Tuple[int, int]],
-    max_priority: float,
-    is_committed: bool
+        tile_x: int,
+        tile_y: int,
+        castle: Dict,
+        bear1: Optional[Dict],
+        bear2: Optional[Dict],
+        pref_norm: str,
+        occupied: Set[Tuple[int, int]],
+        max_priority: float,
+        is_committed: bool
 ) -> float:
     """Score a candidate tile for placement. Lower is better.
 
@@ -357,12 +356,12 @@ def score_tile_v2(
 # =========================
 
 def compact_layout(
-    castles: List[Dict],
-    all_valid_tiles: List[Tuple[int, int]],
-    occupied: Set[Tuple[int, int]],
-    bear1: Optional[Dict],
-    bear2: Optional[Dict],
-    max_priority: float
+        castles: List[Dict],
+        all_valid_tiles: List[Tuple[int, int]],
+        occupied: Set[Tuple[int, int]],
+        bear1: Optional[Dict],
+        bear2: Optional[Dict],
+        max_priority: float
 ) -> int:
     """Run compaction passes to fill holes and reduce whitespace.
 
@@ -447,10 +446,10 @@ def compact_layout(
 # =========================
 
 def is_castle_invalid(
-    castle: Dict,
-    all_castles: List[Dict],
-    bear_traps: List[Dict],
-    banners: List[Dict]
+        castle: Dict,
+        all_castles: List[Dict],
+        bear_traps: List[Dict],
+        banners: List[Dict]
 ) -> bool:
     """Check if a castle is in an invalid position."""
     cx, cy = castle.get("x"), castle.get("y")
@@ -469,14 +468,14 @@ def is_castle_invalid(
 
 
 def push_castle_outward(
-    castle: Dict,
-    avoid_x: int,
-    avoid_y: int,
-    all_castles: List[Dict],
-    grid_size: int,
-    bear_traps: List[Dict],
-    banners: List[Dict],
-    exclude_id: str = None
+        castle: Dict,
+        avoid_x: int,
+        avoid_y: int,
+        all_castles: List[Dict],
+        grid_size: int,
+        bear_traps: List[Dict],
+        banners: List[Dict],
+        exclude_id: str = None
 ):
     """Push a single castle outward to avoid overlap with a position."""
     cx, cy = castle.get("x"), castle.get("y")
@@ -512,10 +511,10 @@ def push_castle_outward(
 
 
 def resolve_all_collisions(
-    castles: List[Dict],
-    grid_size: int,
-    bear_traps: List[Dict],
-    banners: List[Dict]
+        castles: List[Dict],
+        grid_size: int,
+        bear_traps: List[Dict],
+        banners: List[Dict]
 ):
     """Resolve all collisions by iteratively pushing invalid castles outward."""
     max_iterations = 100
@@ -536,12 +535,12 @@ def resolve_all_collisions(
 
 
 def resolve_map_collisions(
-    placed_x: int,
-    placed_y: int,
-    castles: List[Dict],
-    grid_size: int,
-    bear_traps: List[Dict],
-    banners: List[Dict]
+        placed_x: int,
+        placed_y: int,
+        castles: List[Dict],
+        grid_size: int,
+        bear_traps: List[Dict],
+        banners: List[Dict]
 ):
     """Resolve collisions after a specific placement."""
     for _ in range(100):
@@ -559,13 +558,13 @@ def resolve_map_collisions(
 
 
 def push_castles_outward(
-    placed_castle_x: int,
-    placed_castle_y: int,
-    castles: List[Dict],
-    grid_size: int,
-    bear_traps: List[Dict],
-    banners: List[Dict],
-    exclude_id: str = None
+        placed_castle_x: int,
+        placed_castle_y: int,
+        castles: List[Dict],
+        grid_size: int,
+        bear_traps: List[Dict],
+        banners: List[Dict],
+        exclude_id: str = None
 ) -> Tuple[bool, str]:
     """Push unlocked castles outward that would overlap with a newly placed castle."""
     overlapping_castles = []
@@ -594,12 +593,12 @@ def push_castles_outward(
 
 
 def push_castles_away_from_bear(
-    bear_x: int,
-    bear_y: int,
-    castles: List[Dict],
-    grid_size: int,
-    bear_traps: List[Dict],
-    banners: List[Dict]
+        bear_x: int,
+        bear_y: int,
+        castles: List[Dict],
+        grid_size: int,
+        bear_traps: List[Dict],
+        banners: List[Dict]
 ) -> Tuple[bool, str]:
     """Push unlocked castles away from a bear trap position."""
     overlapping_castles = []
@@ -628,11 +627,11 @@ def push_castles_away_from_bear(
 
 
 def move_castle_to_edge(
-    castle: Dict,
-    all_castles: List[Dict],
-    grid_size: int,
-    bear_traps: List[Dict],
-    banners: List[Dict]
+        castle: Dict,
+        all_castles: List[Dict],
+        grid_size: int,
+        bear_traps: List[Dict],
+        banners: List[Dict]
 ) -> bool:
     """Move a castle to the nearest edge of the map."""
     cx, cy = castle.get("x", 0) or 0, castle.get("y", 0) or 0
@@ -978,10 +977,10 @@ async def auto_place_castles() -> Dict[str, int]:
 
 
 def compute_efficiency_for_castle(
-    castle: Dict,
-    all_castles: List[Dict],
-    bear_traps: List[Dict],
-    grid_size: int
+        castle: Dict,
+        all_castles: List[Dict],
+        bear_traps: List[Dict],
+        grid_size: int
 ) -> float:
     """Compute efficiency score for a single castle.
 
@@ -1086,13 +1085,13 @@ def get_spill_order(pref_norm: str) -> List[str]:
 
 
 def score_tile(
-    tile_x: int,
-    tile_y: int,
-    castle: Dict,
-    bear1: Optional[Dict],
-    bear2: Optional[Dict],
-    pref_norm: str,
-    occupied: Set[Tuple[int, int]]
+        tile_x: int,
+        tile_y: int,
+        castle: Dict,
+        bear1: Optional[Dict],
+        bear2: Optional[Dict],
+        pref_norm: str,
+        occupied: Set[Tuple[int, int]]
 ) -> float:
     """Score a tile (legacy wrapper for compatibility)."""
     max_priority = 1.0
@@ -1101,4 +1100,3 @@ def score_tile(
         tile_x, tile_y, castle, bear1, bear2,
         pref_norm, occupied, max_priority, is_committed
     )
-

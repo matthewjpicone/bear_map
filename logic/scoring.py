@@ -8,8 +8,8 @@ Date: 2025-12-17
 """
 
 import math
-from typing import List, Dict, Tuple, Optional
 from statistics import median, quantiles
+from typing import List, Dict, Tuple, Optional
 
 
 # =========================
@@ -60,7 +60,7 @@ def compute_priority(castles: List[Dict]) -> List[Dict]:
             p05 = sorted_vals[0]
             p95 = sorted_vals[-1]
         else:
-            p05 = quantiles(sorted_vals, n=20)[0]   # 5th percentile (ish)
+            p05 = quantiles(sorted_vals, n=20)[0]  # 5th percentile (ish)
             p95 = quantiles(sorted_vals, n=20)[-1]  # 95th percentile (ish)
         return p05, p95
 
@@ -95,10 +95,10 @@ def compute_priority(castles: List[Dict]) -> List[Dict]:
             n_attendance = norm(float(attendance), p05_att, p95_att)
 
         priority_score = (
-            0.50 * n_power +
-            0.20 * n_player_level +
-            0.20 * n_cc +
-            0.10 * n_attendance
+                0.50 * n_power +
+                0.20 * n_player_level +
+                0.20 * n_cc +
+                0.10 * n_attendance
         )
 
         c["priority_score"] = priority_score
@@ -329,10 +329,10 @@ def compute_ideal_allocation(map_data: Dict, castles: List[Dict]) -> List[Dict]:
 # =========================
 
 def compute_efficiency_for_single_castle(
-    castle: Dict,
-    all_castles: List[Dict],
-    bear_traps: List[Dict],
-    grid_size: int,
+        castle: Dict,
+        all_castles: List[Dict],
+        bear_traps: List[Dict],
+        grid_size: int,
 ) -> float:
     """Compute efficiency score for a single castle.
 
@@ -378,7 +378,8 @@ def _compute_actual_travel_times(castles: List[Dict], bear1: Optional[Dict], bea
         c["actual_travel_time"] = _weighted_travel_time(pref, dist_to_bear1, dist_to_bear2)
 
 
-def _compute_map_scores(config: Dict, castles: List[Dict], bear_traps: List[Dict], grid_size: int, banners: List[Dict]) -> None:
+def _compute_map_scores(config: Dict, castles: List[Dict], bear_traps: List[Dict], grid_size: int,
+                        banners: List[Dict]) -> None:
     """Mutates config in-place with map score fields (no return)."""
     bear1 = _find_bear(bear_traps, "Bear 1")
     bear2 = _find_bear(bear_traps, "Bear 2")
@@ -427,8 +428,8 @@ def _compute_map_scores(config: Dict, castles: List[Dict], bear_traps: List[Dict
         c.get("round_trip", 0)
         for c in placed_castles
         if c.get("round_trip") is not None
-        and c.get("round_trip") != "NA"
-        and c.get("round_trip") > 0
+           and c.get("round_trip") != "NA"
+           and c.get("round_trip") > 0
     ]
     avg_round_trip = round(sum(round_trip_times) / len(round_trip_times)) if round_trip_times else 0
 

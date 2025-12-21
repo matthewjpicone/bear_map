@@ -6,6 +6,7 @@ Clean up old priority and efficiency fields from config.json
 import json
 import os
 
+
 def clean_config():
     config_path = 'config.json'
     if not os.path.exists(config_path):
@@ -27,6 +28,7 @@ def clean_config():
         json.dump(config, f, indent=2)
 
     print("Cleaned config.json")
+
 
 if __name__ == '__main__':
     clean_config()

@@ -8,19 +8,19 @@ Author: Matthew Picone (mail@matthewpicone.com)
 Date: 2025-12-17
 """
 
-import os
 import asyncio
-from fastapi import FastAPI, Request
-from fastapi.staticfiles import StaticFiles
-from dotenv import load_dotenv
-from fastapi.responses import StreamingResponse
 
-from server.sync import router as sync_router
-from server.routes import router as routes_router
+from dotenv import load_dotenv
+from fastapi import FastAPI, Request
+from fastapi.responses import StreamingResponse
+from fastapi.staticfiles import StaticFiles
+
+from server.broadcast import subscribers
 from server.castles import router as castles_router
 from server.intents import router as intents_router
+from server.routes import router as routes_router
+from server.sync import router as sync_router
 from server.webhook import router as webhook_router
-from server.broadcast import subscribers
 
 # Load environment variables
 load_dotenv()
@@ -33,6 +33,7 @@ app.include_router(routes_router)
 app.include_router(castles_router)
 app.include_router(intents_router)
 app.include_router(webhook_router)
+
 
 # ============================================================
 # SSE Endpoint
@@ -61,6 +62,7 @@ async def stream(request: Request):
     request.state._cleanup = cleanup
 
     return StreamingResponse(event_generator(queue), media_type="text/event-stream")
+
 
 # ============================================================
 # Static Files

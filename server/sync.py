@@ -120,8 +120,9 @@ Date: 2025-12-17
 #         clients.remove(d)
 
 
-from fastapi import WebSocket, WebSocketDisconnect, APIRouter
 import time
+
+from fastapi import WebSocket, WebSocketDisconnect, APIRouter
 
 router = APIRouter()
 
@@ -140,6 +141,7 @@ map_state = {
 
 # id -> { owner: WebSocket, expires_at: ms }
 soft_locks: dict[str, dict] = {}
+
 
 # ==========================
 # Helpers

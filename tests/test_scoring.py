@@ -4,7 +4,6 @@ Tests for scoring module.
 Run with: python -m pytest tests/test_scoring.py
 """
 
-import pytest
 from logic.scoring import compute_priority, compute_efficiency, chebyshev_distance
 
 
