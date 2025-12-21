@@ -20,6 +20,7 @@ body {
   --bg: #0b1020;
   --panel: #0f172a;
   --panel-soft: #111827;
+  --surface: #1e293b;
   --border: #1f2937;
   --text: #e5e7eb;
   --muted: #9ca3af;
@@ -54,27 +55,18 @@ header h1 {
   flex-shrink: 0;
 }
 
-.toolbar button {
+.toolbar button:not(.layout-toggle-btn) {
   min-width: 110px;
 }
 
-/* ================= LAYOUT CONTROLS (Always Visible) ================= */
-.layout-controls {
-  display: flex;
-  justify-content: center;
-  gap: 12px;
-  padding: 8px 16px;
-  background: var(--panel);
-  border-bottom: 1px solid var(--border);
-  flex-shrink: 0;
-}
-
+/* ================= LAYOUT TOGGLE BUTTONS ================= */
 .layout-toggle-btn {
   display: flex;
   align-items: center;
   gap: 8px;
   padding: 8px 16px;
   min-height: var(--touch-target-min);
+  min-width: auto;
   background: var(--panel-soft);
   border: 1px solid var(--border);
   border-radius: 8px;
@@ -127,17 +119,15 @@ header h1 {
   font-weight: 500;
 }
 
-/* Mobile: stack buttons vertically if needed */
-@media (max-width: 400px) {
-  .layout-controls {
-    flex-direction: column;
-    gap: 8px;
-    padding: 8px;
+/* Mobile: ensure buttons remain usable */
+@media (max-width: 600px) {
+  .layout-toggle-btn {
+    padding: 6px 10px;
+    font-size: 12px;
   }
 
-  .layout-toggle-btn {
-    justify-content: center;
-    width: 100%;
+  .layout-toggle-btn .toggle-label {
+    display: none;
   }
 }
 
