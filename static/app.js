@@ -3047,3 +3047,106 @@ document.getElementById('csvUpload').addEventListener('change', async (event) =>
   }
 });
 
+// ==========================
+// Collapsible Panels
+// ==========================
+
+/**
+ * Initialize collapsible panel functionality.
+ * Manages collapse/expand for map and table panels with localStorage persistence.
+ */
+(function initCollapsiblePanels() {
+  const STORAGE_KEY_MAP = 'bearmap_ui_mapCollapsed';
+  const STORAGE_KEY_TABLE = 'bearmap_ui_tableCollapsed';
+
+  const mapPanel = document.getElementById('mapPanel');
+  const tablePanel = document.getElementById('tablePanel');
+  const collapseMapBtn = document.getElementById('collapseMapBtn');
+  const collapseTableBtn = document.getElementById('collapseTableBtn');
+
+  if (!mapPanel || !tablePanel || !collapseMapBtn || !collapseTableBtn) {
+    console.warn('Collapsible panel elements not found');
+    return;
+  }
+
+  /**
+   * Toggle the collapsed state of a panel.
+   * @param {HTMLElement} panel - The panel element.
+   * @param {HTMLElement} btn - The toggle button.
+   * @param {string} storageKey - localStorage key for persistence.
+   * @param {Function} [onExpand] - Optional callback when panel expands.
+   */
+  function togglePanel(panel, btn, storageKey, onExpand) {
+    const isCollapsed = panel.classList.toggle('collapsed');
+
+    // Update button aria attributes
+    btn.setAttribute('aria-expanded', !isCollapsed);
+    btn.setAttribute('aria-label', isCollapsed ? 'Expand panel' : 'Collapse panel');
+
+    // Persist state
+    localStorage.setItem(storageKey, isCollapsed ? '1' : '0');
+
+    // Callback when expanding
+    if (!isCollapsed && onExpand) {
+      // Use double requestAnimationFrame to ensure layout is updated
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+          onExpand();
+        });
+      });
+    }
+  }
+
+  /**
+   * Restore panel state from localStorage on page load.
+   */
+  function restoreState() {
+    const mapCollapsed = localStorage.getItem(STORAGE_KEY_MAP) === '1';
+    const tableCollapsed = localStorage.getItem(STORAGE_KEY_TABLE) === '1';
+
+    if (mapCollapsed) {
+      mapPanel.classList.add('collapsed');
+      collapseMapBtn.setAttribute('aria-expanded', 'false');
+      collapseMapBtn.setAttribute('aria-label', 'Expand panel');
+    }
+
+    if (tableCollapsed) {
+      tablePanel.classList.add('collapsed');
+      collapseTableBtn.setAttribute('aria-expanded', 'false');
+      collapseTableBtn.setAttribute('aria-label', 'Expand panel');
+    }
+  }
+
+  /**
+   * Redraw the map canvas after expanding.
+   */
+  function redrawMapCanvas() {
+    if (typeof drawMap === 'function' && mapData) {
+      drawMap(mapData);
+    }
+  }
+
+  // Attach click handlers
+  collapseMapBtn.addEventListener('click', () => {
+    togglePanel(mapPanel, collapseMapBtn, STORAGE_KEY_MAP, redrawMapCanvas);
+  });
+
+  collapseTableBtn.addEventListener('click', () => {
+    togglePanel(tablePanel, collapseTableBtn, STORAGE_KEY_TABLE);
+  });
+
+  // Restore state on load
+  restoreState();
+
+  // Handle window resize - redraw map if visible
+  let resizeTimer;
+  window.addEventListener('resize', () => {
+    clearTimeout(resizeTimer);
+    resizeTimer = setTimeout(() => {
+      if (!mapPanel.classList.contains('collapsed') && typeof drawMap === 'function' && mapData) {
+        drawMap(mapData);
+      }
+    }, 150);
+  });
+})();
+

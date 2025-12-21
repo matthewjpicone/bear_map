@@ -104,18 +104,115 @@ button:active {
 /* ================= MAIN LAYOUT ================= */
 main {
   padding: 20px;
-  display: grid;
-  grid-template-columns: 1fr;
+  display: flex;
+  flex-direction: column;
   gap: 20px;
-  flex: 1;  /* Fill remaining */
+  flex: 1;
   overflow: hidden;
   box-sizing: border-box;
 }
 
+/* Side-by-side layout on wider screens */
 @media (min-width: 1200px) {
   main {
-    grid-template-columns: minmax(900px, 1.2fr) 1fr;
+    flex-direction: row;
   }
+
+  main > .map-panel {
+    flex: 1.2;
+    min-width: 0;
+  }
+
+  main > .castle-panel {
+    flex: 1;
+    min-width: 0;
+  }
+
+  /* When map is collapsed, table expands */
+  main > .map-panel.collapsed {
+    flex: 0 0 auto;
+  }
+
+  /* When table is collapsed, map expands */
+  main > .castle-panel.collapsed {
+    flex: 0 0 auto;
+  }
+}
+
+/* ================= COLLAPSIBLE PANEL STRUCTURE ================= */
+.panel-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+  flex-shrink: 0;
+}
+
+.panel-header h2 {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.collapse-toggle {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  width: 28px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  color: var(--text);
+  font-size: 14px;
+  transition: all 0.2s ease;
+  padding: 0;
+}
+
+.collapse-toggle:hover {
+  background: var(--panel);
+  border-color: var(--accent);
+}
+
+.collapse-toggle:focus {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px rgba(56, 189, 248, 0.3);
+}
+
+.collapse-icon {
+  display: inline-block;
+  transition: transform 0.2s ease;
+  line-height: 1;
+}
+
+.panel-body {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+  transition: opacity 0.2s ease;
+}
+
+/* Collapsed state */
+.map-panel.collapsed .panel-body,
+.castle-panel.collapsed .panel-body {
+  display: none;
+}
+
+.map-panel.collapsed .collapse-icon,
+.castle-panel.collapsed .collapse-icon {
+  transform: rotate(-90deg);
+}
+
+/* Collapsed panel styling */
+.map-panel.collapsed,
+.castle-panel.collapsed {
+  flex: 0 0 auto !important;
+  min-height: auto;
+  height: auto;
 }
 
 /* ================= MOBILE OPTIMIZATION ================= */
@@ -203,15 +300,16 @@ main {
   padding: 12px;
   display: flex;
   flex-direction: column;
-  height: 100%;  /* Fill grid cell */
+  min-height: 200px;
   overflow: hidden;
+  transition: flex 0.3s ease;
 }
 
-.map-panel h2 {
-  margin: 0 0 8px;
-  font-size: 16px;
-  font-weight: 600;
-  flex-shrink: 0;
+.map-panel .panel-body {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
 }
 
 .canvas-column {
@@ -317,15 +415,16 @@ canvas {
   padding: 12px;
   display: flex;
   flex-direction: column;
-  height: 100%;  /* Fill grid cell */
+  min-height: 200px;
   overflow: hidden;
+  transition: flex 0.3s ease;
 }
 
-.castle-panel h2 {
-  margin: 0 0 8px;
-  font-size: 16px;
-  font-weight: 600;
-  flex-shrink: 0;
+.castle-panel .panel-body {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
 }
 
 /* ================= SEARCH + ACTIONS ================= */
