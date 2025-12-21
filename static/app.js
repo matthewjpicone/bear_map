@@ -3048,105 +3048,706 @@ document.getElementById('csvUpload').addEventListener('change', async (event) =>
 });
 
 // ==========================
-// Collapsible Panels
+// Collapsible Panels - Two Always-Visible Toggle Buttons
 // ==========================
 
 /**
- * Initialize collapsible panel functionality.
- * Manages collapse/expand for map and table panels with localStorage persistence.
+ * Panel layout state manager with "both collapsed" prevention.
+ *
+ * States:
+ * - BOTH_OPEN: Both panels visible (default)
+ * - MAP_COLLAPSED: Map hidden, table expanded
+ * - TABLE_COLLAPSED: Table hidden, map expanded
+ *
+ * Hard Rule: Both panels can NEVER be collapsed simultaneously.
+ * Each button only controls its own panel.
  */
-(function initCollapsiblePanels() {
-  const STORAGE_KEY_MAP = 'bearmap_ui_mapCollapsed';
-  const STORAGE_KEY_TABLE = 'bearmap_ui_tableCollapsed';
+const PanelLayoutManager = {
+  STORAGE_KEY: 'layoutPanelState',
+  STATES: {
+    BOTH_OPEN: 'bothOpen',
+    MAP_COLLAPSED: 'mapCollapsed',
+    TABLE_COLLAPSED: 'tableCollapsed'
+  },
 
-  const mapPanel = document.getElementById('mapPanel');
-  const tablePanel = document.getElementById('tablePanel');
-  const collapseMapBtn = document.getElementById('collapseMapBtn');
-  const collapseTableBtn = document.getElementById('collapseTableBtn');
-
-  if (!mapPanel || !tablePanel || !collapseMapBtn || !collapseTableBtn) {
-    console.warn('Collapsible panel elements not found');
-    return;
-  }
+  currentState: 'bothOpen',
+  layoutRoot: null,
+  mapPanel: null,
+  tablePanel: null,
+  toggleMapBtn: null,
+  toggleTableBtn: null,
 
   /**
-   * Toggle the collapsed state of a panel.
-   * @param {HTMLElement} panel - The panel element.
-   * @param {HTMLElement} btn - The toggle button.
-   * @param {string} storageKey - localStorage key for persistence.
-   * @param {Function} [onExpand] - Optional callback when panel expands.
+   * Initialize the panel layout manager.
    */
-  function togglePanel(panel, btn, storageKey, onExpand) {
-    const isCollapsed = panel.classList.toggle('collapsed');
+  init() {
+    this.layoutRoot = document.getElementById('layoutRoot');
+    this.mapPanel = document.getElementById('mapPanel');
+    this.tablePanel = document.getElementById('tablePanel');
+    this.toggleMapBtn = document.getElementById('toggleMapBtn');
+    this.toggleTableBtn = document.getElementById('toggleTableBtn');
 
-    // Update button aria attributes
-    btn.setAttribute('aria-expanded', !isCollapsed);
-    btn.setAttribute('aria-label', isCollapsed ? 'Expand panel' : 'Collapse panel');
+    if (!this.layoutRoot || !this.mapPanel || !this.tablePanel) {
+      console.warn('PanelLayoutManager: Required panel elements not found');
+      return;
+    }
 
-    // Persist state
-    localStorage.setItem(storageKey, isCollapsed ? '1' : '0');
+    if (!this.toggleMapBtn || !this.toggleTableBtn) {
+      console.warn('PanelLayoutManager: Toggle buttons not found');
+      return;
+    }
 
-    // Callback when expanding
-    if (!isCollapsed && onExpand) {
-      // Use double requestAnimationFrame to ensure layout is updated
+    // Load saved state or default to BOTH_OPEN
+    const saved = localStorage.getItem(this.STORAGE_KEY);
+    if (saved && Object.values(this.STATES).includes(saved)) {
+      this.currentState = saved;
+    } else {
+      this.currentState = this.STATES.BOTH_OPEN;
+    }
+
+    // Apply initial state
+    this.applyLayoutState(this.currentState);
+
+    // Attach event listeners
+    this.toggleMapBtn.addEventListener('click', () => this.handleMapToggle());
+    this.toggleTableBtn.addEventListener('click', () => this.handleTableToggle());
+  },
+
+  /**
+   * Check if a panel can be collapsed given the current state.
+   * Prevents both panels from being collapsed simultaneously.
+   * @param {'map' | 'table'} panel - The panel to check
+   * @returns {boolean} True if the panel can be collapsed
+   */
+  canCollapse(panel) {
+    if (panel === 'map') {
+      // Can collapse map only if table is NOT already collapsed
+      return this.currentState !== this.STATES.TABLE_COLLAPSED;
+    } else if (panel === 'table') {
+      // Can collapse table only if map is NOT already collapsed
+      return this.currentState !== this.STATES.MAP_COLLAPSED;
+    }
+    return false;
+  },
+
+  /**
+   * Handle map toggle button click.
+   * - If map is open and can collapse: collapse map
+   * - If map is collapsed: expand map (return to BOTH_OPEN)
+   * - If table is collapsed (map must stay open): NO-OP
+   */
+  handleMapToggle() {
+    if (this.currentState === this.STATES.MAP_COLLAPSED) {
+      // Map is collapsed -> expand it (return to both open)
+      this.setState(this.STATES.BOTH_OPEN);
+    } else if (this.currentState === this.STATES.BOTH_OPEN) {
+      // Both open -> collapse map
+      this.setState(this.STATES.MAP_COLLAPSED);
+    } else {
+      // Table is collapsed -> cannot collapse map (would collapse both)
+      // NO-OP - optionally show hint
+      this.showBlockedHint('map');
+    }
+  },
+
+  /**
+   * Handle table toggle button click.
+   * - If table is open and can collapse: collapse table
+   * - If table is collapsed: expand table (return to BOTH_OPEN)
+   * - If map is collapsed (table must stay open): NO-OP
+   */
+  handleTableToggle() {
+    if (this.currentState === this.STATES.TABLE_COLLAPSED) {
+      // Table is collapsed -> expand it (return to both open)
+      this.setState(this.STATES.BOTH_OPEN);
+    } else if (this.currentState === this.STATES.BOTH_OPEN) {
+      // Both open -> collapse table
+      this.setState(this.STATES.TABLE_COLLAPSED);
+    } else {
+      // Map is collapsed -> cannot collapse table (would collapse both)
+      // NO-OP - optionally show hint
+      this.showBlockedHint('table');
+    }
+  },
+
+  /**
+   * Show a subtle hint when collapse action is blocked.
+   * @param {'map' | 'table'} panel - The panel that cannot be collapsed
+   */
+  showBlockedHint(panel) {
+    const otherPanel = panel === 'map' ? 'table' : 'map';
+    if (typeof showToast === 'function') {
+      showToast(`Cannot collapse ${panel} - expand ${otherPanel} first`, 'warning');
+    }
+  },
+
+  /**
+   * Set the layout state and persist.
+   * @param {'bothOpen' | 'mapCollapsed' | 'tableCollapsed'} state
+   */
+  setState(state) {
+    if (!Object.values(this.STATES).includes(state)) return;
+
+    this.currentState = state;
+    localStorage.setItem(this.STORAGE_KEY, state);
+    this.applyLayoutState(state);
+
+    // Redraw map if it becomes visible
+    if (state !== this.STATES.MAP_COLLAPSED) {
       requestAnimationFrame(() => {
         requestAnimationFrame(() => {
-          onExpand();
+          if (typeof drawMap === 'function' && mapData) {
+            drawMap(mapData);
+          }
         });
       });
     }
-  }
+  },
 
   /**
-   * Restore panel state from localStorage on page load.
+   * Apply the layout state to the DOM.
+   * Updates classes on layout root and button states.
+   * @param {'bothOpen' | 'mapCollapsed' | 'tableCollapsed'} state
    */
-  function restoreState() {
-    const mapCollapsed = localStorage.getItem(STORAGE_KEY_MAP) === '1';
-    const tableCollapsed = localStorage.getItem(STORAGE_KEY_TABLE) === '1';
+  applyLayoutState(state) {
+    if (!this.layoutRoot) return;
 
-    if (mapCollapsed) {
-      mapPanel.classList.add('collapsed');
-      collapseMapBtn.setAttribute('aria-expanded', 'false');
-      collapseMapBtn.setAttribute('aria-label', 'Expand panel');
+    // Remove all state classes
+    this.layoutRoot.classList.remove('layout--map-collapsed', 'layout--table-collapsed');
+
+    // Apply the appropriate class
+    if (state === this.STATES.MAP_COLLAPSED) {
+      this.layoutRoot.classList.add('layout--map-collapsed');
+    } else if (state === this.STATES.TABLE_COLLAPSED) {
+      this.layoutRoot.classList.add('layout--table-collapsed');
     }
 
-    if (tableCollapsed) {
-      tablePanel.classList.add('collapsed');
-      collapseTableBtn.setAttribute('aria-expanded', 'false');
-      collapseTableBtn.setAttribute('aria-label', 'Expand panel');
-    }
-  }
+    // Update button states
+    this.updateButtonStates(state);
+  },
 
   /**
-   * Redraw the map canvas after expanding.
+   * Update toggle button states (aria attributes, labels, disabled state).
+   * @param {'bothOpen' | 'mapCollapsed' | 'tableCollapsed'} state
    */
-  function redrawMapCanvas() {
-    if (typeof drawMap === 'function' && mapData) {
-      drawMap(mapData);
+  updateButtonStates(state) {
+    const mapIsCollapsed = state === this.STATES.MAP_COLLAPSED;
+    const tableIsCollapsed = state === this.STATES.TABLE_COLLAPSED;
+
+    // Map button
+    if (this.toggleMapBtn) {
+      this.toggleMapBtn.setAttribute('aria-pressed', mapIsCollapsed.toString());
+      this.toggleMapBtn.setAttribute('aria-label', mapIsCollapsed ? 'Expand map panel' : 'Collapse map panel');
+
+      // Update label text
+      const label = this.toggleMapBtn.querySelector('.toggle-label');
+      if (label) {
+        label.textContent = mapIsCollapsed ? 'Expand Map' : 'Collapse Map';
+      }
+
+      // Disable if clicking would collapse both (table is already collapsed)
+      this.toggleMapBtn.disabled = tableIsCollapsed;
     }
+
+    // Table button
+    if (this.toggleTableBtn) {
+      this.toggleTableBtn.setAttribute('aria-pressed', tableIsCollapsed.toString());
+      this.toggleTableBtn.setAttribute('aria-label', tableIsCollapsed ? 'Expand table panel' : 'Collapse table panel');
+
+      // Update label text
+      const label = this.toggleTableBtn.querySelector('.toggle-label');
+      if (label) {
+        label.textContent = tableIsCollapsed ? 'Expand Table' : 'Collapse Table';
+      }
+
+      // Disable if clicking would collapse both (map is already collapsed)
+      this.toggleTableBtn.disabled = mapIsCollapsed;
+    }
+
+    // Update mobile sticky bar buttons if they exist
+    this.updateMobileButtons(state);
+  },
+
+  /**
+   * Update mobile sticky bar button states for consistency.
+   * @param {'bothOpen' | 'mapCollapsed' | 'tableCollapsed'} state
+   */
+  updateMobileButtons(state) {
+    const layoutMapBtn = document.getElementById('layoutMapBtn');
+    const layoutTableBtn = document.getElementById('layoutTableBtn');
+    const layoutSplitBtn = document.getElementById('layoutSplitBtn');
+
+    [layoutMapBtn, layoutTableBtn, layoutSplitBtn].forEach(btn => {
+      if (btn) {
+        btn.classList.remove('active');
+        btn.setAttribute('aria-pressed', 'false');
+      }
+    });
+
+    // Map active states to mobile buttons
+    const activeBtn = {
+      [this.STATES.BOTH_OPEN]: layoutSplitBtn,
+      [this.STATES.MAP_COLLAPSED]: layoutTableBtn,
+      [this.STATES.TABLE_COLLAPSED]: layoutMapBtn
+    }[state];
+
+    if (activeBtn) {
+      activeBtn.classList.add('active');
+      activeBtn.setAttribute('aria-pressed', 'true');
+    }
+  },
+
+  /**
+   * Get the current state.
+   * @returns {'bothOpen' | 'mapCollapsed' | 'tableCollapsed'}
+   */
+  getState() {
+    return this.currentState;
   }
+};
 
-  // Attach click handlers
-  collapseMapBtn.addEventListener('click', () => {
-    togglePanel(mapPanel, collapseMapBtn, STORAGE_KEY_MAP, redrawMapCanvas);
-  });
+// Initialize panel layout manager
+(function initPanelLayout() {
+  PanelLayoutManager.init();
 
-  collapseTableBtn.addEventListener('click', () => {
-    togglePanel(tablePanel, collapseTableBtn, STORAGE_KEY_TABLE);
-  });
+  // Mobile sticky bar event listeners (if present)
+  const layoutMapBtn = document.getElementById('layoutMapBtn');
+  const layoutTableBtn = document.getElementById('layoutTableBtn');
+  const layoutSplitBtn = document.getElementById('layoutSplitBtn');
+  const mobileSearchBtn = document.getElementById('mobileSearchBtn');
+  const mobileAutoPlaceBtn = document.getElementById('mobileAutoPlaceBtn');
 
-  // Restore state on load
-  restoreState();
+  if (layoutMapBtn) {
+    layoutMapBtn.addEventListener('click', () => {
+      if (PanelLayoutManager.canCollapse('table')) {
+        PanelLayoutManager.setState(PanelLayoutManager.STATES.TABLE_COLLAPSED);
+      }
+    });
+  }
+  if (layoutTableBtn) {
+    layoutTableBtn.addEventListener('click', () => {
+      if (PanelLayoutManager.canCollapse('map')) {
+        PanelLayoutManager.setState(PanelLayoutManager.STATES.MAP_COLLAPSED);
+      }
+    });
+  }
+  if (layoutSplitBtn) {
+    layoutSplitBtn.addEventListener('click', () => {
+      PanelLayoutManager.setState(PanelLayoutManager.STATES.BOTH_OPEN);
+    });
+  }
+  if (mobileSearchBtn) {
+    mobileSearchBtn.addEventListener('click', () => {
+      // Switch to table view and focus search
+      if (PanelLayoutManager.canCollapse('map')) {
+        PanelLayoutManager.setState(PanelLayoutManager.STATES.MAP_COLLAPSED);
+      }
+      setTimeout(() => {
+        const searchInput = document.getElementById('castleSearch');
+        if (searchInput) searchInput.focus();
+      }, 100);
+    });
+  }
+  if (mobileAutoPlaceBtn) {
+    mobileAutoPlaceBtn.addEventListener('click', () => {
+      const autoPlaceBtn = document.getElementById('autoPlaceBtn');
+      if (autoPlaceBtn) autoPlaceBtn.click();
+    });
+  }
 
   // Handle window resize - redraw map if visible
   let resizeTimer;
   window.addEventListener('resize', () => {
     clearTimeout(resizeTimer);
     resizeTimer = setTimeout(() => {
-      if (!mapPanel.classList.contains('collapsed') && typeof drawMap === 'function' && mapData) {
-        drawMap(mapData);
+      if (PanelLayoutManager.getState() !== PanelLayoutManager.STATES.MAP_COLLAPSED) {
+        if (typeof drawMap === 'function' && mapData) {
+          drawMap(mapData);
+        }
       }
     }, 150);
   });
 })();
+
+// ==========================
+// Touch Event Handlers
+// ==========================
+
+/**
+ * Touch interaction manager for the map canvas.
+ * Handles tap, long-press, drag, pinch-zoom, and double-tap.
+ */
+const TouchManager = {
+  // Touch state
+  touchStartTime: 0,
+  touchStartPos: null,
+  touchMoved: false,
+  longPressTimer: null,
+  lastTapTime: 0,
+  activeTouches: new Map(),
+
+  // Configuration
+  LONG_PRESS_DELAY: 120,  // ms before drag starts
+  DOUBLE_TAP_DELAY: 300,  // ms between taps for double-tap
+  TAP_THRESHOLD: 10,      // px movement threshold for tap vs drag
+
+  // Pinch zoom state
+  initialPinchDist: 0,
+  initialZoom: 1,
+
+  /**
+   * Initialize touch event listeners on the canvas.
+   */
+  init() {
+    if (!canvas) return;
+
+    canvas.addEventListener('touchstart', this.onTouchStart.bind(this), { passive: false });
+    canvas.addEventListener('touchmove', this.onTouchMove.bind(this), { passive: false });
+    canvas.addEventListener('touchend', this.onTouchEnd.bind(this), { passive: false });
+    canvas.addEventListener('touchcancel', this.onTouchEnd.bind(this), { passive: false });
+  },
+
+  /**
+   * Get touch position relative to canvas.
+   * @param {Touch} touch
+   * @returns {{x: number, y: number}}
+   */
+  getTouchPos(touch) {
+    const rect = canvas.getBoundingClientRect();
+    return {
+      x: touch.clientX - rect.left,
+      y: touch.clientY - rect.top
+    };
+  },
+
+  /**
+   * Get distance between two touch points.
+   * @param {Touch} t1
+   * @param {Touch} t2
+   * @returns {number}
+   */
+  getPinchDist(t1, t2) {
+    const dx = t1.clientX - t2.clientX;
+    const dy = t1.clientY - t2.clientY;
+    return Math.sqrt(dx * dx + dy * dy);
+  },
+
+  /**
+   * Handle touch start event.
+   * @param {TouchEvent} e
+   */
+  onTouchStart(e) {
+    e.preventDefault();
+
+    const touches = e.touches;
+
+    // Store all active touches
+    for (let touch of touches) {
+      this.activeTouches.set(touch.identifier, this.getTouchPos(touch));
+    }
+
+    if (touches.length === 1) {
+      // Single touch - potential tap, long-press, or drag
+      const pos = this.getTouchPos(touches[0]);
+      this.touchStartTime = Date.now();
+      this.touchStartPos = pos;
+      this.touchMoved = false;
+
+      // Start long-press timer for drag
+      this.longPressTimer = setTimeout(() => {
+        if (!this.touchMoved) {
+          // Long press detected - start drag if on entity
+          this.tryStartDrag(pos);
+        }
+      }, this.LONG_PRESS_DELAY);
+
+    } else if (touches.length === 2) {
+      // Two touches - pinch zoom
+      clearTimeout(this.longPressTimer);
+      this.initialPinchDist = this.getPinchDist(touches[0], touches[1]);
+      this.initialZoom = viewZoom;
+
+      // Cancel any drag in progress
+      if (draggingCastle) {
+        this.cancelDrag(draggingCastle);
+        draggingCastle = null;
+      }
+      if (draggingBear) {
+        this.cancelDrag(draggingBear);
+        draggingBear = null;
+      }
+      if (draggingBanner) {
+        this.cancelDrag(draggingBanner);
+        draggingBanner = null;
+      }
+    }
+  },
+
+  /**
+   * Handle touch move event.
+   * @param {TouchEvent} e
+   */
+  onTouchMove(e) {
+    e.preventDefault();
+
+    const touches = e.touches;
+
+    if (touches.length === 1) {
+      const pos = this.getTouchPos(touches[0]);
+
+      // Check if moved past threshold
+      if (this.touchStartPos) {
+        const dx = pos.x - this.touchStartPos.x;
+        const dy = pos.y - this.touchStartPos.y;
+        if (Math.sqrt(dx * dx + dy * dy) > this.TAP_THRESHOLD) {
+          this.touchMoved = true;
+        }
+      }
+
+      // If dragging entity, update position
+      if (draggingCastle || draggingBear || draggingBanner) {
+        const { x, y } = screenToGrid(pos.x, pos.y);
+
+        if (draggingCastle) {
+          draggingCastle.x = x - (draggingCastle._grab?.dx || 0);
+          draggingCastle.y = y - (draggingCastle._grab?.dy || 0);
+        } else if (draggingBear) {
+          draggingBear.x = x - 1;
+          draggingBear.y = y - 1;
+        } else if (draggingBanner) {
+          draggingBanner.x = x;
+          draggingBanner.y = y;
+        }
+
+        requestAnimationFrame(() => drawMap(mapData));
+      } else if (this.touchMoved) {
+        // Pan the map
+        const lastPos = this.activeTouches.get(touches[0].identifier);
+        if (lastPos) {
+          const dx = pos.x - lastPos.x;
+          const dy = pos.y - lastPos.y;
+          viewOffsetX -= dx / viewZoom;
+          viewOffsetY -= dy / viewZoom;
+          requestAnimationFrame(() => drawMap(mapData));
+        }
+        this.activeTouches.set(touches[0].identifier, pos);
+      }
+
+    } else if (touches.length === 2) {
+      // Pinch zoom
+      const newDist = this.getPinchDist(touches[0], touches[1]);
+      const scale = newDist / this.initialPinchDist;
+      const newZoom = Math.max(MIN_ZOOM, Math.min(MAX_ZOOM, this.initialZoom * scale));
+
+      // Zoom towards center of pinch
+      const centerX = (touches[0].clientX + touches[1].clientX) / 2;
+      const centerY = (touches[0].clientY + touches[1].clientY) / 2;
+      const rect = canvas.getBoundingClientRect();
+      const canvasX = centerX - rect.left;
+      const canvasY = centerY - rect.top;
+
+      const worldX = (canvasX - canvas.width / 2) / viewZoom + viewOffsetX;
+      const worldY = (canvasY - canvas.height / 2) / viewZoom + viewOffsetY;
+
+      viewOffsetX = worldX - (canvasX - canvas.width / 2) / newZoom;
+      viewOffsetY = worldY - (canvasY - canvas.height / 2) / newZoom;
+      viewZoom = newZoom;
+
+      requestAnimationFrame(() => drawMap(mapData));
+    }
+  },
+
+  /**
+   * Handle touch end event.
+   * @param {TouchEvent} e
+   */
+  onTouchEnd(e) {
+    e.preventDefault();
+
+    clearTimeout(this.longPressTimer);
+
+    // Clear ended touches
+    for (let touch of e.changedTouches) {
+      this.activeTouches.delete(touch.identifier);
+    }
+
+    // Handle drag end
+    if (draggingCastle) {
+      this.finishDrag('castle', draggingCastle);
+      draggingCastle = null;
+    } else if (draggingBear) {
+      this.finishDrag('bear', draggingBear);
+      draggingBear = null;
+    } else if (draggingBanner) {
+      this.finishDrag('banner', draggingBanner);
+      draggingBanner = null;
+    }
+
+    // Check for tap or double-tap
+    if (!this.touchMoved && this.touchStartPos) {
+      const now = Date.now();
+      const tapDuration = now - this.touchStartTime;
+
+      if (tapDuration < 300) {
+        // Check for double-tap
+        if (now - this.lastTapTime < this.DOUBLE_TAP_DELAY) {
+          this.onDoubleTap(this.touchStartPos);
+          this.lastTapTime = 0;
+        } else {
+          this.onTap(this.touchStartPos);
+          this.lastTapTime = now;
+        }
+      }
+    }
+
+    this.touchStartPos = null;
+    canvas.classList.remove('touch-active');
+  },
+
+  /**
+   * Try to start dragging an entity at the given position.
+   * @param {{x: number, y: number}} pos
+   */
+  tryStartDrag(pos) {
+    if (!mapData) return;
+
+    const { x, y } = screenToGrid(pos.x, pos.y);
+
+    // Check castles
+    for (let castle of mapData.castles || []) {
+      if (castle.x == null || castle.y == null) continue;
+      if (castle.locked) continue;
+      if (window.remoteBusy?.has(castle.id)) continue;
+      if (isPointInEntity(x, y, castle)) {
+        draggingCastle = castle;
+        Sync.markBusy(castle.id);
+        castle._original = { x: castle.x, y: castle.y };
+        castle._grab = { dx: x - castle.x, dy: y - castle.y };
+        canvas.classList.add('touch-active');
+        drawMap(mapData);
+        return;
+      }
+    }
+
+    // Check banners
+    for (let banner of mapData.banners || []) {
+      if (banner.locked) continue;
+      if (window.remoteBusy?.has(banner.id)) continue;
+      if (isPointInEntity(x, y, banner)) {
+        draggingBanner = banner;
+        Sync.markBusy(banner.id);
+        banner._original = { x: banner.x, y: banner.y };
+        canvas.classList.add('touch-active');
+        drawMap(mapData);
+        return;
+      }
+    }
+
+    // Check bears
+    for (let bear of mapData.bear_traps || []) {
+      if (bear.locked) continue;
+      if (window.remoteBusy?.has(bear.id)) continue;
+      if (isPointInEntity(x, y, bear)) {
+        draggingBear = bear;
+        Sync.markBusy(bear.id);
+        bear._original = { x: bear.x, y: bear.y };
+        canvas.classList.add('touch-active');
+        drawMap(mapData);
+        return;
+      }
+    }
+  },
+
+  /**
+   * Cancel a drag operation and revert position.
+   * @param {Object} entity
+   */
+  cancelDrag(entity) {
+    if (entity._original) {
+      entity.x = entity._original.x;
+      entity.y = entity._original.y;
+    }
+    if (entity.id && Sync?.releaseBusy) {
+      Sync.releaseBusy(entity.id);
+    }
+    drawMap(mapData);
+  },
+
+  /**
+   * Finish a drag operation and send to server.
+   * @param {'castle' | 'bear' | 'banner'} type
+   * @param {Object} entity
+   */
+  finishDrag(type, entity) {
+    const x = Math.round(entity.x);
+    const y = Math.round(entity.y);
+
+    const endpoints = {
+      castle: '/api/intent/move_castle',
+      bear: '/api/intent/move_bear_trap',
+      banner: '/api/intent/move_banner'
+    };
+
+    fetch(endpoints[type], {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id: entity.id, x, y })
+    })
+    .then(r => r.json())
+    .then(data => {
+      if (!data.success) {
+        showToast(data.message || 'Move failed', 'error');
+      } else {
+        showToast(`${type.charAt(0).toUpperCase() + type.slice(1)} moved`, 'success');
+      }
+    })
+    .catch(err => {
+      console.error(`Move ${type} failed:`, err);
+      showToast('Move failed', 'error');
+    });
+  },
+
+  /**
+   * Handle single tap - select entity.
+   * @param {{x: number, y: number}} pos
+   */
+  onTap(pos) {
+    if (!mapData) return;
+
+    const { x, y } = screenToGrid(pos.x, pos.y);
+
+    // Find tapped entity
+    for (let castle of mapData.castles || []) {
+      if (castle.x == null || castle.y == null) continue;
+      if (isPointInEntity(x, y, castle)) {
+        // Highlight in table
+        hoveredCastleId = castle.id;
+        renderCastleTable();
+        drawMap(mapData);
+        return;
+      }
+    }
+  },
+
+  /**
+   * Handle double-tap - zoom in.
+   * @param {{x: number, y: number}} pos
+   */
+  onDoubleTap(pos) {
+    const newZoom = Math.min(MAX_ZOOM, viewZoom * 1.5);
+
+    // Zoom towards tap position
+    const worldX = (pos.x - canvas.width / 2) / viewZoom + viewOffsetX;
+    const worldY = (pos.y - canvas.height / 2) / viewZoom + viewOffsetY;
+
+    viewOffsetX = worldX - (pos.x - canvas.width / 2) / newZoom;
+    viewOffsetY = worldY - (pos.y - canvas.height / 2) / newZoom;
+    viewZoom = newZoom;
+
+    requestAnimationFrame(() => drawMap(mapData));
+  }
+};
+
+// Initialize touch handlers
+TouchManager.init();
 

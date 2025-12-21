@@ -16,29 +16,42 @@
 
 <!-- TOP TOOLBAR -->
 <div class="toolbar">
+    <button
+    type="button"
+    id="toggleMapBtn"
+    class="layout-toggle-btn"
+    aria-pressed="false"
+    aria-controls="mapPanel"
+    aria-label="Collapse map panel"
+  >
+    <span class="toggle-icon">🗺️</span>
+    <span class="toggle-label">Collapse Map</span>
+  </button>
+  <button
+    type="button"
+    id="toggleTableBtn"
+    class="layout-toggle-btn"
+    aria-pressed="false"
+    aria-controls="tablePanel"
+    aria-label="Collapse table panel"
+  >
+    <span class="toggle-icon">📋</span>
+    <span class="toggle-label">Collapse Table</span>
+  </button>
   <button id="jokeBtn">Tell me a joke</button>
-  <button>Placeholder 2</button>
-  <button>Placeholder 3</button>
   <button>Placeholder 4</button>
   <button id="howToBtn" class="secondary">How to Use</button>
 
 </div>
 
-<main>
+<!-- LAYOUT CONTROLS - Always visible toggle buttons -->
+
+<main id="layoutRoot">
 
   <!-- MAP PANEL -->
   <section class="map-panel" id="mapPanel">
     <div class="panel-header">
       <h2>Map</h2>
-      <button
-        id="collapseMapBtn"
-        class="collapse-toggle"
-        aria-expanded="true"
-        aria-controls="mapPanelBody"
-        aria-label="Collapse map panel"
-      >
-        <span class="collapse-icon">▾</span>
-      </button>
     </div>
     <div class="panel-body" id="mapPanelBody">
       <div class="canvas-column">
@@ -69,15 +82,6 @@
   <section class="castle-panel" id="tablePanel">
     <div class="panel-header">
       <h2>Castles</h2>
-      <button
-        id="collapseTableBtn"
-        class="collapse-toggle"
-        aria-expanded="true"
-        aria-controls="tablePanelBody"
-        aria-label="Collapse table panel"
-      >
-        <span class="collapse-icon">▾</span>
-      </button>
     </div>
     <div class="panel-body" id="tablePanelBody">
       <div class="castle-toolbar">
@@ -125,7 +129,7 @@
     </div>
 
     <div class="table-wrap">
-      <table id="castleTable" role="table" aria-label="Castle data table">
+      <table id="castleTable" class="castle-table" role="table" aria-label="Castle data table">
         <thead>
           <tr>
             <th class="checkbox-col">
@@ -163,6 +167,32 @@
 </main>
 
 <input type="file" id="csvUpload" accept=".csv" hidden aria-label="CSV file input" />
+
+<!-- Mobile Sticky Bar -->
+<nav class="mobile-sticky-bar" id="mobileStickyBar" aria-label="Mobile navigation">
+  <div class="layout-toggle-group">
+    <button id="layoutMapBtn" class="active" aria-label="Show map view" aria-pressed="true">
+      <span class="btn-icon">🗺️</span>
+      <span class="btn-label">Map</span>
+    </button>
+    <button id="layoutTableBtn" aria-label="Show table view" aria-pressed="false">
+      <span class="btn-icon">📋</span>
+      <span class="btn-label">Table</span>
+    </button>
+    <button id="layoutSplitBtn" aria-label="Show split view" aria-pressed="false">
+      <span class="btn-icon">⬜</span>
+      <span class="btn-label">Split</span>
+    </button>
+  </div>
+  <button id="mobileSearchBtn" aria-label="Search castles">
+    <span class="btn-icon">🔍</span>
+    <span class="btn-label">Search</span>
+  </button>
+  <button id="mobileAutoPlaceBtn" aria-label="Auto place castles">
+    <span class="btn-icon">✨</span>
+    <span class="btn-label">Auto</span>
+  </button>
+</nav>
 
 <!-- Castle Tooltip -->
 <div id="castleTooltip" aria-live="polite"></div>

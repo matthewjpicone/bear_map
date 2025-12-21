@@ -5,13 +5,14 @@
 
 body {
   margin: 0;
-  height: 100vh;  /* Limit to 95% */
+  height: 100vh;
   display: flex;
   flex-direction: column;
   font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
   background: var(--bg);
   color: var(--text);
   overflow: auto;
+  -webkit-tap-highlight-color: transparent; /* Remove tap highlight on mobile */
 }
 
 /* ================= ROOT VARIABLES ================= */
@@ -23,6 +24,7 @@ body {
   --text: #e5e7eb;
   --muted: #9ca3af;
   --accent: #38bdf8;
+  --touch-target-min: 44px; /* Minimum touch target size */
 }
 
 /* ================= HEADER ================= */
@@ -54,6 +56,89 @@ header h1 {
 
 .toolbar button {
   min-width: 110px;
+}
+
+/* ================= LAYOUT CONTROLS (Always Visible) ================= */
+.layout-controls {
+  display: flex;
+  justify-content: center;
+  gap: 12px;
+  padding: 8px 16px;
+  background: var(--panel);
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+}
+
+.layout-toggle-btn {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 16px;
+  min-height: var(--touch-target-min);
+  background: var(--panel-soft);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  color: var(--text);
+  font-size: 13px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  touch-action: manipulation;
+}
+
+.layout-toggle-btn:hover {
+  background: var(--bg);
+  border-color: var(--accent);
+}
+
+.layout-toggle-btn:focus {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px rgba(56, 189, 248, 0.3);
+}
+
+/* Button pressed state (panel is collapsed) */
+.layout-toggle-btn[aria-pressed="true"] {
+  background: var(--accent);
+  color: var(--bg);
+  border-color: var(--accent);
+}
+
+.layout-toggle-btn[aria-pressed="true"]:hover {
+  background: #0ea5e9;
+  border-color: #0ea5e9;
+}
+
+/* Disabled state (when clicking would collapse both) */
+.layout-toggle-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.layout-toggle-btn:disabled:hover {
+  transform: none;
+  box-shadow: none;
+}
+
+.toggle-icon {
+  font-size: 16px;
+}
+
+.toggle-label {
+  font-weight: 500;
+}
+
+/* Mobile: stack buttons vertically if needed */
+@media (max-width: 400px) {
+  .layout-controls {
+    flex-direction: column;
+    gap: 8px;
+    padding: 8px;
+  }
+
+  .layout-toggle-btn {
+    justify-content: center;
+    width: 100%;
+  }
 }
 
 .map-score {
@@ -88,6 +173,8 @@ button {
   cursor: pointer;
   font-size: 13px;
   transition: all 0.2s ease;
+  min-height: var(--touch-target-min); /* Touch-friendly minimum height */
+  touch-action: manipulation; /* Prevent double-tap zoom */
 }
 
 button:hover {
@@ -112,8 +199,37 @@ main {
   box-sizing: border-box;
 }
 
-/* Side-by-side layout on wider screens */
-@media (min-width: 1200px) {
+/*
+ * Layout collapse states (mutual exclusion):
+ * - layout--both: both panels visible (default)
+ * - layout--map-collapsed: map hidden, table expanded
+ * - layout--table-collapsed: table hidden, map expanded
+ */
+
+/* Map collapsed: hide map, expand table */
+main.layout--map-collapsed .map-panel {
+  display: none !important;
+}
+
+main.layout--map-collapsed .castle-panel {
+  flex: 1 !important;
+  width: 100%;
+  max-width: none;
+}
+
+/* Table collapsed: hide table, expand map */
+main.layout--table-collapsed .castle-panel {
+  display: none !important;
+}
+
+main.layout--table-collapsed .map-panel {
+  flex: 1 !important;
+  width: 100%;
+  max-width: none;
+}
+
+/* Desktop: >1024px - side-by-side by default */
+@media (min-width: 1025px) {
   main {
     flex-direction: row;
   }
@@ -127,15 +243,34 @@ main {
     flex: 1;
     min-width: 0;
   }
+}
 
-  /* When map is collapsed, table expands */
-  main > .map-panel.collapsed {
-    flex: 0 0 auto;
+/* Tablet: 601-1024px */
+@media (min-width: 601px) and (max-width: 1024px) {
+  main {
+    flex-direction: row;
+    padding: 12px;
+    gap: 12px;
   }
 
-  /* When table is collapsed, map expands */
-  main > .castle-panel.collapsed {
-    flex: 0 0 auto;
+  main > .map-panel,
+  main > .castle-panel {
+    flex: 1;
+    min-width: 0;
+  }
+}
+
+/* Phone: <=600px - stacked */
+@media (max-width: 600px) {
+  main {
+    padding: 8px;
+    gap: 8px;
+    flex-direction: column;
+  }
+
+  main > .map-panel,
+  main > .castle-panel {
+    flex: 1;
   }
 }
 
@@ -146,6 +281,7 @@ main {
   justify-content: space-between;
   margin-bottom: 8px;
   flex-shrink: 0;
+  min-height: var(--touch-target-min);
 }
 
 .panel-header h2 {
@@ -155,11 +291,11 @@ main {
 }
 
 .collapse-toggle {
-  background: var(--surface);
+  background: var(--panel-soft);
   border: 1px solid var(--border);
   border-radius: 6px;
-  width: 28px;
-  height: 28px;
+  width: var(--touch-target-min);
+  height: var(--touch-target-min);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -168,6 +304,7 @@ main {
   font-size: 14px;
   transition: all 0.2s ease;
   padding: 0;
+  touch-action: manipulation;
 }
 
 .collapse-toggle:hover {
@@ -187,6 +324,11 @@ main {
   line-height: 1;
 }
 
+/* Rotate icon when panel is collapsed (points right to indicate expand) */
+.collapse-toggle[aria-expanded="false"] .collapse-icon {
+  transform: rotate(-90deg);
+}
+
 .panel-body {
   display: flex;
   flex-direction: column;
@@ -196,73 +338,115 @@ main {
   transition: opacity 0.2s ease;
 }
 
-/* Collapsed state */
-.map-panel.collapsed .panel-body,
-.castle-panel.collapsed .panel-body {
-  display: none;
-}
-
-.map-panel.collapsed .collapse-icon,
-.castle-panel.collapsed .collapse-icon {
-  transform: rotate(-90deg);
-}
-
-/* Collapsed panel styling */
-.map-panel.collapsed,
-.castle-panel.collapsed {
-  flex: 0 0 auto !important;
-  min-height: auto;
-  height: auto;
-}
-
 /* ================= MOBILE OPTIMIZATION ================= */
-@media (max-width: 768px) {
-  main {
-    padding: 10px;
-    gap: 10px;
+
+/* Tablet: 601-1024px */
+@media (min-width: 601px) and (max-width: 1024px) {
+  header {
+    padding: 12px;
   }
 
+  header h1 {
+    font-size: 22px;
+  }
+
+  .toolbar {
+    padding: 8px;
+    gap: 6px;
+  }
+
+  .toolbar button {
+    min-width: 100px;
+    padding: 8px 12px;
+    font-size: 13px;
+  }
+
+  .map-panel, .castle-panel {
+    padding: 10px;
+  }
+
+  .canvas-actions {
+    flex-wrap: wrap;
+  }
+}
+
+/* Phone: <=600px */
+@media (max-width: 600px) {
   header {
     padding: 10px;
   }
 
   header h1 {
-    font-size: 20px;
+    font-size: 18px;
   }
 
   .toolbar {
-    padding: 5px;
+    padding: 6px;
     gap: 4px;
+    display: none; /* Hide top toolbar on phone - use sticky bar instead */
   }
 
   .toolbar button {
-    min-width: 80px;
-    padding: 6px 10px;
+    min-width: 70px;
+    padding: 8px 10px;
     font-size: 12px;
   }
 
   .map-panel, .castle-panel {
     padding: 8px;
+    border-radius: 8px;
   }
 
   .map-panel h2, .castle-panel h2 {
     font-size: 14px;
-    margin-bottom: 6px;
   }
 
   .canvas-wrap {
-    padding: 8px;
-    height: 40vh;
+    padding: 4px;
+    border-radius: 8px;
+  }
+
+  .canvas-actions {
+    flex-wrap: wrap;
+    gap: 4px;
+  }
+
+  .canvas-actions button {
+    flex: 1 1 calc(50% - 4px);
+    min-width: 0;
+    font-size: 11px;
+    padding: 8px 6px;
+  }
+
+  .grid-toggle {
+    font-size: 12px;
+    flex: 1 1 100%;
+    justify-content: center;
+  }
+
+  .map-score {
+    flex: 1 1 100%;
+    text-align: center;
+    font-size: 12px;
+    margin-left: 0;
   }
 
   .castle-toolbar {
+    flex-wrap: wrap;
     gap: 4px;
-    margin-bottom: 6px;
   }
 
-  #castleSearch, #castleLimit {
-    padding: 4px 8px;
-    font-size: 12px;
+  #castleSearch {
+    flex: 1 1 100%;
+    font-size: 14px;
+  }
+
+  #castleLimit {
+    flex: 1 1 calc(50% - 2px);
+  }
+
+  .castle-toolbar button {
+    flex: 1 1 calc(50% - 2px);
   }
 
   .table-wrap {
@@ -270,25 +454,155 @@ main {
   }
 
   table {
-    font-size: 11px;
+    font-size: 12px;
   }
 
   thead th, td {
-    padding: 4px 6px;
+    padding: 8px 6px;
   }
 
   .actions {
-    margin-top: 6px;
+    margin-top: 8px;
+    display: flex;
+    gap: 8px;
   }
 
   .actions button {
-    padding: 6px 10px;
-    font-size: 12px;
+    flex: 1;
+    padding: 10px;
+    font-size: 13px;
   }
 
   footer {
     padding: 8px;
     font-size: 11px;
+  }
+}
+
+/* ================= MOBILE STICKY CONTROLS ================= */
+.mobile-sticky-bar {
+  display: none;
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  background: var(--panel);
+  border-top: 1px solid var(--border);
+  padding: 8px;
+  z-index: 100;
+  gap: 8px;
+  justify-content: space-around;
+  align-items: center;
+  box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.3);
+}
+
+.mobile-sticky-bar button {
+  flex: 1;
+  max-width: 100px;
+  padding: 10px 8px;
+  font-size: 12px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  min-height: var(--touch-target-min);
+}
+
+.mobile-sticky-bar .btn-icon {
+  font-size: 18px;
+}
+
+.mobile-sticky-bar .btn-label {
+  font-size: 10px;
+}
+
+/* Layout toggle buttons */
+.layout-toggle-group {
+  display: flex;
+  gap: 4px;
+  background: var(--bg);
+  padding: 4px;
+  border-radius: 8px;
+}
+
+.layout-toggle-group button {
+  min-width: auto;
+  padding: 8px 12px;
+  border-radius: 6px;
+}
+
+.layout-toggle-group button.active {
+  background: var(--accent);
+  color: var(--bg);
+  border-color: var(--accent);
+}
+
+/* Show sticky bar on phone/tablet */
+@media (max-width: 1024px) {
+  .mobile-sticky-bar {
+    display: flex;
+  }
+
+  main {
+    padding-bottom: 80px; /* Space for sticky bar */
+  }
+
+  footer {
+    margin-bottom: 70px;
+  }
+}
+
+/* ================= MOBILE TABLE UX ================= */
+/* Hide less essential columns on phone */
+@media (max-width: 600px) {
+  /* Essential columns: Player, Power, Lv, Pref, Lock, Attend */
+  .castle-table th:nth-child(1), /* checkbox */
+  .castle-table td:nth-child(1),
+  .castle-table th:nth-child(2), /* ID */
+  .castle-table td:nth-child(2),
+  .castle-table th:nth-child(6), /* CC */
+  .castle-table td:nth-child(6),
+  .castle-table th:nth-child(10), /* Rallies */
+  .castle-table td:nth-child(10),
+  .castle-table th:nth-child(11), /* Round Trip */
+  .castle-table td:nth-child(11),
+  .castle-table th:nth-child(12), /* Priority */
+  .castle-table td:nth-child(12),
+  .castle-table th:nth-child(13), /* Efficiency */
+  .castle-table td:nth-child(13),
+  .castle-table th:nth-child(14), /* Last Updated */
+  .castle-table td:nth-child(14) {
+    display: none;
+  }
+
+  /* Make table horizontally scrollable if needed */
+  .table-wrap {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  /* Row expand indicator */
+  .row-expand-btn {
+    width: var(--touch-target-min);
+    height: var(--touch-target-min);
+    padding: 0;
+    background: transparent;
+    border: none;
+    color: var(--muted);
+    font-size: 16px;
+  }
+
+  .row-expand-btn:hover {
+    color: var(--accent);
+  }
+}
+
+/* Tablet: show more columns but still optimize */
+@media (min-width: 601px) and (max-width: 1024px) {
+  /* Hide only least essential */
+  .castle-table th:nth-child(14), /* Last Updated */
+  .castle-table td:nth-child(14) {
+    display: none;
   }
 }
 
@@ -355,6 +669,7 @@ main {
   justify-content: center;
   align-items: center;
   min-height: 0;
+  touch-action: none; /* Prevent browser handling of touch gestures */
 }
 
 canvas {
@@ -365,6 +680,16 @@ canvas {
   max-height: 100%;
   cursor: default;
   transition: cursor 0.1s ease;
+  touch-action: none; /* Handle all touch events in JS */
+}
+
+/* Touch feedback for draggable entities */
+canvas.dragging {
+  cursor: grabbing;
+}
+
+canvas.touch-active {
+  cursor: grabbing;
 }
 
 /* ================= EFFICIENCY LEGEND ================= */
