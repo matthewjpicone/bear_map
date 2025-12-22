@@ -53,35 +53,3 @@ jobs:
             git commit -m "chore: auto-update requirements.txt [skip ci]"
             git push
           fi
-
-      - name: Run Semantic Release
-        if: github.ref == 'refs/heads/main' && github.event_name == 'push'
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          npm install -g \
-            semantic-release \
-            @semantic-release/commit-analyzer \
-            @semantic-release/release-notes-generator \
-            @semantic-release/changelog \
-            @semantic-release/npm \
-            @semantic-release/exec \
-            @semantic-release/git \
-            @semantic-release/github
-          npx semantic-release
-
-      - name: Update Version (Python Fallback)
-        if: github.ref == 'refs/heads/main' && github.event_name == 'push'
-        run: |
-          python scripts/update_version.py
-
-      - name: Commit Version Update if Changed
-        if: github.ref == 'refs/heads/main' && github.event_name == 'push'
-        run: |
-          git config --local user.email "github-actions[bot]@users.noreply.github.com"
-          git config --local user.name "github-actions[bot]"
-          if ! git diff --quiet version.json; then
-            git add version.json package.json
-            git commit -m "chore: sync version files [skip ci]" || echo "No version changes to commit"
-            git push || echo "No changes to push"
-          fi
