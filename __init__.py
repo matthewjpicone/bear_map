@@ -1,21 +1,9 @@
 """
-Module Name: module_name.py
+Bear Map application.
 
-Description:
-    Brief description of what this module does.
+A FastAPI-powered tool for visualizing and arranging the "Bear Planner"
+layout for collaborative bear trap planning and castle management.
 
-Usage:
-    Example of how to use this module or function.
-
-Author:
-    Matthew Picone (mail@matthewpicone.com)
-
-Date:
-    13/12/2025
-
-License:
-    This project is licensed under the MIT License - see the LICENSE file for details.
-
+Author: Matthew Picone (mail@matthewpicone.com)
+Date: 2025-12-17
 """
-
-# Your code here

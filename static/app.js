@@ -2296,7 +2296,10 @@ document
             const response = await fetch('/api/send_map_to_discord', {
                 method: 'POST',
                 headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({channel: 'r4', message: 'Please review updated map'})
+                body: JSON.stringify({
+                    channel: 'r4',
+                    message: 'Please review updated map'
+                })
             });
             if (!response.ok) throw new Error('Send failed');
             showToast('Map sent to R4 on Discord! ✅', 'success');

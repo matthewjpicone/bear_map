@@ -3,8 +3,18 @@ repos:
     rev: 24.10.0
     hooks:
       - id: black
+        # Black reads pyproject.toml automatically if present
+
   - repo: https://github.com/pycqa/isort
     rev: 5.13.2
     hooks:
       - id: isort
-        args: ["--profile", "black"]
+        args: [ "--profile", "black" ]
+
+  - repo: https://github.com/pycqa/flake8
+    rev: 7.1.1
+    hooks:
+      - id: flake8
+
+# Exclude common generated/third-party directories anywhere in the repo
+exclude: '(^|/)(\.venv|venv|env|\.env|__pycache__|\.pytest_cache|\.mypy_cache|\.ruff_cache|node_modules|dist|build)/'

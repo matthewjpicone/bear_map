@@ -1,6 +1,7 @@
 # Bear Map
 
-FastAPI-powered tool for visualizing and arranging the "Bear Planner" layout. The app serves a small API plus a static
+FastAPI-powered tool for visualizing and arranging the "Bear Planner" layout. The app
+serves a small API plus a static
 HTML/JS client from `static/`.
 
 ## Quick start
@@ -22,19 +23,22 @@ HTML/JS client from `static/`.
 
 ## Configuration
 
-The app loads its state from `config.json` at startup and persists changes via `POST /api/save`. Player data is exposed
+The app loads its state from `config.json` at startup and persists changes via
+`POST /api/save`. Player data is exposed
 for download via `/players.csv`.
 
 ### Environment Variables
 
 Create a `.env` file (see `.env.example`) with the following configuration:
 
-- `GITHUB_WEBHOOK_SECRET`: Secret token for validating GitHub webhook payloads. Generate a secure random string and
+- `GITHUB_WEBHOOK_SECRET`: Secret token for validating GitHub webhook payloads. Generate
+  a secure random string and
   configure it in your GitHub repository webhook settings.
 
 ### GitHub Webhook for Automatic Updates
 
-The application includes a webhook handler at `/webhook/github` that enables automatic deployments when code is pushed
+The application includes a webhook handler at `/webhook/github` that enables automatic
+deployments when code is pushed
 to the main branch.
 
 **Setup:**
@@ -50,7 +54,8 @@ to the main branch.
     - **Secret**: Same value as `GITHUB_WEBHOOK_SECRET`
     - **Events**: Select "Just the push event"
 
-3. Configure sudo access for the service user to restart the systemd service without a password prompt:
+3. Configure sudo access for the service user to restart the systemd service without a
+   password prompt:
    ```bash
    # Add to /etc/sudoers.d/bearmap
    matthewpicone ALL=(ALL) NOPASSWD: /usr/bin/systemctl restart bearmap.service
@@ -78,16 +83,19 @@ Logs are written to `/home/matthewpicone/bearMap/update.log` on the production s
 
 - Static assets live in `static/`.
 - The FastAPI application is defined in `main.py`.
-- `requirements.txt` pins the versions needed for local development and GitHub Codespaces installs.
+- `requirements.txt` pins the versions needed for local development and GitHub
+  Codespaces installs.
 
 ## Automated Versioning and Releases
 
-This project uses [Semantic Release](https://semantic-release.gitbook.io/) for automated versioning and changelog
+This project uses [Semantic Release](https://semantic-release.gitbook.io/) for automated
+versioning and changelog
 generation.
 
 ### How It Works
 
-1. **Commit Convention**: Follow [Conventional Commits](https://www.conventionalcommits.org/) format:
+1. **Commit Convention**:
+   Follow [Conventional Commits](https://www.conventionalcommits.org/) format:
     - `feat:` - New features (triggers minor version bump)
     - `fix:` - Bug fixes (triggers patch version bump)
     - `BREAKING CHANGE:` - Breaking changes (triggers major version bump)
@@ -118,11 +126,13 @@ If versioning fails:
 
 ## Priority and Efficiency Scoring
 
-The application computes priority ranks and efficiency scores for castle placements to help optimize rally assignments.
+The application computes priority ranks and efficiency scores for castle placements to
+help optimize rally assignments.
 
 ### Priority Score (1-100 Rank)
 
-Priority determines the order in which castles should be assigned to optimal positions. It's calculated from player
+Priority determines the order in which castles should be assigned to optimal positions.
+It's calculated from player
 stats:
 
 - **Power**: 50% weight (log-transformed to handle large ranges)
@@ -130,15 +140,18 @@ stats:
 - **Command Centre Level**: 20% weight
 - **Attendance**: 10% weight
 
-Each metric is normalized using 5th-95th percentiles to reduce outlier impact. Missing attendance uses the median value.
+Each metric is normalized using 5th-95th percentiles to reduce outlier impact. Missing
+attendance uses the median value.
 Command centre level of 0 is treated as 0 priority contribution.
 
-Castles are ranked 1-100 (1 being highest priority) based on descending priority score, with ties broken by power, then
+Castles are ranked 1-100 (1 being highest priority) based on descending priority score,
+with ties broken by power, then
 player level, then ID.
 
 ### Efficiency Score (0-100, Lower is Better)
 
-Efficiency measures how well the current placement matches an ideal allocation that minimizes travel time for
+Efficiency measures how well the current placement matches an ideal allocation that
+minimizes travel time for
 high-priority players.
 
 #### Travel Time Calculation

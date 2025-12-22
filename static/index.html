@@ -60,9 +60,11 @@
                     <button id="moveAllOutOfWayBtn">Move All Out of Way</button>
                     <button id="downloadBtn">Download Map</button>
                     <button id="sendToR4Btn">Send to R4 on Discord</button>
-                    <button id="sendToAnnouncementsBtn">Publish to Announcements</button>
+                    <button id="sendToAnnouncementsBtn">Publish to Announcements
+                    </button>
                     <label class="grid-toggle">
-                        <input aria-label="Toggle grid visibility" checked id="gridToggle" type="checkbox">
+                        <input aria-label="Toggle grid visibility" checked
+                               id="gridToggle" type="checkbox">
                         <span>Show Grid</span>
                     </label>
                     <div class="map-score" id="mapScoreDisplay">Map Score: —</div>
@@ -72,7 +74,8 @@
                     <div class="efficiency-legend" id="efficiencyLegend">
 
                     </div>
-                    <canvas aria-label="Interactive map for castle placement" height="1600" id="map"
+                    <canvas aria-label="Interactive map for castle placement"
+                            height="1600" id="map"
                             width="1600"></canvas>
                 </div>
             </div>
@@ -101,14 +104,18 @@
                     <option value="50">Top 50</option>
                     <option value="100">Top 100</option>
                 </select>
-                <button aria-label="Upload CSV file" id="uploadCsvBtn">Upload CSV</button>
-                <button aria-label="Download CSV file" class="secondary" id="downloadCsvBtn">Download CSV</button>
+                <button aria-label="Upload CSV file" id="uploadCsvBtn">Upload CSV
+                </button>
+                <button aria-label="Download CSV file" class="secondary"
+                        id="downloadCsvBtn">Download CSV
+                </button>
                 <button id="addCastleBtn">Add Castle</button>
             </div>
 
             <!-- Bulk Operations Toolbar -->
             <div class="bulk-ops-toolbar" id="bulkOpsToolbar" style="display: none;">
-                <span class="bulk-selection-count" id="bulkSelectionCount">0 selected</span>
+                <span class="bulk-selection-count"
+                      id="bulkSelectionCount">0 selected</span>
                 <select aria-label="Select field to update" id="bulkField">
                     <option value="">Select field...</option>
                     <option value="player_level">Player Level</option>
@@ -116,7 +123,8 @@
                     <option value="preference">Preference</option>
                     <option value="locked">Locked Status</option>
                 </select>
-                <input id="bulkLevelValue" min="0" placeholder="New level" style="display: none;" type="number"/>
+                <input id="bulkLevelValue" min="0" placeholder="New level"
+                       style="display: none;" type="number"/>
                 <select id="bulkPreferenceValue" style="display: none;">
                     <option value="Bear 1">Bear 1</option>
                     <option value="Bear 2">Bear 2</option>
@@ -127,15 +135,18 @@
                     <option value="false">Unlocked</option>
                 </select>
                 <button class="primary" id="applyBulkBtn">Apply to Selected</button>
-                <button class="secondary" id="clearSelectionBtn">Clear Selection</button>
+                <button class="secondary" id="clearSelectionBtn">Clear Selection
+                </button>
             </div>
 
             <div class="table-wrap">
-                <table aria-label="Castle data table" class="castle-table" id="castleTable" role="table">
+                <table aria-label="Castle data table" class="castle-table"
+                       id="castleTable" role="table">
                     <thead>
                     <tr>
                         <th class="checkbox-col">
-                            <input aria-label="Select all castles" id="selectAllCheckbox" type="checkbox"/>
+                            <input aria-label="Select all castles"
+                                   id="selectAllCheckbox" type="checkbox"/>
                         </th>
                         <th data-sort="id">ID</th>
                         <th data-sort="player">Player</th>
@@ -160,8 +171,10 @@
             </div>
 
             <div class="actions">
-                <button aria-label="Lock all placed castles" id="lockAllBtn">Lock All</button>
-                <button aria-label="Unlock all castles" id="unlockAllBtn">Unlock All</button>
+                <button aria-label="Lock all placed castles" id="lockAllBtn">Lock All
+                </button>
+                <button aria-label="Unlock all castles" id="unlockAllBtn">Unlock All
+                </button>
             </div>
         </div><!-- /.panel-body -->
     </section>
@@ -185,14 +198,18 @@
 <div id="bulkOperationModal"
      style="display: none; position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); background: var(--panel); border: 1px solid var(--border); padding: 20px; z-index: 10; border-radius: 8px; max-width: 400px;">
     <h3 id="bulkOperationTitle">Confirm Operation</h3>
-    <p id="bulkOperationMessage">Are you sure you want to perform this bulk operation?</p>
+    <p id="bulkOperationMessage">Are you sure you want to perform this bulk
+        operation?</p>
     <div style="background: var(--surface); border-left: 4px solid var(--accent); padding: 12px; margin: 15px 0; border-radius: 4px;">
-        <strong>⚠️ Important:</strong> Any castles you want to keep in their current positions should be
+        <strong>⚠️ Important:</strong> Any castles you want to keep in their current
+        positions should be
         <strong>locked</strong> before proceeding. Only unlocked castles will be moved.
     </div>
     <div style="margin-top: 20px; text-align: right;">
         <button id="cancelBulkOperation" style="margin-right: 10px;">Cancel</button>
-        <button id="confirmBulkOperation" style="background: var(--accent); color: white;">Proceed</button>
+        <button id="confirmBulkOperation"
+                style="background: var(--accent); color: white;">Proceed
+        </button>
     </div>
 </div>
 
@@ -207,7 +224,8 @@
         <option value="Created in error">Created in error</option>
         <option value="Other">Other</option>
     </select>
-    <input id="deleteOther" placeholder="Please explain" style="display: none; margin-top: 10px; width: 100%;"
+    <input id="deleteOther" placeholder="Please explain"
+           style="display: none; margin-top: 10px; width: 100%;"
            type="text"/>
     <div style="margin-top: 20px; text-align: right;">
         <button id="cancelDelete">Cancel</button>
@@ -220,22 +238,30 @@
      style="display: none; position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); background: var(--panel); border: 1px solid var(--border); padding: 20px; z-index: 10; border-radius: 8px; min-width: 350px;">
     <h3>Add New Castle</h3>
     <div style="margin: 15px 0;">
-        <label style="display: block; margin-bottom: 5px; font-weight: 500;">Player Name *</label>
-        <input id="addCastleName" placeholder="Enter player name" style="width: 100%; padding: 8px; border: 1px solid var(--border); border-radius: 4px; background: var(--surface); color: var(--text);"
+        <label style="display: block; margin-bottom: 5px; font-weight: 500;">Player Name
+            *</label>
+        <input id="addCastleName" placeholder="Enter player name"
+               style="width: 100%; padding: 8px; border: 1px solid var(--border); border-radius: 4px; background: var(--surface); color: var(--text);"
                type="text"/>
     </div>
     <div style="margin: 15px 0;">
-        <label style="display: block; margin-bottom: 5px; font-weight: 500;">Power *</label>
-        <input id="addCastlePower" placeholder="e.g., 25.5M or 25500000" style="width: 100%; padding: 8px; border: 1px solid var(--border); border-radius: 4px; background: var(--surface); color: var(--text);"
+        <label style="display: block; margin-bottom: 5px; font-weight: 500;">Power
+            *</label>
+        <input id="addCastlePower" placeholder="e.g., 25.5M or 25500000"
+               style="width: 100%; padding: 8px; border: 1px solid var(--border); border-radius: 4px; background: var(--surface); color: var(--text);"
                type="text"/>
     </div>
     <div style="margin: 15px 0;">
-        <label style="display: block; margin-bottom: 5px; font-weight: 500;">TC Level *</label>
-        <input id="addCastleLevel" max="50" min="1" placeholder="1-50" style="width: 100%; padding: 8px; border: 1px solid var(--border); border-radius: 4px; background: var(--surface); color: var(--text);" type="number"
+        <label style="display: block; margin-bottom: 5px; font-weight: 500;">TC Level
+            *</label>
+        <input id="addCastleLevel" max="50" min="1" placeholder="1-50"
+               style="width: 100%; padding: 8px; border: 1px solid var(--border); border-radius: 4px; background: var(--surface); color: var(--text);"
+               type="number"
                value="25"/>
     </div>
     <div style="margin: 15px 0;">
-        <label style="display: block; margin-bottom: 5px; font-weight: 500;">Bear Preference *</label>
+        <label style="display: block; margin-bottom: 5px; font-weight: 500;">Bear
+            Preference *</label>
         <select id="addCastlePreference"
                 style="width: 100%; padding: 8px; border: 1px solid var(--border); border-radius: 4px; background: var(--surface); color: var(--text);">
             <option value="Both">Both</option>
@@ -245,7 +271,9 @@
     </div>
     <div style="margin-top: 20px; text-align: right;">
         <button id="cancelAddCastle" style="margin-right: 10px;">Cancel</button>
-        <button id="confirmAddCastle" style="background: var(--accent); color: white;">Add Castle</button>
+        <button id="confirmAddCastle" style="background: var(--accent); color: white;">
+            Add Castle
+        </button>
     </div>
 </div>
 
@@ -253,13 +281,17 @@
 <div id="publishConfirmModal"
      style="display: none; position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); background: var(--panel); border: 1px solid var(--border); padding: 20px; z-index: 10; border-radius: 8px; max-width: 420px;">
     <h3>Publish to Discord?</h3>
-    <p>This will post the latest map to the Announcements channel for all members. Are you sure you want to publish?</p>
+    <p>This will post the latest map to the Announcements channel for all members. Are
+        you sure you want to publish?</p>
     <div style="background: var(--surface); border-left: 4px solid var(--accent); padding: 12px; margin: 15px 0; border-radius: 4px;">
-        <strong>Heads up:</strong> This notifies everyone. Please confirm the map is final before publishing.
+        <strong>Heads up:</strong> This notifies everyone. Please confirm the map is
+        final before publishing.
     </div>
     <div style="margin-top: 20px; text-align: right;">
         <button id="cancelPublish" style="margin-right: 10px;">Cancel</button>
-        <button id="confirmPublish" style="background: var(--accent); color: white;">Publish</button>
+        <button id="confirmPublish" style="background: var(--accent); color: white;">
+            Publish
+        </button>
     </div>
 </div>
 
@@ -268,9 +300,12 @@
      style="display: none; position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); background: var(--panel); border: 1px solid var(--border); padding: 20px; z-index: 10; border-radius: 8px; max-width: 500px;">
     <h3>Joke of the Day</h3>
     <p id="jokeSetup"></p>
-    <div id="jokePunchline" style="display: none; margin-top: 15px; font-weight: bold;"></div>
+    <div id="jokePunchline"
+         style="display: none; margin-top: 15px; font-weight: bold;"></div>
     <div style="margin-top: 20px; text-align: right;">
-        <button id="revealPunchline" style="background: var(--accent); color: white;">Reveal Punchline</button>
+        <button id="revealPunchline" style="background: var(--accent); color: white;">
+            Reveal Punchline
+        </button>
         <button id="closeJoke" style="margin-left: 10px;">Close</button>
     </div>
 </div>
