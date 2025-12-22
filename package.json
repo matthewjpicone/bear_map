@@ -1,6 +1,6 @@
 {
   "name": "bear_map",
-  "version": "2.2.6",
+  "version": "1.0.0",
   "description": "Bear Map - FastAPI-powered tool for visualizing and arranging the Bear Planner layout",
   "repository": {
     "type": "git",
