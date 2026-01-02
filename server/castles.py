@@ -65,6 +65,9 @@ async def update_castle(payload: Dict[str, Any] = Body(...)):
         if key == "player":
             castle["player"] = sanitise_player_name(str(value))
             data_fields_changed = True
+        elif key == "discord_username":
+            castle["discord_username"] = sanitise_player_name(str(value))
+            data_fields_changed = True
         elif key == "preference":
             if value not in VALID_PREFERENCES:
                 raise HTTPException(400, "Invalid preference")
@@ -156,6 +159,9 @@ async def bulk_update_castles(payload: Dict[str, Any] = Body(...)):
             if key == "player":
                 castle["player"] = sanitise_player_name(str(value))
                 data_fields_changed = True
+            elif key == "discord_username":
+                castle["discord_username"] = sanitise_player_name(str(value))
+                data_fields_changed = True
             elif key == "preference":
                 castle["preference"] = value
             elif key == "attendance":
@@ -198,43 +204,72 @@ async def bulk_update_castles(payload: Dict[str, Any] = Body(...)):
 
 
 @router.post("/api/castles/add")
-async def add_castle():
+async def add_castle(payload: Dict[str, Any] = Body(None)):
     """Add a new castle to the map.
 
-    Creates a new castle with default values and a unique ID. The castle is
+    Creates a new castle with provided or default values. The castle is
     initially unplaced (x and y are None).
+
+    Args:
+        payload: Optional dictionary containing:
+            - id: Optional custom castle ID
+            - player: Player name
+            - discord_username: Discord username
+            - power: Castle power
+            - player_level: Player level
+            - preference: Bear trap preference
 
     Returns:
         Dictionary with success status and new castle ID.
+
+    Raises:
+        HTTPException: If custom castle ID already exists.
     """
     config = load_config()
     castles = config.get("castles", [])
 
-    # Generate new ID - extract numeric part from existing castle IDs
-    existing_ids = []
-    for c in castles:
-        castle_id = c.get("id", "")
-        if isinstance(castle_id, str) and castle_id.startswith("Castle "):
-            try:
-                existing_ids.append(int(castle_id.split(" ")[1]))
-            except (ValueError, IndexError):
-                pass
-        elif isinstance(castle_id, int):
-            existing_ids.append(castle_id)
+    # Extract payload data if provided
+    payload = payload or {}
+    custom_id = payload.get("id", "").strip()
+    player_name = payload.get("player", "").strip()
+    discord_username = payload.get("discord_username", "").strip()
+    power = payload.get("power", 0)
+    player_level = payload.get("player_level", 0)
+    preference = payload.get("preference", "Both")
 
-    new_num = max(existing_ids, default=0) + 1
-    new_id = f"Castle {new_num}"
+    # Determine castle ID
+    if custom_id:
+        # Check if custom ID already exists
+        if any(c.get("id") == custom_id for c in castles):
+            raise HTTPException(400, f"Castle ID '{custom_id}' already exists")
+        new_id = custom_id
+    else:
+        # Generate new ID - extract numeric part from existing castle IDs
+        existing_ids = []
+        for c in castles:
+            castle_id = c.get("id", "")
+            if isinstance(castle_id, str) and castle_id.startswith("Castle "):
+                try:
+                    existing_ids.append(int(castle_id.split(" ")[1]))
+                except (ValueError, IndexError):
+                    pass
+            elif isinstance(castle_id, int):
+                existing_ids.append(castle_id)
+
+        new_num = max(existing_ids, default=0) + 1
+        new_id = f"Castle {new_num}"
 
     config["castles"].append(
         {
             "id": new_id,
-            "player": "",
-            "power": 0,
-            "player_level": 0,
+            "player": player_name,
+            "discord_username": discord_username,
+            "power": power,
+            "player_level": player_level,
             "command_centre_level": 0,
             "attendance": 0,
-            "rallies_30min": 0,
-            "preference": "Both",
+            "rallies_30min": 5,
+            "preference": preference,
             "locked": False,
             "priority": None,
             "efficiency": None,

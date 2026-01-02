@@ -14,6 +14,7 @@ from fastapi import HTTPException
 
 ALLOWED_CASTLE_FIELDS = {
     "player": str,
+    "discord_username": str,
     "power": int,
     "player_level": int,
     "command_centre_level": int,

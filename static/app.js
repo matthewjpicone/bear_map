@@ -2604,7 +2604,9 @@ TIP
  */
 function openAddCastleModal() {
     // Clear previous inputs
+    document.getElementById('addCastleId').value = '';
     document.getElementById('addCastleName').value = '';
+    document.getElementById('addCastleDiscord').value = '';
     document.getElementById('addCastlePower').value = '';
     document.getElementById('addCastleLevel').value = '25';
     document.getElementById('addCastlePreference').value = 'Both';
@@ -2612,8 +2614,8 @@ function openAddCastleModal() {
     // Show modal
     document.getElementById('addCastleModal').style.display = 'block';
 
-    // Focus on name input
-    document.getElementById('addCastleName').focus();
+    // Focus on castle ID input
+    document.getElementById('addCastleId').focus();
 }
 
 /**
@@ -2627,7 +2629,9 @@ function closeAddCastleModal() {
  * Submit the Add Castle form
  */
 async function submitAddCastle() {
+    const castleId = document.getElementById('addCastleId').value.trim();
     const playerName = document.getElementById('addCastleName').value.trim();
+    const discordUsername = document.getElementById('addCastleDiscord').value.trim();
     const powerStr = document.getElementById('addCastlePower').value.trim();
     const levelStr = document.getElementById('addCastleLevel').value;
     const preference = document.getElementById('addCastlePreference').value;
@@ -2667,20 +2671,30 @@ async function submitAddCastle() {
             return;
         }
 
+        // Build request body
+        const body = {
+            player: playerName,
+            discord_username: discordUsername,
+            power: power,
+            player_level: level,
+            preference: preference
+        };
+
+        // Add castle ID only if provided
+        if (castleId) {
+            body.id = castleId;
+        }
+
         // Call API to create castle
-        const response = await fetch('/api/castles', {
+        const response = await fetch('/api/castles/add', {
             method: 'POST',
             headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify({
-                player: playerName,
-                power: power,
-                player_level: level,
-                preference: preference
-            })
+            body: JSON.stringify(body)
         });
 
         if (!response.ok) {
-            throw new Error('Failed to create castle');
+            const errorData = await response.json();
+            throw new Error(errorData.detail || 'Failed to create castle');
         }
 
         const result = await response.json();
@@ -2695,7 +2709,7 @@ async function submitAddCastle() {
 
     } catch (error) {
         console.error('Error adding castle:', error);
-        showToast('Failed to add castle', 'error');
+        showToast(error.message || 'Failed to add castle', 'error');
     }
 }
 
@@ -2715,7 +2729,21 @@ document.getElementById("confirmAddCastle")?.addEventListener("click", async () 
 });
 
 // Enter key support in modal inputs
+document.getElementById("addCastleId")?.addEventListener("keypress", (e) => {
+    if (e.key === 'Enter') {
+        e.preventDefault();
+        document.getElementById('addCastleName').focus();
+    }
+});
+
 document.getElementById("addCastleName")?.addEventListener("keypress", (e) => {
+    if (e.key === 'Enter') {
+        e.preventDefault();
+        document.getElementById('addCastleDiscord').focus();
+    }
+});
+
+document.getElementById("addCastleDiscord")?.addEventListener("keypress", (e) => {
     if (e.key === 'Enter') {
         e.preventDefault();
         document.getElementById('addCastlePower').focus();
