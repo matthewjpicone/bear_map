@@ -23,6 +23,7 @@ from pydantic import BaseModel
 PLACEHOLDER_VALUES = {"none", "n/a", "na", "tbd", "tba", "-", ""}
 
 from logic.config import load_config, save_config
+from logic.placement import normalize_preference
 from logic.scoring import compute_efficiency, compute_priority
 
 
@@ -34,6 +35,18 @@ class DiscordMapRequest(BaseModel):
 
 
 TILE_SIZE = 40
+
+
+def normalize_preference_uppercase(value: str) -> str:
+    """Wrapper to normalize preference and convert to uppercase for config storage.
+    
+    Args:
+        value: Preference string from CSV.
+    
+    Returns:
+        Uppercase normalized preference (BT1, BT2, BT1/2, BT2/1).
+    """
+    return normalize_preference(value).upper()
 
 
 def parse_power(s: str) -> int:
@@ -50,44 +63,6 @@ def parse_power(s: str) -> int:
         return int(float(s) * multiplier)
     except ValueError:
         return 0
-
-
-def normalize_preference(value: str) -> str:
-    """Normalize preference values to valid internal format.
-
-    Args:
-        value: Preference string from CSV (e.g., "both", "Bear 1", "BT1").
-
-    Returns:
-        Normalized preference value or default "BT1/2".
-    """
-    value = value.strip().lower()
-
-    # Map common variations to internal values
-    preference_mapping = {
-        "bt1": "BT1",
-        "bt2": "BT2",
-        "bt1/2": "BT1/2",
-        "bt2/1": "BT2/1",
-        "bear 1": "BT1",
-        "bear 2": "BT2",
-        "both": "BT1/2",
-        "either": "BT1/2",
-    }
-
-    normalized = preference_mapping.get(value)
-    if normalized:
-        return normalized
-
-    # If it's already a valid preference (case-insensitive), return it
-    from logic.validation import VALID_PREFERENCES
-
-    for valid_pref in VALID_PREFERENCES:
-        if value == valid_pref.lower():
-            return valid_pref
-
-    # Default fallback
-    return "BT1/2"
 
 
 def efficiency_color(value):
@@ -401,7 +376,7 @@ async def upload_csv(file: UploadFile = File(...)):
                         matched_castle["discord_username"] = sanitise_player_name(value)
                         any_fields_changed = True
                     elif field == "preference":
-                        normalized_pref = normalize_preference(value)
+                        normalized_pref = normalize_preference_uppercase(value)
                         matched_castle["preference"] = normalized_pref
                         any_fields_changed = True
                     elif field == "attendance":
@@ -475,7 +450,7 @@ async def upload_csv(file: UploadFile = File(...)):
                     if "attendance" in parsed_data
                     else None,
                     "rallies_30min": sanitise_int(parsed_data.get("rallies_30min", 0)),
-                    "preference": normalize_preference(parsed_data.get("preference", "BT1/2")),
+                    "preference": normalize_preference_uppercase(parsed_data.get("preference", "BT1/2")),
                     "current_trap": parsed_data.get("current_trap", ""),
                     "recommended_trap": parsed_data.get("recommended_trap", ""),
                     "priority_score": 0.0,

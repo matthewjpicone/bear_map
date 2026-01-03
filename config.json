@@ -69,7 +69,7 @@
       "priority_score": 0.75,
       "efficiency_score": 0,
       "round_trip": 319,
-      "last_updated": "2026-01-03T07:22:35.203820",
+      "last_updated": "2026-01-03T07:30:04.360301",
       "x": 12,
       "y": 13,
       "locked": true,
@@ -4425,7 +4425,7 @@
       "priority": null,
       "efficiency": null,
       "round_trip": null,
-      "last_updated": "2026-01-03T07:22:35.203820",
+      "last_updated": "2026-01-03T07:30:04.360301",
       "x": null,
       "y": null,
       "current_trap": "",
@@ -4464,7 +4464,7 @@
       "priority": null,
       "efficiency": null,
       "round_trip": null,
-      "last_updated": "2026-01-03T07:22:35.203820",
+      "last_updated": "2026-01-03T07:30:04.360301",
       "x": null,
       "y": null,
       "current_trap": "",
@@ -4894,7 +4894,7 @@
       "priority_score": 0.7467570043838672,
       "efficiency_score": 100,
       "round_trip": null,
-      "last_updated": "2026-01-03T07:22:35.203820",
+      "last_updated": "2026-01-03T07:30:04.360301",
       "x": null,
       "y": null,
       "locked": false,
@@ -4914,7 +4914,9 @@
         "attendance_median": 0.0
       },
       "priority_index": 7,
-      "priority_rank_100": 7
+      "priority_rank_100": 7,
+      "priority": 0.0,
+      "efficiency": 0.0
     }
   ],
   "banners": [
