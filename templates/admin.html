@@ -1,0 +1,331 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin - Config Editor</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
+                'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue', sans-serif;
+            background-color: #0f172a;
+            color: #e2e8f0;
+            padding: 20px;
+            line-height: 1.6;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        header {
+            background-color: #1e293b;
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+
+        h1 {
+            color: #f97316;
+            font-size: 2rem;
+            margin-bottom: 8px;
+        }
+
+        .subtitle {
+            color: #94a3b8;
+            font-size: 0.9rem;
+        }
+
+        .editor-container {
+            background-color: #1e293b;
+            border-radius: 8px;
+            padding: 20px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+
+        #configEditor {
+            width: 100%;
+            min-height: 600px;
+            padding: 16px;
+            font-family: 'Courier New', Courier, monospace;
+            font-size: 14px;
+            background-color: #0f172a;
+            color: #e2e8f0;
+            border: 2px solid #334155;
+            border-radius: 6px;
+            resize: vertical;
+            line-height: 1.5;
+        }
+
+        #configEditor:focus {
+            outline: none;
+            border-color: #f97316;
+        }
+
+        .button-group {
+            margin-top: 20px;
+            display: flex;
+            gap: 12px;
+            flex-wrap: wrap;
+        }
+
+        button {
+            padding: 12px 24px;
+            font-size: 1rem;
+            font-weight: 600;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+        }
+
+        #saveBtn {
+            background-color: #f97316;
+            color: white;
+        }
+
+        #saveBtn:hover {
+            background-color: #ea580c;
+            transform: translateY(-1px);
+            box-shadow: 0 4px 6px rgba(249, 115, 22, 0.4);
+        }
+
+        #saveBtn:disabled {
+            background-color: #64748b;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        #reloadBtn {
+            background-color: #3b82f6;
+            color: white;
+        }
+
+        #reloadBtn:hover {
+            background-color: #2563eb;
+            transform: translateY(-1px);
+            box-shadow: 0 4px 6px rgba(59, 130, 246, 0.4);
+        }
+
+        #backBtn {
+            background-color: #64748b;
+            color: white;
+        }
+
+        #backBtn:hover {
+            background-color: #475569;
+            transform: translateY(-1px);
+        }
+
+        .message {
+            margin-top: 16px;
+            padding: 12px 16px;
+            border-radius: 6px;
+            font-weight: 500;
+            display: none;
+        }
+
+        .message.success {
+            background-color: #166534;
+            color: #dcfce7;
+            border: 1px solid #16a34a;
+        }
+
+        .message.error {
+            background-color: #7f1d1d;
+            color: #fecaca;
+            border: 1px solid #dc2626;
+        }
+
+        .message.show {
+            display: block;
+            animation: slideIn 0.3s ease;
+        }
+
+        @keyframes slideIn {
+            from {
+                opacity: 0;
+                transform: translateY(-10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .info-box {
+            background-color: #1e3a5f;
+            border-left: 4px solid #3b82f6;
+            padding: 12px 16px;
+            margin-bottom: 20px;
+            border-radius: 4px;
+        }
+
+        .info-box p {
+            margin: 4px 0;
+            color: #bfdbfe;
+        }
+
+        .loading {
+            display: none;
+            margin-top: 16px;
+            text-align: center;
+            color: #94a3b8;
+        }
+
+        .loading.show {
+            display: block;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>⚙️ Admin Configuration Editor</h1>
+            <p class="subtitle">Directly edit the config.json file</p>
+        </header>
+
+        <div class="info-box">
+            <p><strong>⚠️ Warning:</strong> This is a powerful tool. Invalid JSON will be rejected.</p>
+            <p><strong>💡 Tip:</strong> Changes are saved directly to the server and will affect all users immediately.</p>
+        </div>
+
+        <div class="editor-container">
+            <textarea id="configEditor" placeholder="Loading configuration..."></textarea>
+            
+            <div class="button-group">
+                <button id="saveBtn">💾 Save Configuration</button>
+                <button id="reloadBtn">🔄 Reload from Server</button>
+                <button id="backBtn">← Back to App</button>
+            </div>
+
+            <div class="loading" id="loading">⏳ Processing...</div>
+            <div class="message" id="message"></div>
+        </div>
+    </div>
+
+    <script>
+        const configEditor = document.getElementById('configEditor');
+        const saveBtn = document.getElementById('saveBtn');
+        const reloadBtn = document.getElementById('reloadBtn');
+        const backBtn = document.getElementById('backBtn');
+        const messageDiv = document.getElementById('message');
+        const loadingDiv = document.getElementById('loading');
+
+        // Load configuration on page load
+        async function loadConfig() {
+            try {
+                showLoading(true);
+                const response = await fetch('/api/admin/config');
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                
+                const data = await response.json();
+                configEditor.value = data.content;
+                showMessage('Configuration loaded successfully', 'success');
+            } catch (error) {
+                showMessage(`Error loading configuration: ${error.message}`, 'error');
+                console.error('Load error:', error);
+            } finally {
+                showLoading(false);
+            }
+        }
+
+        // Save configuration
+        async function saveConfig() {
+            const content = configEditor.value.trim();
+            
+            if (!content) {
+                showMessage('Configuration cannot be empty', 'error');
+                return;
+            }
+
+            // Validate JSON before sending
+            try {
+                JSON.parse(content);
+            } catch (error) {
+                showMessage(`Invalid JSON: ${error.message}`, 'error');
+                return;
+            }
+
+            try {
+                showLoading(true);
+                saveBtn.disabled = true;
+                
+                const response = await fetch('/api/admin/config', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ content: content })
+                });
+                
+                const result = await response.json();
+                
+                if (!response.ok) {
+                    throw new Error(result.detail || 'Failed to save configuration');
+                }
+                
+                showMessage(result.message || 'Configuration saved successfully', 'success');
+            } catch (error) {
+                showMessage(`Error saving configuration: ${error.message}`, 'error');
+                console.error('Save error:', error);
+            } finally {
+                showLoading(false);
+                saveBtn.disabled = false;
+            }
+        }
+
+        // Show/hide loading indicator
+        function showLoading(show) {
+            if (show) {
+                loadingDiv.classList.add('show');
+            } else {
+                loadingDiv.classList.remove('show');
+            }
+        }
+
+        // Show message
+        function showMessage(text, type) {
+            messageDiv.textContent = text;
+            messageDiv.className = `message ${type} show`;
+            
+            // Auto-hide success messages after 5 seconds
+            if (type === 'success') {
+                setTimeout(() => {
+                    messageDiv.classList.remove('show');
+                }, 5000);
+            }
+        }
+
+        // Event listeners
+        saveBtn.addEventListener('click', saveConfig);
+        reloadBtn.addEventListener('click', loadConfig);
+        backBtn.addEventListener('click', () => {
+            window.location.href = '/';
+        });
+
+        // Load config on page load
+        loadConfig();
+
+        // Enable Ctrl+S / Cmd+S to save
+        document.addEventListener('keydown', (e) => {
+            if ((e.ctrlKey || e.metaKey) && e.key === 's') {
+                e.preventDefault();
+                saveConfig();
+            }
+        });
+    </script>
+</body>
+</html>
