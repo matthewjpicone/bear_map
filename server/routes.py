@@ -14,17 +14,17 @@ import os
 from datetime import datetime
 from io import BytesIO, StringIO
 
-from fastapi import APIRouter, File, UploadFile
+from fastapi import APIRouter, File, HTTPException, UploadFile
 from fastapi.responses import FileResponse, HTMLResponse, StreamingResponse
 from PIL import Image, ImageDraw
 from pydantic import BaseModel
 
-# Constants for CSV upload
-PLACEHOLDER_VALUES = {"none", "n/a", "na", "tbd", "tba", "-", ""}
-
-from logic.config import load_config, save_config
+from logic.config import CONFIG_PATH, load_config, save_config
 from logic.placement import normalize_preference
 from logic.scoring import compute_efficiency, compute_priority
+
+# Constants for CSV upload
+PLACEHOLDER_VALUES = {"none", "n/a", "na", "tbd", "tba", "-", ""}
 
 
 class DiscordMapRequest(BaseModel):
@@ -96,6 +96,84 @@ def index():
         HTML page from static/index.html.
     """
     return FileResponse(os.path.join(BASE_DIR, "static", "index.html"))
+
+
+@router.get("/admin", response_class=HTMLResponse)
+def admin_page():
+    """Serve the admin configuration editor page.
+
+    Returns:
+        HTML page for editing config.json.
+    """
+    admin_path = os.path.join(BASE_DIR, "static", "admin.html")
+    return FileResponse(admin_path)
+
+
+class ConfigUpdate(BaseModel):
+    """Request model for updating configuration."""
+
+    content: str
+
+
+@router.get("/api/admin/config")
+def get_config_raw():
+    """Get the raw config.json content.
+
+    Returns:
+        Dictionary containing the raw JSON content as a string.
+
+    Raises:
+        HTTPException: If config file cannot be read.
+    """
+    try:
+        with open(CONFIG_PATH, "r", encoding="utf-8") as f:
+            content = f.read()
+        return {"content": content}
+    except FileNotFoundError:
+        raise HTTPException(status_code=404, detail="Config file not found")
+    except Exception as e:
+        raise HTTPException(
+            status_code=500, detail=f"Error reading config file: {str(e)}"
+        )
+
+
+@router.post("/api/admin/config")
+async def update_config_raw(data: ConfigUpdate):
+    """Update the config.json file with new content.
+
+    Validates that the content is valid JSON before saving.
+
+    Args:
+        data: ConfigUpdate object containing the new JSON content.
+
+    Returns:
+        Success message.
+
+    Raises:
+        HTTPException: If JSON is invalid or file cannot be saved.
+    """
+    try:
+        # Validate JSON
+        parsed_config = json.loads(data.content)
+    except json.JSONDecodeError as e:
+        raise HTTPException(status_code=400, detail=f"Invalid JSON: {str(e)}")
+
+    try:
+        # Save the config
+        with open(CONFIG_PATH, "w", encoding="utf-8") as f:
+            # Use indent=2 to match existing format
+            json.dump(parsed_config, f, indent=2, ensure_ascii=False)
+
+        # Notify connected clients about the update
+        from server.broadcast import notify_config_updated
+
+        await notify_config_updated()
+
+        return {"success": True, "message": "Configuration updated successfully"}
+    except Exception as e:
+        raise HTTPException(
+            status_code=500, detail=f"Error saving config file: {str(e)}"
+        )
 
 
 @router.get("/api/map")

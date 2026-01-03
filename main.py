@@ -15,7 +15,6 @@ from fastapi import FastAPI, Request
 from fastapi.responses import StreamingResponse
 from fastapi.staticfiles import StaticFiles
 
-from server.admin import router as admin_router
 from server.broadcast import subscribers
 from server.castles import router as castles_router
 from server.intents import router as intents_router
@@ -29,7 +28,6 @@ load_dotenv()
 app = FastAPI(title="Bear Planner MVP")
 
 # Include all routers
-app.include_router(admin_router)
 app.include_router(sync_router)
 app.include_router(routes_router)
 app.include_router(castles_router)
