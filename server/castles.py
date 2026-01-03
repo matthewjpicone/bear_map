@@ -247,7 +247,11 @@ async def add_castle(payload: Dict[str, Any] = Body(None)):
 
     # Validate preference is in allowed list
     if preference not in VALID_PREFERENCES:
-        raise HTTPException(400, f"Invalid preference '{preference}'. Must be one of: {', '.join(VALID_PREFERENCES)}")
+        raise HTTPException(
+            400,
+            f"Invalid preference '{preference}'. "
+            f"Must be one of: {', '.join(VALID_PREFERENCES)}"
+        )
 
     new_id = custom_id
 
@@ -274,11 +278,11 @@ async def add_castle(payload: Dict[str, Any] = Body(None)):
 
     # Save config to file
     save_config(config)
-    
+
     # Broadcast update to all connected clients
     await notify_config_updated()
-    
-    return {"success": True, "id": new_id, "castle": new_castle}
+
+    return {"success": True, "id": new_id}
 
 
 @router.post("/api/castles/delete")
@@ -316,6 +320,3 @@ async def delete_castle(data: Dict[str, Any] = Body(...)):
 
     await notify_config_updated()
     return {"success": True}
-
-
-
