@@ -275,13 +275,8 @@ async def add_castle(payload: Dict[str, Any] = Body(None)):
     }
 
     config["castles"].append(new_castle)
-
-    # Save config to file
     save_config(config)
-
-    # Broadcast update to all connected clients
     await notify_config_updated()
-
     return {"success": True, "id": new_id}
 
 
