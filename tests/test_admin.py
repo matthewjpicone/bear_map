@@ -1,7 +1,7 @@
 """
 Tests for admin configuration editor.
 
-Run with: PYTHONPATH=/home/runner/work/bear_map/bear_map python tests/test_admin.py
+Run with: PYTHONPATH=. python tests/test_admin.py
 """
 
 import json

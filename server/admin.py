@@ -16,6 +16,7 @@ from fastapi.responses import FileResponse, HTMLResponse
 from pydantic import BaseModel
 
 from logic.config import CONFIG_PATH
+from server.broadcast import notify_config_updated
 
 router = APIRouter()
 
@@ -90,8 +91,6 @@ async def update_config(data: ConfigUpdate):
             json.dump(parsed_config, f, indent=2, ensure_ascii=False)
 
         # Notify connected clients about the update
-        from server.broadcast import notify_config_updated
-
         await notify_config_updated()
 
         return {"success": True, "message": "Configuration updated successfully"}
