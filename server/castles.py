@@ -235,7 +235,7 @@ async def add_castle(payload: Dict[str, Any] = Body(None)):
     discord_username = payload.get("discord_username", "").strip()
     power = payload.get("power", 0)
     player_level = payload.get("player_level", 0)
-    preference = payload.get("preference", "Both")
+    preference = payload.get("preference", "BT1/2")
 
     # Castle ID is required
     if not custom_id:
@@ -245,32 +245,40 @@ async def add_castle(payload: Dict[str, Any] = Body(None)):
     if any(c.get("id") == custom_id for c in castles):
         raise HTTPException(400, f"Castle ID '{custom_id}' already exists")
 
+    # Validate preference is in allowed list
+    if preference not in VALID_PREFERENCES:
+        raise HTTPException(400, f"Invalid preference '{preference}'. Must be one of: {', '.join(VALID_PREFERENCES)}")
+
     new_id = custom_id
 
-    config["castles"].append(
-        {
-            "id": new_id,
-            "player": player_name,
-            "discord_username": discord_username,
-            "power": power,
-            "player_level": player_level,
-            "command_centre_level": 0,
-            "attendance": 0,
-            "rallies_30min": 5,
-            "preference": preference,
-            "locked": False,
-            "priority": None,
-            "efficiency": None,
-            "round_trip": "NA",
-            "last_updated": None,
-            "x": None,
-            "y": None,
-        }
-    )
+    new_castle = {
+        "id": new_id,
+        "player": player_name,
+        "discord_username": discord_username,
+        "power": power,
+        "player_level": player_level,
+        "command_centre_level": 0,
+        "attendance": 0,
+        "rallies_30min": 5,
+        "preference": preference,
+        "locked": False,
+        "priority": None,
+        "efficiency": None,
+        "round_trip": "NA",
+        "last_updated": None,
+        "x": None,
+        "y": None,
+    }
 
+    config["castles"].append(new_castle)
+
+    # Save config to file
     save_config(config)
+    
+    # Broadcast update to all connected clients
     await notify_config_updated()
-    return {"success": True, "id": new_id}
+    
+    return {"success": True, "id": new_id, "castle": new_castle}
 
 
 @router.post("/api/castles/delete")

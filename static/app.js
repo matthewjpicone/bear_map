@@ -2609,7 +2609,7 @@ function openAddCastleModal() {
     document.getElementById('addCastleDiscord').value = '';
     document.getElementById('addCastlePower').value = '';
     document.getElementById('addCastleLevel').value = '25';
-    document.getElementById('addCastlePreference').value = 'Both';
+    document.getElementById('addCastlePreference').value = 'BT1/2';
 
     // Show modal
     document.getElementById('addCastleModal').style.display = 'block';
