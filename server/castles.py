@@ -207,12 +207,12 @@ async def bulk_update_castles(payload: Dict[str, Any] = Body(...)):
 async def add_castle(payload: Dict[str, Any] = Body(None)):
     """Add a new castle to the map.
 
-    Creates a new castle with provided or default values. The castle is
+    Creates a new castle with provided values. The castle is
     initially unplaced (x and y are None).
 
     Args:
-        payload: Optional dictionary containing:
-            - id: Optional custom castle ID
+        payload: Dictionary containing:
+            - id: Required castle ID (player account ID)
             - player: Player name
             - discord_username: Discord username
             - power: Castle power
@@ -223,7 +223,7 @@ async def add_castle(payload: Dict[str, Any] = Body(None)):
         Dictionary with success status and new castle ID.
 
     Raises:
-        HTTPException: If custom castle ID already exists.
+        HTTPException: If castle ID is not provided or already exists.
     """
     config = load_config()
     castles = config.get("castles", [])
@@ -237,27 +237,15 @@ async def add_castle(payload: Dict[str, Any] = Body(None)):
     player_level = payload.get("player_level", 0)
     preference = payload.get("preference", "Both")
 
-    # Determine castle ID
-    if custom_id:
-        # Check if custom ID already exists
-        if any(c.get("id") == custom_id for c in castles):
-            raise HTTPException(400, f"Castle ID '{custom_id}' already exists")
-        new_id = custom_id
-    else:
-        # Generate new ID - extract numeric part from existing castle IDs
-        existing_ids = []
-        for c in castles:
-            castle_id = c.get("id", "")
-            if isinstance(castle_id, str) and castle_id.startswith("Castle "):
-                try:
-                    existing_ids.append(int(castle_id.split(" ")[1]))
-                except (ValueError, IndexError):
-                    pass
-            elif isinstance(castle_id, int):
-                existing_ids.append(castle_id)
+    # Castle ID is required
+    if not custom_id:
+        raise HTTPException(400, "Castle ID is required")
 
-        new_num = max(existing_ids, default=0) + 1
-        new_id = f"Castle {new_num}"
+    # Check if custom ID already exists
+    if any(c.get("id") == custom_id for c in castles):
+        raise HTTPException(400, f"Castle ID '{custom_id}' already exists")
+
+    new_id = custom_id
 
     config["castles"].append(
         {

@@ -2637,6 +2637,11 @@ async function submitAddCastle() {
     const preference = document.getElementById('addCastlePreference').value;
 
     // Validate inputs
+    if (!castleId) {
+        showToast('Castle ID is required', 'error');
+        return;
+    }
+
     if (!playerName) {
         showToast('Player name is required', 'error');
         return;
@@ -2673,17 +2678,13 @@ async function submitAddCastle() {
 
         // Build request body
         const body = {
+            id: castleId,
             player: playerName,
             discord_username: discordUsername,
             power: power,
             player_level: level,
             preference: preference
         };
-
-        // Add castle ID only if provided
-        if (castleId) {
-            body.id = castleId;
-        }
 
         // Call API to create castle
         const response = await fetch('/api/castles/add', {
