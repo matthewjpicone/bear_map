@@ -310,28 +310,4 @@ async def delete_castle(data: Dict[str, Any] = Body(...)):
     return {"success": True}
 
 
-@router.post("/api/upload_csv")
-async def upload_csv(csv_file: UploadFile = File(...)):
-    """Upload and parse a CSV file to update castle data.
 
-    The CSV should contain castle information with columns matching the castle fields.
-    This is a placeholder that acknowledges the upload but doesn't process it yet.
-
-    Args:
-        csv_file: Uploaded CSV file.
-
-    Returns:
-        Dictionary with success status and filename.
-    """
-    # Placeholder: In a full implementation, we would:
-    # 1. Read and parse the CSV content
-    # 2. Validate the data
-    # 3. Merge with existing castles (match by player name or ID)
-    # 4. Recompute priorities and efficiency
-    # 5. Save config and broadcast update
-
-    return {
-        "success": True,
-        "filename": csv_file.filename,
-        "message": "CSV upload received",
-    }

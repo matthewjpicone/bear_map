@@ -19,7 +19,11 @@ from fastapi.responses import FileResponse, HTMLResponse, StreamingResponse
 from PIL import Image, ImageDraw
 from pydantic import BaseModel
 
+# Constants for CSV upload
+PLACEHOLDER_VALUES = {"none", "n/a", "na", "tbd", "tba", "-", ""}
+
 from logic.config import load_config, save_config
+from logic.placement import normalize_preference
 from logic.scoring import compute_efficiency, compute_priority
 
 
@@ -31,6 +35,18 @@ class DiscordMapRequest(BaseModel):
 
 
 TILE_SIZE = 40
+
+
+def normalize_preference_uppercase(value: str) -> str:
+    """Wrapper to normalize preference and convert to uppercase for config storage.
+    
+    Args:
+        value: Preference string from CSV.
+    
+    Returns:
+        Uppercase normalized preference (BT1, BT2, BT1/2, BT2/1).
+    """
+    return normalize_preference(value).upper()
 
 
 def parse_power(s: str) -> int:
@@ -203,91 +219,268 @@ def download_csv():
 
 @router.post("/api/upload_csv")
 async def upload_csv(file: UploadFile = File(...)):
-    """Upload castle data from CSV file or raw text.
+    """Upload castle data from CSV file.
 
-    Merges with existing data: updates matching players, adds new ones.
+    Flexible CSV upload that matches by ID or player name and updates all provided fields.
+    Supports various CSV formats - any columns matching castle field names will be updated.
 
     Args:
-        file: File containing castle data (CSV or raw text).
+        file: CSV file containing castle data with headers.
 
     Returns:
         Success message with number of castles updated/added.
     """
+    from logic.validation import (
+        ALLOWED_CASTLE_FIELDS,
+        VALID_PREFERENCES,
+        sanitise_int,
+        sanitise_player_name,
+    )
+
     content = await file.read()
     text = content.decode("utf-8").strip()
 
-    # Parse the data
-    lines = text.split("\n")
-    if not lines or lines[0].strip() != "name,power,level":
-        # Assume it's raw text, try to parse as comma-separated
-        # But for now, assume it's the format
-        pass
+    if not text:
+        return {"success": False, "message": "Empty file"}
 
-    parsed_data = []
-    for line in lines[1:]:
-        line = line.strip()
-        if not line:
-            continue
-        parts = [p.strip() for p in line.split(",")]
-        if len(parts) != 3:
-            continue
-        name, power_str, level_str = parts
-        try:
-            power = parse_power(power_str)
-            level = int(level_str)
-            parsed_data.append(
-                {
-                    "player": name,
-                    "power": power,
-                    "player_level": level,
-                }
-            )
-        except ValueError:
-            continue  # Skip invalid lines
+    # Parse CSV with headers
+    try:
+        csv_reader = csv.DictReader(StringIO(text))
+        rows = list(csv_reader)
+    except Exception as e:
+        return {"success": False, "message": f"Failed to parse CSV: {str(e)}"}
 
-    if not parsed_data:
-        return {"success": False, "message": "No valid data found in file"}
+    if not rows:
+        return {"success": False, "message": "No data rows found in CSV"}
+
+    # Map common variations of field names to internal field names
+    field_mapping = {
+        "id": "id",
+        "castle_id": "id",
+        "player_id": "id",
+        "player": "player",
+        "player_name": "player",
+        "name": "player",
+        "discord_username": "discord_username",
+        "discord": "discord_username",
+        "power": "power",
+        "player_level": "player_level",
+        "level": "player_level",
+        "command_centre_level": "command_centre_level",
+        "cc_level": "command_centre_level",
+        "cc": "command_centre_level",
+        "attendance": "attendance",
+        "attendance_count": "attendance",
+        "rallies_30min": "rallies_30min",
+        "rallies": "rallies_30min",
+        "preference": "preference",
+        "pref": "preference",
+        "trap_preference": "preference",
+        "current_trap": "current_trap",
+        "recommended_trap": "recommended_trap",
+        "x": "x",
+        "y": "y",
+        "locked": "locked",
+    }
 
     config = load_config()
     existing_castles = config.get("castles", [])
+
+    # Build lookup maps for matching
+    existing_by_id = {c.get("id"): c for c in existing_castles if c.get("id")}
     existing_by_player = {
-        c.get("player", ""): c for c in existing_castles if c.get("player")
+        c.get("player", "").lower(): c for c in existing_castles if c.get("player")
     }
 
     now = datetime.now().isoformat()
+    
+    # Calculate the next available ID for new castles without an ID
+    max_castle_num = 0
+    for existing_id in existing_by_id.keys():
+        if existing_id.startswith("Castle "):
+            try:
+                num = int(existing_id.split(" ")[1])
+                max_castle_num = max(max_castle_num, num)
+            except (ValueError, IndexError):
+                pass
+    next_castle_num = max_castle_num + 1
     updated_count = 0
     added_count = 0
+    error_lines = []
 
-    for data in parsed_data:
-        player = data["player"]
-        if player in existing_by_player:
-            # Update existing
-            existing_by_player[player].update(data)
-            existing_by_player[player]["last_updated"] = now
-            updated_count += 1
+    for row_idx, row in enumerate(rows, start=2):  # Start at 2 (header is row 1)
+        # Normalize the row keys to lowercase for case-insensitive matching
+        # Also filter out empty values and special placeholder values
+        normalized_row = {}
+        for k, v in row.items():
+            if v:
+                v_stripped = v.strip().lower()
+                # Skip empty and placeholder values
+                if v_stripped and v_stripped not in PLACEHOLDER_VALUES:
+                    normalized_row[k.lower().strip()] = v.strip()
+
+        if not normalized_row:
+            continue
+
+        # Extract and map fields from CSV
+        parsed_data = {}
+        csv_id = None
+        csv_player = None
+
+        for csv_field, value in normalized_row.items():
+            internal_field = field_mapping.get(csv_field)
+            if not internal_field:
+                continue  # Skip unknown fields
+
+            # Special handling for ID and player (used for matching)
+            if internal_field == "id":
+                csv_id = value
+                parsed_data["id"] = value
+            elif internal_field == "player":
+                csv_player = value
+                parsed_data["player"] = value
+            else:
+                parsed_data[internal_field] = value
+
+        # If we have an ID but no player name, use ID as player name
+        # This handles formats where player_id is actually the player name
+        if csv_id and not csv_player:
+            csv_player = csv_id
+            parsed_data["player"] = csv_id
+
+        # Try to match existing castle by ID first, then by player name
+        # Note: Only match by player name if no ID was provided in CSV
+        matched_castle = None
+        if csv_id:
+            if csv_id in existing_by_id:
+                matched_castle = existing_by_id[csv_id]
+            # If CSV has an ID but it doesn't exist, don't fall back to player matching
+            # This prevents accidental updates to wrong castles
+        elif csv_player:
+            # Only match by player name if no ID was provided
+            matched_castle = existing_by_player.get(csv_player.lower())
+
+        if matched_castle:
+            # Update existing castle
+            any_fields_changed = False
+            try:
+                for field, value in parsed_data.items():
+                    if field == "id":
+                        continue  # Don't change ID
+
+                    # Validate and sanitize based on field type
+                    if field == "player":
+                        matched_castle["player"] = sanitise_player_name(value)
+                        any_fields_changed = True
+                    elif field == "discord_username":
+                        matched_castle["discord_username"] = sanitise_player_name(value)
+                        any_fields_changed = True
+                    elif field == "preference":
+                        normalized_pref = normalize_preference_uppercase(value)
+                        matched_castle["preference"] = normalized_pref
+                        any_fields_changed = True
+                    elif field == "attendance":
+                        matched_castle["attendance"] = sanitise_int(value, allow_none=True)
+                        any_fields_changed = True
+                    elif field == "power":
+                        matched_castle["power"] = (
+                            parse_power(value) if isinstance(value, str) else sanitise_int(value)
+                        )
+                        any_fields_changed = True
+                    elif field in ["player_level", "command_centre_level", "rallies_30min"]:
+                        matched_castle[field] = sanitise_int(value)
+                        any_fields_changed = True
+                    elif field in ["x", "y"]:
+                        matched_castle[field] = sanitise_int(value, allow_none=True)
+                        any_fields_changed = True
+                    elif field == "locked":
+                        # Parse boolean
+                        if isinstance(value, str):
+                            matched_castle["locked"] = value.lower() in ["true", "1", "yes"]
+                        else:
+                            matched_castle["locked"] = bool(value)
+                        any_fields_changed = True
+                    elif field in ["current_trap", "recommended_trap"]:
+                        matched_castle[field] = str(value)
+                        any_fields_changed = True
+
+                if any_fields_changed:
+                    matched_castle["last_updated"] = now
+
+                updated_count += 1
+
+            except Exception as e:
+                error_lines.append(f"Row {row_idx}: {str(e)}")
+                continue
         else:
-            # Add new
-            castle = {
-                "id": f"Castle {len(existing_castles) + added_count + 1}",
-                "player": player,
-                "power": data["power"],
-                "player_level": data["player_level"],
-                "command_centre_level": 0,  # default
-                "attendance": None,  # default
-                "rallies_30min": 0,
-                "preference": "BT1/2",  # default
-                "current_trap": "",
-                "recommended_trap": "",
-                "priority_score": 0.0,
-                "efficiency_score": 0.0,
-                "round_trip": None,
-                "last_updated": now,
-                "x": None,
-                "y": None,
-                "locked": False,
-            }
-            existing_castles.append(castle)
-            added_count += 1
+            # Add new castle
+            try:
+                # Determine castle ID
+                if csv_id:
+                    new_id = csv_id
+                else:
+                    # Use and increment the castle number counter
+                    new_id = f"Castle {next_castle_num}"
+                    next_castle_num += 1
+
+                # Check if new ID already exists
+                if new_id in existing_by_id:
+                    error_lines.append(f"Row {row_idx}: Castle ID '{new_id}' already exists")
+                    continue
+
+                # Build new castle with defaults
+                new_castle = {
+                    "id": new_id,
+                    "player": sanitise_player_name(parsed_data.get("player", ""))
+                    if "player" in parsed_data
+                    else "",
+                    "discord_username": sanitise_player_name(
+                        parsed_data.get("discord_username", "")
+                    )
+                    if "discord_username" in parsed_data
+                    else "",
+                    "power": parse_power(parsed_data.get("power", "0"))
+                    if isinstance(parsed_data.get("power"), str)
+                    else sanitise_int(parsed_data.get("power", 0)),
+                    "player_level": sanitise_int(parsed_data.get("player_level", 0)),
+                    "command_centre_level": sanitise_int(
+                        parsed_data.get("command_centre_level", 0)
+                    ),
+                    "attendance": sanitise_int(parsed_data.get("attendance"), allow_none=True)
+                    if "attendance" in parsed_data
+                    else None,
+                    "rallies_30min": sanitise_int(parsed_data.get("rallies_30min", 0)),
+                    "preference": normalize_preference_uppercase(parsed_data.get("preference", "BT1/2")),
+                    "current_trap": parsed_data.get("current_trap", ""),
+                    "recommended_trap": parsed_data.get("recommended_trap", ""),
+                    "priority_score": 0.0,
+                    "efficiency_score": 0.0,
+                    "round_trip": None,
+                    "last_updated": now,
+                    "x": sanitise_int(parsed_data.get("x"), allow_none=True)
+                    if "x" in parsed_data
+                    else None,
+                    "y": sanitise_int(parsed_data.get("y"), allow_none=True)
+                    if "y" in parsed_data
+                    else None,
+                    "locked": False,
+                }
+
+                existing_castles.append(new_castle)
+                existing_by_id[new_id] = new_castle
+                if new_castle["player"]:
+                    existing_by_player[new_castle["player"].lower()] = new_castle
+                added_count += 1
+
+            except Exception as e:
+                error_lines.append(f"Row {row_idx}: {str(e)}")
+                continue
+
+    if updated_count == 0 and added_count == 0:
+        error_msg = "No castles were updated or added."
+        if error_lines:
+            error_msg += " Errors: " + "; ".join(error_lines[:5])
+        return {"success": False, "message": error_msg}
 
     config["castles"] = existing_castles
 
@@ -302,9 +495,14 @@ async def upload_csv(file: UploadFile = File(...)):
 
     await notify_config_updated()
 
+    message = f"Updated {updated_count} castles, added {added_count} new castles"
+    if error_lines:
+        message += f". {len(error_lines)} errors occurred."
+
     return {
         "success": True,
-        "message": f"Updated {updated_count} castles, added {added_count} new castles",
+        "message": message,
+        "errors": error_lines[:10] if error_lines else [],  # Return first 10 errors
     }
 
 
