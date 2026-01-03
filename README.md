@@ -27,6 +27,20 @@ The app loads its state from `config.json` at startup and persists changes via
 `POST /api/save`. Player data is exposed
 for download via `/players.csv`.
 
+### Admin Configuration Editor
+
+An administrative interface is available at `/admin` for directly editing the `config.json` file in raw form. This page provides:
+
+- **Direct JSON Editing**: Edit the entire configuration file in a large, scrollable textarea
+- **Real-time Validation**: JSON syntax is validated before saving
+- **Error Handling**: Clear error messages for invalid JSON or save failures
+- **Server-side Persistence**: Changes are saved directly to `config.json` on the server
+- **Client Notification**: Connected clients are automatically notified of configuration updates
+
+**Access the admin page at**: <http://localhost:3000/admin>
+
+**Warning**: This is a powerful tool - invalid JSON will be rejected, and changes affect all users immediately.
+
 ### Environment Variables
 
 Create a `.env` file (see `.env.example`) with the following configuration:
