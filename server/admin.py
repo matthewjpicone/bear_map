@@ -21,7 +21,6 @@ from server.broadcast import notify_config_updated
 router = APIRouter()
 
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-TEMPLATE_DIR = os.path.join(BASE_DIR, "templates")
 
 
 class ConfigUpdate(BaseModel):
@@ -37,8 +36,8 @@ def admin_page():
     Returns:
         HTML page for editing config.json.
     """
-    template_path = os.path.join(TEMPLATE_DIR, "admin.html")
-    return FileResponse(template_path)
+    admin_path = os.path.join(BASE_DIR, "static", "admin.html")
+    return FileResponse(admin_path)
 
 
 @router.get("/api/admin/config")
