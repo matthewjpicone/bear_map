@@ -19,6 +19,9 @@ from fastapi.responses import FileResponse, HTMLResponse, StreamingResponse
 from PIL import Image, ImageDraw
 from pydantic import BaseModel
 
+# Constants for CSV upload
+PLACEHOLDER_VALUES = {"none", "n/a", "na", "tbd", "tba", "-", ""}
+
 from logic.config import load_config, save_config
 from logic.scoring import compute_efficiency, compute_priority
 
@@ -315,6 +318,17 @@ async def upload_csv(file: UploadFile = File(...)):
     }
 
     now = datetime.now().isoformat()
+    
+    # Calculate the next available ID for new castles without an ID
+    max_castle_num = 0
+    for existing_id in existing_by_id.keys():
+        if existing_id.startswith("Castle "):
+            try:
+                num = int(existing_id.split(" ")[1])
+                max_castle_num = max(max_castle_num, num)
+            except (ValueError, IndexError):
+                pass
+    next_castle_num = max_castle_num + 1
     updated_count = 0
     added_count = 0
     error_lines = []
@@ -326,8 +340,8 @@ async def upload_csv(file: UploadFile = File(...)):
         for k, v in row.items():
             if v:
                 v_stripped = v.strip().lower()
-                # Skip empty, "none", "n/a", "na" values
-                if v_stripped and v_stripped not in ["none", "n/a", "na", ""]:
+                # Skip empty and placeholder values
+                if v_stripped and v_stripped not in PLACEHOLDER_VALUES:
                     normalized_row[k.lower().strip()] = v.strip()
 
         if not normalized_row:
@@ -360,15 +374,20 @@ async def upload_csv(file: UploadFile = File(...)):
             parsed_data["player"] = csv_id
 
         # Try to match existing castle by ID first, then by player name
+        # Note: Only match by player name if no ID was provided in CSV
         matched_castle = None
-        if csv_id and csv_id in existing_by_id:
-            matched_castle = existing_by_id[csv_id]
+        if csv_id:
+            if csv_id in existing_by_id:
+                matched_castle = existing_by_id[csv_id]
+            # If CSV has an ID but it doesn't exist, don't fall back to player matching
+            # This prevents accidental updates to wrong castles
         elif csv_player:
+            # Only match by player name if no ID was provided
             matched_castle = existing_by_player.get(csv_player.lower())
 
         if matched_castle:
             # Update existing castle
-            data_fields_changed = False
+            any_fields_changed = False
             try:
                 for field, value in parsed_data.items():
                     if field == "id":
@@ -377,36 +396,40 @@ async def upload_csv(file: UploadFile = File(...)):
                     # Validate and sanitize based on field type
                     if field == "player":
                         matched_castle["player"] = sanitise_player_name(value)
-                        data_fields_changed = True
+                        any_fields_changed = True
                     elif field == "discord_username":
                         matched_castle["discord_username"] = sanitise_player_name(value)
-                        data_fields_changed = True
+                        any_fields_changed = True
                     elif field == "preference":
                         normalized_pref = normalize_preference(value)
                         matched_castle["preference"] = normalized_pref
+                        any_fields_changed = True
                     elif field == "attendance":
                         matched_castle["attendance"] = sanitise_int(value, allow_none=True)
+                        any_fields_changed = True
                     elif field == "power":
                         matched_castle["power"] = (
                             parse_power(value) if isinstance(value, str) else sanitise_int(value)
                         )
-                        data_fields_changed = True
+                        any_fields_changed = True
                     elif field in ["player_level", "command_centre_level", "rallies_30min"]:
                         matched_castle[field] = sanitise_int(value)
-                        if field in ["player_level", "command_centre_level"]:
-                            data_fields_changed = True
+                        any_fields_changed = True
                     elif field in ["x", "y"]:
                         matched_castle[field] = sanitise_int(value, allow_none=True)
+                        any_fields_changed = True
                     elif field == "locked":
                         # Parse boolean
                         if isinstance(value, str):
                             matched_castle["locked"] = value.lower() in ["true", "1", "yes"]
                         else:
                             matched_castle["locked"] = bool(value)
+                        any_fields_changed = True
                     elif field in ["current_trap", "recommended_trap"]:
                         matched_castle[field] = str(value)
+                        any_fields_changed = True
 
-                if data_fields_changed:
+                if any_fields_changed:
                     matched_castle["last_updated"] = now
 
                 updated_count += 1
@@ -421,16 +444,9 @@ async def upload_csv(file: UploadFile = File(...)):
                 if csv_id:
                     new_id = csv_id
                 else:
-                    # Find the highest castle number to avoid conflicts
-                    max_num = 0
-                    for existing_id in existing_by_id.keys():
-                        if existing_id.startswith("Castle "):
-                            try:
-                                num = int(existing_id.split(" ")[1])
-                                max_num = max(max_num, num)
-                            except (ValueError, IndexError):
-                                pass
-                    new_id = f"Castle {max_num + added_count + 1}"
+                    # Use and increment the castle number counter
+                    new_id = f"Castle {next_castle_num}"
+                    next_castle_num += 1
 
                 # Check if new ID already exists
                 if new_id in existing_by_id:
