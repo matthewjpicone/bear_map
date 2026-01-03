@@ -238,9 +238,22 @@
      style="display: none; position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); background: var(--panel); border: 1px solid var(--border); padding: 20px; z-index: 10; border-radius: 8px; min-width: 350px;">
     <h3>Add New Castle</h3>
     <div style="margin: 15px 0;">
+        <label style="display: block; margin-bottom: 5px; font-weight: 500;">Castle ID</label>
+        <input id="addCastleId" placeholder="e.g., Castle 42 (leave empty to auto-generate)"
+               style="width: 100%; padding: 8px; border: 1px solid var(--border); border-radius: 4px; background: var(--surface); color: var(--text);"
+               type="text"/>
+        <small style="color: var(--text-secondary); font-size: 0.85em;">Leave empty to auto-generate next available ID</small>
+    </div>
+    <div style="margin: 15px 0;">
         <label style="display: block; margin-bottom: 5px; font-weight: 500;">Player Name
             *</label>
         <input id="addCastleName" placeholder="Enter player name"
+               style="width: 100%; padding: 8px; border: 1px solid var(--border); border-radius: 4px; background: var(--surface); color: var(--text);"
+               type="text"/>
+    </div>
+    <div style="margin: 15px 0;">
+        <label style="display: block; margin-bottom: 5px; font-weight: 500;">Discord Username</label>
+        <input id="addCastleDiscord" placeholder="e.g., @username"
                style="width: 100%; padding: 8px; border: 1px solid var(--border); border-radius: 4px; background: var(--surface); color: var(--text);"
                type="text"/>
     </div>
