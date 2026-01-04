@@ -352,6 +352,8 @@ function escapeRegex(str) {
  * @returns {DocumentFragment} Document fragment with highlighted text
  */
 function highlightText(text, query) {
+    // Convert text to string to handle numbers and other types
+    text = String(text || "");
     if (!query) return document.createTextNode(text);
 
     const regex = new RegExp(`(${escapeRegex(query)})`, "ig");
@@ -995,42 +997,72 @@ function renderCastleTable() {
     castles.forEach(c => {
         const tr = document.createElement("tr");
         tr.dataset.castleId = c.id;
+    // ANTI-FLICKER: Build a map of existing rows by castle ID
+    const existingRows = new Map();
+    Array.from(tbody.children).forEach(row => {
+        const castleId = row.dataset.castleId;
+        if (castleId) {
+            existingRows.set(castleId, row);
+        }
+    });
 
-        tr.addEventListener("mouseenter", (e) => {
-            hoveredCastleId = c.id;
-            // Show tooltip immediately on table hover for better UX
-            // Table context: User intentionally hovering over specific row to read data
-            // Canvas context: 1500ms delay prevents accidental triggers during map navigation
-            showCastleTooltip(c, e.clientX, e.clientY);
-        });
-        tr.addEventListener("mouseleave", () => {
-            hoveredCastleId = null;
-            hideCastleTooltip();
-        });
-        tr.addEventListener("mousemove", (e) => {
-            // Update tooltip position as mouse moves over table row
-            if (hoveredCastleId === c.id) {
+    // ANTI-FLICKER: Build a set of castle IDs that should be visible
+    const visibleIds = new Set(castles.map(c => c.id));
+
+    // ANTI-FLICKER: Remove rows that shouldn't be visible
+    Array.from(tbody.children).forEach(row => {
+        const castleId = row.dataset.castleId;
+        if (castleId && !visibleIds.has(castleId)) {
+            row.remove();
+        }
+    });
+
+    // ANTI-FLICKER: Add or update rows in correct order
+    castles.forEach((c, index) => {
+        const existingRow = existingRows.get(c.id);
+        const isNewRow = !existingRow;
+        const tr = existingRow || document.createElement("tr");
+        
+        // ANTI-FLICKER: Skip rebuilding existing rows if no search is active
+        // This prevents unnecessary DOM manipulation that causes flickering
+        const shouldRebuild = isNewRow || query.length > 0;
+        
+        if (shouldRebuild) {
+            // Clear existing content if updating
+            if (existingRow) {
+                tr.innerHTML = "";
+                // Remove fade-in class to prevent animation on updates
+                tr.classList.remove("fade-in");
+            } else {
+                tr.dataset.castleId = c.id; // Track castle ID for animations
+                tr.classList.add("fade-in"); // Add fade-in animation for new rows only
+            }
+        }
+
+        // Re-attach event listeners only for new rows (existing rows keep their listeners)
+        if (isNewRow) {
+            tr.addEventListener("mouseenter", (e) => {
+                hoveredCastleId = c.id;
+                // Show tooltip immediately on table hover for better UX
+                // Table context: User intentionally hovering over specific row to read data
+                // Canvas context: 1500ms delay prevents accidental triggers during map navigation
                 showCastleTooltip(c, e.clientX, e.clientY);
-            }
-        });
-        tr.addEventListener("click", (e) => {
-            // Don't pan if clicking on checkbox or input elements
-            if (e.target.type === 'checkbox' || e.target.tagName === 'INPUT' || e.target.tagName === 'SELECT' || e.target.tagName === 'BUTTON') {
-                return;
-            }
-
-            // Pan to center of castle in rotated view
-            const castleCenterX = c.x * TILE_SIZE + TILE_SIZE;
-            const castleCenterY = c.y * TILE_SIZE + TILE_SIZE;
-            const rad = (ISO_DEG * Math.PI) / 180;
-            const cos = Math.cos(rad);
-            const sin = Math.sin(rad);
-            const rx = castleCenterX * cos - castleCenterY * sin;
-            const ry = castleCenterX * sin + castleCenterY * cos;
-            viewOffsetX = rx;
-            viewOffsetY = ry;
-            drawMap(mapData);
-        });
+            });
+            tr.addEventListener("mouseleave", () => {
+                hoveredCastleId = null;
+                hideCastleTooltip();
+            });
+            tr.addEventListener("mousemove", (e) => {
+                // Update tooltip position as mouse moves over table row
+                if (hoveredCastleId === c.id) {
+                    showCastleTooltip(c, e.clientX, e.clientY);
+                }
+            });
+            tr.addEventListener("click", (e) => {
+                // Don't pan if clicking on checkbox or input elements
+                if (e.target.type === 'checkbox' || e.target.tagName === 'INPUT' || e.target.tagName === 'SELECT' || e.target.tagName === 'BUTTON') {
+                    return;
+                }
 
         /* Checkbox for bulk selection */
         const checkboxTd = document.createElement("td");
@@ -1072,6 +1104,77 @@ function renderCastleTable() {
         tr.appendChild(tdDelete(c));  // Delete
 
         fragment.appendChild(tr);
+                // Pan to center of castle in rotated view
+                const castleCenterX = c.x * TILE_SIZE + TILE_SIZE;
+                const castleCenterY = c.y * TILE_SIZE + TILE_SIZE;
+                const rad = (ISO_DEG * Math.PI) / 180;
+                const cos = Math.cos(rad);
+                const sin = Math.sin(rad);
+                const rx = castleCenterX * cos - castleCenterY * sin;
+                const ry = castleCenterX * sin + castleCenterY * cos;
+                viewOffsetX = rx;
+                viewOffsetY = ry;
+                drawMap(mapData);
+            });
+        }
+
+        // Only rebuild content if necessary (new row or search active)
+        if (shouldRebuild) {
+            /* Checkbox for bulk selection */
+            const checkboxTd = document.createElement("td");
+            checkboxTd.classList.add("checkbox-col");
+            const checkbox = document.createElement("input");
+            checkbox.type = "checkbox";
+            checkbox.dataset.castleId = c.id;
+            checkbox.checked = selectedCastleIds.has(c.id);
+            checkbox.addEventListener('change', (e) => {
+                e.stopPropagation();
+                toggleCastleSelection(c.id, checkbox.checked);
+            });
+            checkboxTd.appendChild(checkbox);
+            tr.appendChild(checkboxTd);
+
+            /* ID */
+            const idTd = document.createElement("td");
+            idTd.appendChild(highlightText(c.id, query));
+            tr.appendChild(idTd);
+
+            /* Player */
+            const playerTd = tdInput("player", c);
+            if (query && c.player?.toLowerCase().includes(query)) {
+                playerTd.querySelector("input")?.classList.add("match-input");
+            }
+            tr.appendChild(playerTd);
+
+            tr.appendChild(tdNumber("power", c));
+            tr.appendChild(tdNumber("player_level", c));
+            tr.appendChild(tdNumber("command_centre_level", c));
+            tr.appendChild(tdSelect("preference", c, ["BT1", "BT2", "BT1/2", "BT2/1"]));
+            tr.appendChild(tdCheckbox("locked", c));
+            tr.appendChild(tdAttendance(c));  // Attendance with +/- buttons
+            tr.appendChild(tdReadonly(c.rallies_30min));  // Read-only Rallies/Session
+            tr.appendChild(tdReadonly(c.round_trip || "NA"));  // New read-only Round Trip Time (s)
+            tr.appendChild(tdReadonlyNumber(c.priority_rank_100));
+            tr.appendChild(tdReadonlyNumber(c.efficiency_score));
+            tr.appendChild(tdReadonly(c.last_updated ? c.last_updated.toLocaleString() : "Never"));  // Last Updated
+            tr.appendChild(tdDelete(c));  // Delete
+        }
+
+        // ANTI-FLICKER: Append in order - new rows or reorder existing rows
+        if (isNewRow) {
+            tbody.appendChild(tr);
+        } else {
+            // Ensure correct order for existing rows
+            const currentIndex = Array.from(tbody.children).indexOf(tr);
+            if (currentIndex !== index) {
+                // Row is not in the correct position, reinsert it
+                if (index >= tbody.children.length) {
+                    tbody.appendChild(tr);
+                } else {
+                    tbody.insertBefore(tr, tbody.children[index]);
+                }
+            }
+        }
     });
 
     // Single atomic DOM update using replaceChildren for minimal flicker
@@ -2457,36 +2560,7 @@ document.getElementById("moveAllOutOfWayBtn")
         );
     });
 
-document
-    .getElementById("uploadCsvBtn")
-    .addEventListener("click", () => {
-        document.getElementById("csvUpload").click();
-    });
 
-document
-    .getElementById("csvUpload")
-    .addEventListener("change", async e => {
-        const file = e.target.files[0];
-        if (!file) return;
-
-        const formData = new FormData();
-        formData.append('csv_file', file);
-
-        try {
-            const response = await fetch('/api/upload_csv', {
-                method: 'POST',
-                body: formData
-            });
-            if (!response.ok) throw new Error('Upload failed');
-            // Server will parse, merge castles, recompute priorities, and broadcast updates/redraws
-        } catch (error) {
-            console.error('Error uploading CSV:', error);
-            alert('Failed to upload CSV');
-        }
-
-        // reset input
-        e.target.value = "";
-    });
 
 // ==========================
 // Sync → App hooks
@@ -3094,11 +3168,15 @@ document.getElementById('csvUpload').addEventListener('change', async (event) =>
             showToast(result.message, 'success');
             // Reload data
             await loadMapData();
+            renderCastleTable();
         } else {
-            showToast('Upload failed', 'error');
+            showToast(result.message || 'Upload failed', 'error');
         }
     } catch (error) {
-        showToast('Upload error', 'error');
+        showToast('Upload error: ' + error.message, 'error');
+    } finally {
+        // Reset input to allow uploading the same file again
+        event.target.value = '';
     }
 });
 
