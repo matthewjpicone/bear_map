@@ -43,7 +43,7 @@ def test_compute_priority():
     for c in result:
         assert "priority_score" in c
         assert "priority_rank_100" in c
-        assert "priority_debug" in c
+        # priority_debug field is no longer set to reduce config.json bloat
 
 
 def test_compute_priority_null_attendance():
