@@ -99,21 +99,8 @@ def compute_priority(castles: List[Dict]) -> List[Dict]:
         )
 
         c["priority_score"] = priority_score
-        c["priority_debug"] = {
-            "n_power": n_power,
-            "n_player_level": n_player_level,
-            "n_cc": n_cc,
-            "n_attendance": n_attendance,
-            "p05_power": p05_power,
-            "p95_power": p95_power,
-            "p05_pl": p05_pl,
-            "p95_pl": p95_pl,
-            "p05_cc": p05_cc,
-            "p95_cc": p95_cc,
-            "p05_att": p05_att,
-            "p95_att": p95_att,
-            "attendance_median": attendance_median,
-        }
+        # priority_debug field removed to reduce config.json bloat (saves ~253 bytes/castle)
+        # Frontend handles missing field with default: priority_debug ?? {}
 
     # Sort for ranking
     sorted_castles = sorted(
