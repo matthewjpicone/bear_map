@@ -9,3 +9,4 @@ server/__pycache__/__init__.cpython-312.pyc
 .venv/
 venv/
 *.log
+config.json
