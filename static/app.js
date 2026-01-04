@@ -930,6 +930,12 @@ function isPointInEntity(gx, gy, entity) {
 
 function renderCastleTable() {
     const tbody = document.getElementById("castleTableBody");
+    const tableWrap = tbody.closest('.table-wrap');
+
+    // Preserve scroll position before rebuilding table
+    const scrollTop = tableWrap?.scrollTop || 0;
+    const scrollLeft = tableWrap?.scrollLeft || 0;
+
     const query = document.getElementById("castleSearch")?.value
         .trim()
         .toLowerCase();
@@ -983,12 +989,12 @@ function renderCastleTable() {
     // Redraw map to apply fading/highlights
     drawMap(mapData);
 
-    tbody.innerHTML = "";
+    // Build all rows in a DocumentFragment first (off-screen) to prevent flicker
+    const fragment = document.createDocumentFragment();
 
     castles.forEach(c => {
         const tr = document.createElement("tr");
-        tr.dataset.castleId = c.id; // Track castle ID for animations
-        tr.classList.add("fade-in"); // Add fade-in animation for new rows
+        tr.dataset.castleId = c.id;
 
         tr.addEventListener("mouseenter", (e) => {
             hoveredCastleId = c.id;
@@ -1065,8 +1071,17 @@ function renderCastleTable() {
         tr.appendChild(tdReadonly(c.last_updated ? c.last_updated.toLocaleString() : "Never"));  // Last Updated
         tr.appendChild(tdDelete(c));  // Delete
 
-        tbody.appendChild(tr);
+        fragment.appendChild(tr);
     });
+
+    // Single atomic DOM update using replaceChildren for minimal flicker
+    tbody.replaceChildren(fragment);
+
+    // Restore scroll position after rebuild
+    if (tableWrap) {
+        tableWrap.scrollTop = scrollTop;
+        tableWrap.scrollLeft = scrollLeft;
+    }
 
     enableTableSorting();
     updateSortIndicators();

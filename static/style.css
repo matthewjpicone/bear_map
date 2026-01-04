@@ -842,8 +842,14 @@ td {
     min-width: 80px; /* Match th */
 }
 
+tbody {
+    contain: layout style;
+}
+
 tbody tr {
     transition: background-color 0.2s ease;
+    content-visibility: auto;
+    contain-intrinsic-size: 0 40px;
 }
 
 tbody tr:hover {
@@ -1045,22 +1051,6 @@ table input::placeholder {
     border-color: var(--accent);
 }
 
-/* ================= ANIMATIONS ================= */
-
-@keyframes fadeIn {
-    from {
-        opacity: 0;
-        transform: translateY(-5px);
-    }
-    to {
-        opacity: 1;
-        transform: translateY(0);
-    }
-}
-
-.fade-in {
-    animation: fadeIn 0.3s ease-out;
-}
 
 /* ================= ACTIONS ================= */
 .actions {
