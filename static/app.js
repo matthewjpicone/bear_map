@@ -2442,36 +2442,7 @@ document.getElementById("moveAllOutOfWayBtn")
         );
     });
 
-document
-    .getElementById("uploadCsvBtn")
-    .addEventListener("click", () => {
-        document.getElementById("csvUpload").click();
-    });
 
-document
-    .getElementById("csvUpload")
-    .addEventListener("change", async e => {
-        const file = e.target.files[0];
-        if (!file) return;
-
-        const formData = new FormData();
-        formData.append('csv_file', file);
-
-        try {
-            const response = await fetch('/api/upload_csv', {
-                method: 'POST',
-                body: formData
-            });
-            if (!response.ok) throw new Error('Upload failed');
-            // Server will parse, merge castles, recompute priorities, and broadcast updates/redraws
-        } catch (error) {
-            console.error('Error uploading CSV:', error);
-            alert('Failed to upload CSV');
-        }
-
-        // reset input
-        e.target.value = "";
-    });
 
 // ==========================
 // Sync → App hooks
@@ -3079,11 +3050,15 @@ document.getElementById('csvUpload').addEventListener('change', async (event) =>
             showToast(result.message, 'success');
             // Reload data
             await loadMapData();
+            renderCastleTable();
         } else {
-            showToast('Upload failed', 'error');
+            showToast(result.message || 'Upload failed', 'error');
         }
     } catch (error) {
-        showToast('Upload error', 'error');
+        showToast('Upload error: ' + error.message, 'error');
+    } finally {
+        // Reset input to allow uploading the same file again
+        event.target.value = '';
     }
 });
 
